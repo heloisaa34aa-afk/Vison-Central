@@ -4,6 +4,7 @@ export interface Media {
   url: string;
   type: 'image' | 'video';
   duration: number; // seconds
+  size?: string;
 }
 
 export interface Playlist {
