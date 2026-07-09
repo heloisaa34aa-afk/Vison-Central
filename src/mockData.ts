@@ -1,0 +1,241 @@
+import { Media, Playlist, Client, Device, AlertLog } from './types';
+
+export const initialMedia: Media[] = [
+  {
+    id: 'm-1',
+    name: 'Dicas de Bem-Estar e Hidratação',
+    url: 'https://images.unsplash.com/photo-1544367567-0f2fcb009e0b?auto=format&fit=crop&w=800&q=80',
+    type: 'image',
+    duration: 10,
+  },
+  {
+    id: 'm-2',
+    name: 'Comunicado: Novo Horário de Funcionamento',
+    url: 'https://images.unsplash.com/photo-1497366216548-37526070297c?auto=format&fit=crop&w=800&q=80',
+    type: 'image',
+    duration: 8,
+  },
+  {
+    id: 'm-3',
+    name: 'Campanha de Vacinação 2026',
+    url: 'https://images.unsplash.com/photo-1584515979956-d9f6e5d09982?auto=format&fit=crop&w=800&q=80',
+    type: 'image',
+    duration: 12,
+  },
+  {
+    id: 'm-4',
+    name: 'Menu de Ofertas Especiais da Semana',
+    url: 'https://images.unsplash.com/photo-1542831371-29b0f74f9713?auto=format&fit=crop&w=800&q=80',
+    type: 'image',
+    duration: 15,
+  },
+  {
+    id: 'm-5',
+    name: 'Foco no Treino - Performance',
+    url: 'https://images.unsplash.com/photo-1517838277536-f5f99be501cd?auto=format&fit=crop&w=800&q=80',
+    type: 'image',
+    duration: 10,
+  },
+  {
+    id: 'm-6',
+    name: 'Vídeo: Paisagens Relaxantes (Loop)',
+    url: 'https://assets.mixkit.co/videos/preview/mixkit-waterfall-in-forest-2213-large.mp4',
+    type: 'video',
+    duration: 20,
+  },
+  {
+    id: 'm-7',
+    name: 'Vídeo: Metrópole em Movimento',
+    url: 'https://assets.mixkit.co/videos/preview/mixkit-city-traffic-at-night-vertical-shot-34533-large.mp4',
+    type: 'video',
+    duration: 15,
+  }
+];
+
+export const initialPlaylists: Playlist[] = [
+  {
+    id: 'p-corp',
+    name: 'Corporativo Padrão (Horizontal)',
+    mediaIds: ['m-2', 'm-1', 'm-6'],
+  },
+  {
+    id: 'p-fitness',
+    name: 'Fitness & Treino (Vertical)',
+    mediaIds: ['m-5', 'm-1', 'm-7'],
+  },
+  {
+    id: 'p-saude',
+    name: 'Sinalização Hospitalar',
+    mediaIds: ['m-3', 'm-1', 'm-2'],
+  },
+  {
+    id: 'p-retail',
+    name: 'Supermercado Promocional',
+    mediaIds: ['m-4', 'm-2', 'm-6'],
+  }
+];
+
+export const initialClients: Client[] = [
+  {
+    id: 'c-1',
+    name: 'Academia SmartFit Pinheiros',
+    category: 'Academia',
+    status: 'Ativo',
+    screensCount: 4,
+    city: 'São Paulo',
+    neighborhood: 'Pinheiros',
+    iconType: 'dumbbell',
+    orientation: 'Vertical',
+    timezone: 'America/Sao_Paulo',
+    playlistId: 'p-fitness',
+    tickerText: 'Aproveite nossa nova área de musculação! Hidrate-se a cada 15 minutos de treino.',
+  },
+  {
+    id: 'c-2',
+    name: 'Hospital Albert Einstein - Recepção',
+    category: 'Hospital/Saúde',
+    status: 'Ativo',
+    screensCount: 8,
+    city: 'São Paulo',
+    neighborhood: 'Morumbi',
+    iconType: 'hospital',
+    orientation: 'Horizontal',
+    timezone: 'America/Sao_Paulo',
+    playlistId: 'p-saude',
+    tickerText: 'Prevenção é o melhor remédio. Vacine-se contra a gripe na ala de triagem.',
+  },
+  {
+    id: 'c-3',
+    name: 'Supermercado Pão de Açúcar Jardins',
+    category: 'Varejo/Shopping',
+    status: 'Sincronizando',
+    screensCount: 12,
+    city: 'São Paulo',
+    neighborhood: 'Jardins',
+    iconType: 'shopping',
+    orientation: 'Horizontal',
+    timezone: 'America/Sao_Paulo',
+    playlistId: 'p-retail',
+    tickerText: 'Oferta relâmpago: Vinhos importados com 20% de desconto no app hoje!',
+  },
+  {
+    id: 'c-4',
+    name: 'WeWork Faria Lima 4300',
+    category: 'Escritório',
+    status: 'Ativo',
+    screensCount: 5,
+    city: 'São Paulo',
+    neighborhood: 'Itaim Bibi',
+    iconType: 'briefcase',
+    orientation: 'Horizontal',
+    timezone: 'America/Sao_Paulo',
+    playlistId: 'p-corp',
+    tickerText: 'Café comunitário às 16h no 5º andar. Traga sua caneca sustentável.',
+  },
+  {
+    id: 'c-5',
+    name: 'Clínica OdontoPrev Leblon',
+    category: 'Hospital/Saúde',
+    status: 'Inativo',
+    screensCount: 2,
+    city: 'Rio de Janeiro',
+    neighborhood: 'Leblon',
+    iconType: 'hospital',
+    orientation: 'Horizontal',
+    timezone: 'America/Sao_Paulo',
+    playlistId: 'p-saude',
+    tickerText: 'Agende sua consulta semestral diretamente pelo WhatsApp.',
+  }
+];
+
+export const initialDevices: Device[] = [
+  {
+    id: 'd-1',
+    clientId: 'c-1',
+    name: 'Android TV - Entrada Principal',
+    status: 'Online',
+    uptime: '4d 18h',
+    token: 'VC-8841',
+    lastSync: '09/07/2026 11:05',
+  },
+  {
+    id: 'd-2',
+    clientId: 'c-1',
+    name: 'Android TV - Área de Cardio',
+    status: 'Online',
+    uptime: '12d 3h',
+    token: 'VC-1290',
+    lastSync: '09/07/2026 11:04',
+  },
+  {
+    id: 'd-3',
+    clientId: 'c-2',
+    name: 'Mural Digital - Pronto Socorro',
+    status: 'Online',
+    uptime: '31d 0h',
+    token: 'VC-3042',
+    lastSync: '09/07/2026 11:02',
+  },
+  {
+    id: 'd-4',
+    clientId: 'c-2',
+    name: 'Mural Digital - Ala Pediátrica',
+    status: 'Warning',
+    uptime: '1d 2h',
+    token: 'VC-7729',
+    lastSync: '09/07/2026 10:45',
+  },
+  {
+    id: 'd-5',
+    clientId: 'c-3',
+    name: 'Totem Vertical - Corredor Central',
+    status: 'Online',
+    uptime: '0d 15h',
+    token: 'VC-4590',
+    lastSync: '09/07/2026 11:06',
+  },
+  {
+    id: 'd-6',
+    clientId: 'c-5',
+    name: 'TV Sala de Espera',
+    status: 'Offline',
+    uptime: '0h 0m',
+    token: 'VC-2019',
+    lastSync: '08/07/2026 17:30',
+  }
+];
+
+export const initialAlerts: AlertLog[] = [
+  {
+    id: 'a-1',
+    clientId: 'c-5',
+    clientName: 'Clínica OdontoPrev Leblon',
+    message: 'Dispositivo "TV Sala de Espera" perdeu conexão com a rede central.',
+    type: 'error',
+    timestamp: '09/07/2026 11:00',
+  },
+  {
+    id: 'a-2',
+    clientId: 'c-2',
+    clientName: 'Hospital Albert Einstein - Recepção',
+    message: 'Dispositivo "Mural Digital - Ala Pediátrica" reportou alta temperatura.',
+    type: 'warning',
+    timestamp: '09/07/2026 10:45',
+  },
+  {
+    id: 'a-3',
+    clientId: 'c-3',
+    clientName: 'Supermercado Pão de Açúcar Jardins',
+    message: 'Playlist "Supermercado Promocional" sincronizada em 12 telas com sucesso.',
+    type: 'info',
+    timestamp: '09/07/2026 10:30',
+  },
+  {
+    id: 'a-4',
+    clientId: 'c-1',
+    clientName: 'Academia SmartFit Pinheiros',
+    message: 'Novo ticker marquee de notícias ativado na rede SmartFit.',
+    type: 'info',
+    timestamp: '09/07/2026 09:15',
+  }
+];

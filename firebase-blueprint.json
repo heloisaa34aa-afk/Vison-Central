@@ -1,0 +1,123 @@
+{
+  "entities": {
+    "client": {
+      "title": "Client",
+      "description": "A business client in the network",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "category": { "type": "string" },
+        "status": { "type": "string", "enum": ["Ativo", "Inativo", "Sincronizando"] },
+        "screens": { "type": "number" },
+        "city": { "type": "string" },
+        "neighborhood": { "type": "string" },
+        "iconType": { "type": "string", "enum": ["store", "dumbbell", "hospital", "shopping"] },
+        "orientation": { "type": "string", "enum": ["Vertical", "Horizontal"] },
+        "timezone": { "type": "string" },
+        "ownerId": { "type": "string" }
+      },
+      "required": ["name", "city", "neighborhood", "ownerId"]
+    },
+    "device": {
+      "title": "Device",
+      "description": "An Android TV or screen device",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "status": { "type": "string", "enum": ["Online", "Offline", "Warning"] },
+        "uptime": { "type": "string" },
+        "token": { "type": "string" }
+      },
+      "required": ["id", "name", "token"]
+    },
+    "city": {
+      "title": "City",
+      "description": "A city name",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" }
+      },
+      "required": ["name"]
+    },
+    "neighborhood": {
+      "title": "Neighborhood",
+      "description": "A neighborhood name",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" }
+      },
+      "required": ["name"]
+    },
+    "playlist": {
+      "title": "Playlist",
+      "description": "A collection of media for distribution",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "mediaIds": { "type": "array", "items": { "type": "string" } },
+        "ownerId": { "type": "string" },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["name", "ownerId"]
+    },
+    "media": {
+      "title": "Media Asset",
+      "description": "A video or image link",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "url": { "type": "string" },
+        "type": { "type": "string", "enum": ["video", "image"] },
+        "ownerId": { "type": "string" },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["name", "url", "ownerId"]
+    },
+    "alert": {
+      "title": "System Alert",
+      "description": "A notification or event log",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "clientId": { "type": "string" },
+        "message": { "type": "string" },
+        "type": { "type": "string", "enum": ["info", "warning", "error"] },
+        "timestamp": { "type": "string" }
+      }
+    }
+  },
+  "firestore": {
+    "/clients/{clientId}": {
+      "schema": "client",
+      "description": "Business clients managed by users"
+    },
+    "/clients/{clientId}/devices/{deviceId}": {
+      "schema": "device",
+      "description": "Devices belonging to a client"
+    },
+    "/playlists/{playlistId}": {
+      "schema": "playlist",
+      "description": "Media playlists"
+    },
+    "/media/{mediaId}": {
+      "schema": "media",
+      "description": "Media library assets"
+    },
+    "/alerts/{alertId}": {
+      "schema": "alert",
+      "description": "System event logs"
+    },
+    "/cities/{cityId}": {
+      "schema": "city",
+      "description": "Available cities"
+    },
+    "/neighborhoods/{neighborhoodId}": {
+      "schema": "neighborhood",
+      "description": "Available neighborhoods"
+    }
+  }
+}

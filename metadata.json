@@ -1,0 +1,6 @@
+{
+  "name": "VisionCentral",
+  "description": "Corporate TV Network Management and Digital Signage Cloud Platform with Smart AI Playlist Scheduler",
+  "requestFramePermissions": ["camera", "microphone", "geolocation"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
