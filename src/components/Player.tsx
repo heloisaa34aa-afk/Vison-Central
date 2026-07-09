@@ -1,45 +1,42 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Device, Playlist, Media } from '../types';
 import { initialDevices, initialPlaylists, initialMedia } from '../mockData';
+import { storageService } from '../lib/storage';
 
-// Simulating a backend fetch since we don't have a real one set up yet
+// Real fetch from Supabase config via storageService
 const mockFetchConfig = async (token: string) => {
-  return new Promise<{ device: Device, playlist: Playlist | null, media: Media[] }>((resolve, reject) => {
-    setTimeout(() => {
-      const devices: Device[] = JSON.parse(localStorage.getItem('vc_devices') || 'null') || initialDevices;
-      const device = devices.find(d => d.token === token);
-      
-      if (!device) {
-        reject(new Error('Token inválido'));
-        return;
-      }
+  // Let's add a small artificial delay of 1s to preserve the nice loading transitions
+  await new Promise(resolve => setTimeout(resolve, 1000));
+  
+  const devices = await storageService.getDevices(initialDevices);
+  const device = devices.find(d => d.token === token);
+  
+  if (!device) {
+    throw new Error('Token inválido');
+  }
 
-      // Update status to online (in a real backend this would be an API call)
-      const updatedDevices = devices.map(d => d.id === device.id ? { ...d, status: 'Online' as const } : d);
-      localStorage.setItem('vc_devices', JSON.stringify(updatedDevices));
+  // Update status to online on Supabase
+  const updatedDevices = devices.map(d => d.id === device.id ? { ...d, status: 'Online' as const } : d);
+  await storageService.saveDevices(updatedDevices);
 
-      const clients = JSON.parse(localStorage.getItem('vc_clients') || 'null') || [];
-      const client = clients.find((c: any) => c.id === device.clientId);
+  const clients = await storageService.getClients([]);
+  const client = clients.find((c: any) => c.id === device.clientId);
 
-      if (!client || !client.playlistId) {
-        resolve({ device, playlist: null, media: [] });
-        return;
-      }
+  if (!client || !client.playlistId) {
+    return { device, playlist: null, media: [] };
+  }
 
-      const playlists: Playlist[] = JSON.parse(localStorage.getItem('vc_playlists') || 'null') || initialPlaylists;
-      const playlist = playlists.find(p => p.id === client.playlistId);
+  const playlists = await storageService.getPlaylists(initialPlaylists);
+  const playlist = playlists.find(p => p.id === client.playlistId);
 
-      if (!playlist) {
-        resolve({ device, playlist: null, media: [] });
-        return;
-      }
+  if (!playlist) {
+    return { device, playlist: null, media: [] };
+  }
 
-      const allMedia: Media[] = JSON.parse(localStorage.getItem('vc_media') || 'null') || initialMedia;
-      const playlistMedia = playlist.mediaIds.map(id => allMedia.find(m => m.id === id)).filter(Boolean) as Media[];
+  const allMedia = await storageService.getMedia(initialMedia);
+  const playlistMedia = playlist.mediaIds.map(id => allMedia.find(m => m.id === id)).filter(Boolean) as Media[];
 
-      resolve({ device, playlist, media: playlistMedia });
-    }, 1500); // Simulate network delay
-  });
+  return { device, playlist, media: playlistMedia };
 };
 
 export default function Player() {
