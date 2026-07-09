@@ -21,6 +21,8 @@ export interface Device {
   uptime: string;
   token: string;
   lastSync: string;
+  playlistId?: string;
+  lastConnected?: string;
 }
 
 export interface Client {

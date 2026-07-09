@@ -1,11 +1,15 @@
 export const tokensService = {
   generateToken(): string {
     const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
-    let result = '';
-    for (let i = 0; i < 6; i++) {
-      result += chars.charAt(Math.floor(Math.random() * chars.length));
+    let p1 = '';
+    let p2 = '';
+    for (let i = 0; i < 4; i++) {
+      p1 += chars.charAt(Math.floor(Math.random() * chars.length));
     }
-    return result;
+    for (let i = 0; i < 2; i++) {
+      p2 += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    return `VC-${p1}-${p2}`;
   },
 
   normalizeToken(token: string): string {

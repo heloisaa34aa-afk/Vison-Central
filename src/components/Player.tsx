@@ -15,11 +15,28 @@ export default function Player() {
   const containerRef = useRef<HTMLDivElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
 
+  // Auto-seed Supabase on player load if needed
+  useEffect(() => {
+    const runSeed = async () => {
+      try {
+        const { checkSupabaseConnection } = await import('../lib/supabase');
+        if (await checkSupabaseConnection()) {
+          const { storageService } = await import('../lib/storage');
+          const { initialClients, initialPlaylists, initialMedia, initialDevices } = await import('../mockData');
+          await storageService.ensureDatabaseSeeded(initialClients, initialPlaylists, initialMedia, initialDevices);
+        }
+      } catch (err) {
+        console.warn('Erro ao rodar seed no Player:', err);
+      }
+    };
+    runSeed();
+  }, []);
+
   const handleStart = async (e: React.FormEvent) => {
     e.preventDefault();
     const cleanToken = tokensService.normalizeToken(tokenInput);
-    if (cleanToken.length !== 6) {
-      setError('O token deve ter 6 caracteres.');
+    if (cleanToken.length < 6 || cleanToken.length > 10) {
+      setError('Token inválido. O token deve possuir o formato padrão VC-XXXX-XX.');
       return;
     }
     
@@ -142,10 +159,10 @@ export default function Player() {
                 <input 
                   type="text" 
                   value={tokenInput}
-                  onChange={(e) => setTokenInput(e.target.value.toUpperCase())}
-                  maxLength={6}
-                  placeholder="EX: A1B2C3"
-                  className="w-full bg-[#050508] border border-white/10 rounded-xl px-4 py-4 text-center text-3xl font-mono tracking-[0.5em] text-white focus:outline-none focus:border-blue-500/50 uppercase"
+                  onChange={(e) => setTokenInput(e.target.value)}
+                  maxLength={10}
+                  placeholder="EX: VC-3042"
+                  className="w-full bg-[#050508] border border-white/10 rounded-xl px-4 py-4 text-center text-3xl font-mono tracking-wider text-white focus:outline-none focus:border-blue-500/50 uppercase"
                 />
               </div>
 

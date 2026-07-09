@@ -9,7 +9,9 @@ export function mapDbToDevice(db: any): Device {
     status: (db.status as any) || 'Offline',
     uptime: db.uptime || '0h 0m',
     token: db.token || '',
-    lastSync: db.ultima_sincronizacao || db.lastSync || ''
+    lastSync: db.ultima_sincronizacao || db.lastSync || '',
+    playlistId: db.playlist_id || db.playlistId || undefined,
+    lastConnected: db.ultima_conexao || db.lastConnected || undefined
   };
 }
 
@@ -21,7 +23,9 @@ export function mapDeviceToDb(device: Device): any {
     token: device.token,
     status: device.status,
     uptime: device.uptime,
-    ultima_sincronizacao: device.lastSync || new Date().toISOString()
+    ultima_sincronizacao: device.lastSync || new Date().toISOString(),
+    playlist_id: device.playlistId || null,
+    ultima_conexao: device.lastConnected || new Date().toISOString()
   };
 }
 

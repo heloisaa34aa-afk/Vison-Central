@@ -21,6 +21,7 @@ import {
 // Components
 import Dashboard from './components/Dashboard';
 import Monitoring from './components/Monitoring';
+import TVsManager from './components/TVsManager';
 import ClientPage from './components/ClientPage';
 import ScreenSimulator from './components/ScreenSimulator';
 import Player from './components/Player';
@@ -50,6 +51,9 @@ export default function App() {
   // Initialize data
   useEffect(() => {
     const loadData = async () => {
+      // Execute automatic seed on Supabase first if needed
+      await storageService.ensureDatabaseSeeded(initialClients, initialPlaylists, initialMedia, initialDevices);
+
       const loadedClients = await storageService.getClients(initialClients);
       const loadedDevices = await storageService.getDevices(initialDevices);
       const loadedPlaylists = await storageService.getPlaylists(initialPlaylists);
@@ -192,6 +196,19 @@ export default function App() {
           </button>
 
           <button
+            onClick={() => { setActiveTab('tvs'); setSelectedClientIdForSim(null); setSelectedClientId(null); }}
+            className={`flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold transition-all whitespace-nowrap md:w-full ${
+              activeTab === 'tvs'
+                ? 'bg-gradient-to-r from-blue-600 to-cyan-500 text-white shadow-[0_0_15px_rgba(37,99,235,0.3)]'
+                : 'text-slate-400 hover:bg-white/5 hover:text-white'
+            }`}
+            id="tab-tvs"
+          >
+            <Tv className="w-4 h-4 shrink-0" />
+            TVs
+          </button>
+
+          <button
             onClick={() => { setActiveTab('simulator'); setSelectedClientId(null); }}
             className={`flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold transition-all whitespace-nowrap md:w-full ${
               activeTab === 'simulator'
@@ -231,10 +248,22 @@ export default function App() {
                 setSelectedClientIdForSim(id);
                 setActiveTab('simulator');
               }}
-              onEditDevice={(device) => {
-                const updated = devices.map(d => d.id === device.id ? device : d);
-                setDevices(updated);
+              onUpdateDevices={setDevices}
+              showToast={showToast}
+            />
+          )}
+
+          {activeTab === 'tvs' && (
+            <TVsManager 
+              clients={clients} 
+              devices={devices} 
+              playlists={playlists}
+              onUpdateDevices={setDevices}
+              onOpenSimulator={(id) => {
+                setSelectedClientIdForSim(id);
+                setActiveTab('simulator');
               }}
+              showToast={showToast}
             />
           )}
 
