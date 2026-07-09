@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Client, Device, Playlist } from '../../types';
 import { Key, Copy, CheckCircle, Plus, RefreshCw, Unplug } from 'lucide-react';
+import { tokensService } from '../../services/supabase/tokens';
 
 interface ClientTokensProps {
   client: Client;
@@ -20,7 +21,7 @@ export default function ClientTokens({ client, devices, playlists, onUpdateDevic
   };
 
   const handleRenewToken = (deviceId: string) => {
-    const newToken = Math.random().toString(36).substring(2, 8).toUpperCase();
+    const newToken = tokensService.generateToken();
     onUpdateDevices(prev => prev.map(d => d.id === deviceId ? { ...d, token: newToken } : d));
     showToast('Token renovado com sucesso.');
   };
@@ -41,7 +42,7 @@ export default function ClientTokens({ client, devices, playlists, onUpdateDevic
   };
 
   const handleAddTV = () => {
-    const newToken = Math.random().toString(36).substring(2, 8).toUpperCase();
+    const newToken = tokensService.generateToken();
     const newDevice: Device = {
       id: `dev-${Date.now()}`,
       clientId: client.id,

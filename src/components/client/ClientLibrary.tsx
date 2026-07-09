@@ -1,6 +1,7 @@
 import React, { useState, useRef } from 'react';
 import { Client, Media } from '../../types';
 import { UploadCloud, File, Image as ImageIcon, Video, Trash2, X, CheckCircle } from 'lucide-react';
+import { storageServiceSupabase } from '../../services/supabase/storage';
 
 interface ClientLibraryProps {
   client: Client;
@@ -36,36 +37,47 @@ export default function ClientLibrary({ client, media, onUpdateMedia, showToast 
       return;
     }
 
-    newFiles.forEach(file => {
+    newFiles.forEach(async (file) => {
       const isVideo = file.type.includes('video');
-      const fakeProgress = { name: file.name, progress: 0 };
-      setUploadingFiles(prev => [...prev, fakeProgress]);
+      const progressName = file.name;
+      setUploadingFiles(prev => [...prev, { name: progressName, progress: 10 }]);
 
-      // Simulate upload progress
-      let p = 0;
-      const interval = setInterval(() => {
-        p += Math.random() * 20;
-        if (p > 100) p = 100;
-        setUploadingFiles(prev => prev.map(f => f.name === file.name ? { ...f, progress: p } : f));
+      try {
+        // Simulate progress up to 80% while upload starts
+        let p = 10;
+        const interval = setInterval(() => {
+          if (p < 80) {
+            p += 15;
+            setUploadingFiles(prev => prev.map(f => f.name === progressName ? { ...f, progress: p } : f));
+          }
+        }, 150);
+
+        // Actual upload to Supabase storage
+        const uploadedUrl = await storageServiceSupabase.uploadMediaFile(file);
         
-        if (p === 100) {
-          clearInterval(interval);
-          setTimeout(() => {
-            setUploadingFiles(prev => prev.filter(f => f.name !== file.name));
-            // Add to library
-            const newMedia: Media = {
-              id: `m-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
-              name: file.name,
-              type: isVideo ? 'video' : 'image',
-              url: URL.createObjectURL(file), // Local object URL for preview
-              duration: isVideo ? 15 : 10,
-              size: `${(file.size / (1024 * 1024)).toFixed(2)} MB`
-            };
-            onUpdateMedia(prev => [newMedia, ...prev]);
-            showToast(`${file.name} enviado com sucesso!`);
-          }, 500);
-        }
-      }, 300);
+        clearInterval(interval);
+        setUploadingFiles(prev => prev.map(f => f.name === progressName ? { ...f, progress: 100 } : f));
+
+        setTimeout(() => {
+          setUploadingFiles(prev => prev.filter(f => f.name !== progressName));
+          
+          const newMedia: Media = {
+            id: `m-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+            name: file.name,
+            type: isVideo ? 'video' : 'image',
+            url: uploadedUrl,
+            duration: isVideo ? 15 : 10,
+            size: `${(file.size / (1024 * 1024)).toFixed(2)} MB`
+          };
+          onUpdateMedia(prev => [newMedia, ...prev]);
+          showToast(`${file.name} enviado e cadastrado com sucesso!`);
+        }, 500);
+
+      } catch (err) {
+        setUploadingFiles(prev => prev.filter(f => f.name !== progressName));
+        showToast(`Erro ao enviar ${file.name}`);
+        console.error(err);
+      }
     });
   };
 

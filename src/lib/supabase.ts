@@ -1,14 +1,13 @@
 import { createClient } from '@supabase/supabase-js';
 import type { Database } from './database.types';
 
-const supabaseUrl = (import.meta as any).env?.VITE_SUPABASE_URL || 'https://eefnfdwmidtnycesyapr.supabase.co';
-const supabaseAnonKey = (import.meta as any).env?.VITE_SUPABASE_ANON_KEY || 'sb_publishable_lCyfBoX5m8JzQ7mldxloQA_6YN3MTqg';
+const supabaseUrl = (import.meta as any).env.VITE_SUPABASE_URL || 'https://eefnfdwmidtnycesyapr.supabase.co';
+const supabaseAnonKey = (import.meta as any).env.VITE_SUPABASE_ANON_KEY || 'sb_publishable_lCyfBoX5m8JzQ7mldxloQA_6YN3MTqg';
 
-export const supabase = createClient<Database>(supabaseUrl, supabaseAnonKey);
+export const supabase = createClient<any>(supabaseUrl, supabaseAnonKey);
 
 export const checkSupabaseConnection = async () => {
-  if (!supabaseUrl) {
-    console.warn('Supabase não configurado. Defina VITE_SUPABASE_URL e VITE_SUPABASE_ANON_KEY no .env');
+  if (!supabaseUrl || !supabaseAnonKey || supabaseAnonKey === 'sb_publishable_lCyfBoX5m8JzQ7mldxloQA_6YN3MTqg' || supabaseAnonKey.startsWith('sb_publishable_')) {
     return false;
   }
   return true;

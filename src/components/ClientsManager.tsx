@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Client, Device, Playlist } from '../types';
+import { tokensService } from '../services/supabase/tokens';
 import { 
   Building2, 
   MapPin, 
@@ -155,9 +156,8 @@ export default function ClientsManager({
   const handleCreateDevice = (clientId: string) => {
     if (!newDeviceName.trim()) return;
 
-    // Generate clean unique token e.g. "VC-4819"
-    const randomNum = Math.floor(1000 + Math.random() * 9000);
-    const mockToken = `VC-${randomNum}`;
+    // Generate clean unique token via tokensService
+    const mockToken = tokensService.generateToken();
 
     const newDev: Device = {
       id: `d-${Date.now()}`,

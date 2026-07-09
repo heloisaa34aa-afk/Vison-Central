@@ -23,8 +23,15 @@ import Dashboard from './components/Dashboard';
 import Monitoring from './components/Monitoring';
 import ClientPage from './components/ClientPage';
 import ScreenSimulator from './components/ScreenSimulator';
+import Player from './components/Player';
 
 export default function App() {
+  const isPlayerPage = window.location.pathname === '/player' || window.location.hash === '#/player';
+
+  if (isPlayerPage) {
+    return <Player />;
+  }
+
   const [activeTab, setActiveTab] = useState<string>('dashboard');
   
   // Outside triggers for simulator

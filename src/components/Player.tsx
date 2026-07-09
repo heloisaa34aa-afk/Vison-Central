@@ -1,43 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Device, Playlist, Media } from '../types';
-import { initialDevices, initialPlaylists, initialMedia } from '../mockData';
-import { storageService } from '../lib/storage';
-
-// Real fetch from Supabase config via storageService
-const mockFetchConfig = async (token: string) => {
-  // Let's add a small artificial delay of 1s to preserve the nice loading transitions
-  await new Promise(resolve => setTimeout(resolve, 1000));
-  
-  const devices = await storageService.getDevices(initialDevices);
-  const device = devices.find(d => d.token === token);
-  
-  if (!device) {
-    throw new Error('Token inválido');
-  }
-
-  // Update status to online on Supabase
-  const updatedDevices = devices.map(d => d.id === device.id ? { ...d, status: 'Online' as const } : d);
-  await storageService.saveDevices(updatedDevices);
-
-  const clients = await storageService.getClients([]);
-  const client = clients.find((c: any) => c.id === device.clientId);
-
-  if (!client || !client.playlistId) {
-    return { device, playlist: null, media: [] };
-  }
-
-  const playlists = await storageService.getPlaylists(initialPlaylists);
-  const playlist = playlists.find(p => p.id === client.playlistId);
-
-  if (!playlist) {
-    return { device, playlist: null, media: [] };
-  }
-
-  const allMedia = await storageService.getMedia(initialMedia);
-  const playlistMedia = playlist.mediaIds.map(id => allMedia.find(m => m.id === id)).filter(Boolean) as Media[];
-
-  return { device, playlist, media: playlistMedia };
-};
+import { playerService } from '../services/supabase/player';
+import { tokensService } from '../services/supabase/tokens';
 
 export default function Player() {
   const [step, setStep] = useState<'input' | 'validating' | 'downloading' | 'playing'>('input');
@@ -46,13 +10,15 @@ export default function Player() {
   
   const [playlistMedia, setPlaylistMedia] = useState<Media[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
+  const [activeDevice, setActiveDevice] = useState<Device | null>(null);
 
   const containerRef = useRef<HTMLDivElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
 
   const handleStart = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (tokenInput.length !== 6) {
+    const cleanToken = tokensService.normalizeToken(tokenInput);
+    if (cleanToken.length !== 6) {
       setError('O token deve ter 6 caracteres.');
       return;
     }
@@ -61,7 +27,8 @@ export default function Player() {
     setStep('validating');
 
     try {
-      const data = await mockFetchConfig(tokenInput.toUpperCase());
+      // Load real player configuration from Supabase
+      const data = await playerService.getPlayerConfig(cleanToken);
       
       if (!data.playlist || data.media.length === 0) {
         setError('Nenhuma playlist associada ou playlist vazia.');
@@ -69,17 +36,21 @@ export default function Player() {
         return;
       }
 
+      // Mark status as Online immediately
+      await playerService.updateTvStatus(data.device.id, 'Online');
+
+      setActiveDevice(data.device);
       setPlaylistMedia(data.media);
       setStep('downloading');
       
-      // Simulate downloading media
+      // Simulate downloading media duration
       setTimeout(() => {
         setStep('playing');
         enterFullscreen();
-      }, 2000);
+      }, 1500);
 
     } catch (err: any) {
-      setError(err.message || 'Erro de conexão.');
+      setError(err.message || 'Token inválido ou erro de conexão.');
       setStep('input');
     }
   };
@@ -92,13 +63,14 @@ export default function Player() {
     }
   };
 
+  // Keep player media looping
   useEffect(() => {
     if (step === 'playing' && playlistMedia.length > 0) {
       const currentMedia = playlistMedia[currentIndex];
       
       let timer: NodeJS.Timeout;
       
-      if (currentMedia.type === 'image') {
+      if (currentMedia && currentMedia.type === 'image') {
         timer = setTimeout(() => {
           setCurrentIndex((prev) => (prev + 1) % playlistMedia.length);
         }, currentMedia.duration * 1000);
@@ -107,6 +79,48 @@ export default function Player() {
       return () => clearTimeout(timer);
     }
   }, [step, currentIndex, playlistMedia]);
+
+  // Handle Realtime synchronization & Status monitoring (Online / Offline)
+  useEffect(() => {
+    if (step === 'playing' && activeDevice) {
+      // 1. Subscribe to updates on Supabase Realtime
+      const unsubscribe = playerService.subscribeToUpdates(activeDevice.token, async () => {
+        try {
+          const cleanToken = tokensService.normalizeToken(activeDevice.token);
+          const data = await playerService.getPlayerConfig(cleanToken);
+          if (data.media && data.media.length > 0) {
+            // Update the media list dynamically without interrupting playback or reloading page
+            setPlaylistMedia(prev => {
+              // Check if contents are identical to avoid flickering
+              const prevUrls = prev.map(m => m.url).join(',');
+              const newUrls = data.media.map(m => m.url).join(',');
+              if (prevUrls !== newUrls) {
+                return data.media;
+              }
+              return prev;
+            });
+          }
+        } catch (e) {
+          console.error('Realtime update failed:', e);
+        }
+      });
+
+      // 2. Set status to offline on window unload/close
+      const handleUnload = () => {
+        playerService.updateTvStatus(activeDevice.id, 'Offline');
+      };
+      
+      window.addEventListener('beforeunload', handleUnload);
+      window.addEventListener('unload', handleUnload);
+
+      return () => {
+        unsubscribe();
+        handleUnload();
+        window.removeEventListener('beforeunload', handleUnload);
+        window.removeEventListener('unload', handleUnload);
+      };
+    }
+  }, [step, activeDevice]);
 
   const handleVideoEnded = () => {
     setCurrentIndex((prev) => (prev + 1) % playlistMedia.length);
@@ -165,6 +179,14 @@ export default function Player() {
   }
 
   const currentMedia = playlistMedia[currentIndex];
+
+  if (!currentMedia) {
+    return (
+      <div className="min-h-screen bg-black flex items-center justify-center text-white">
+        <p className="text-sm font-medium animate-pulse">Carregando mídias da playlist...</p>
+      </div>
+    );
+  }
 
   return (
     <div ref={containerRef} className="w-screen h-screen bg-black overflow-hidden flex items-center justify-center cursor-none">
