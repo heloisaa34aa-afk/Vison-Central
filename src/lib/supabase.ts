@@ -7,7 +7,7 @@ const supabaseAnonKey = (import.meta as any).env.VITE_SUPABASE_ANON_KEY || 'sb_p
 export const supabase = createClient<any>(supabaseUrl, supabaseAnonKey);
 
 export const checkSupabaseConnection = async () => {
-  if (!supabaseUrl || !supabaseAnonKey || supabaseAnonKey === 'sb_publishable_lCyfBoX5m8JzQ7mldxloQA_6YN3MTqg' || supabaseAnonKey.startsWith('sb_publishable_')) {
+  if (!supabaseUrl || !supabaseAnonKey) {
     return false;
   }
   return true;

@@ -1,25 +1,24 @@
 import React, { useState } from 'react';
-import { Device, Client, Playlist } from '../types';
+import { Tv, Cliente, Playlist } from '../types';
 import { tvsService } from '../services/supabase/tvs';
 import { 
   Radio, 
   Search, 
-  Tv, 
+  Tv as TvIcon, 
   RefreshCw, 
   Copy, 
   CheckCircle, 
   Edit, 
   Play,
-  Key,
   X
 } from 'lucide-react';
 
 interface MonitoringProps {
-  clients: Client[];
-  devices: Device[];
+  clients: Cliente[];
+  devices: Tv[];
   playlists: Playlist[];
   onOpenSimulator: (clientId: string) => void;
-  onUpdateDevices: (devices: Device[]) => void;
+  onUpdateDevices: (devices: Tv[]) => void;
   showToast: (msg: string) => void;
 }
 
@@ -37,29 +36,29 @@ export default function Monitoring({
 
   // Edit Modal States
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
-  const [editingDevice, setEditingDevice] = useState<Device | null>(null);
+  const [editingDevice, setEditingDevice] = useState<Tv | null>(null);
   const [editName, setEditName] = useState('');
   const [editClientId, setEditClientId] = useState('');
   const [editPlaylistId, setEditPlaylistId] = useState('');
 
-  // Filter and search
+  // Filtrar e pesquisar
   const filteredDevices = devices.filter(d => {
     const matchesFilter = filter === 'all' ? true : filter === 'online' ? d.status === 'Online' : d.status === 'Offline';
-    const matchesSearch = d.name.toLowerCase().includes(search.toLowerCase()) || d.token.toLowerCase().includes(search.toLowerCase());
+    const matchesSearch = d.nome.toLowerCase().includes(search.toLowerCase()) || d.token.toLowerCase().includes(search.toLowerCase());
     return matchesFilter && matchesSearch;
   });
 
   const getClientName = (clientId: string) => {
-    return clients.find(c => c.id === clientId)?.name || 'Cliente Removido';
+    return clients.find(c => c.id === clientId)?.nome || 'Cliente Removido';
   };
 
-  const getPlaylistName = (dev: Device) => {
+  const getPlaylistName = (dev: Tv) => {
     if (dev.playlistId) {
-      return playlists.find(p => p.id === dev.playlistId)?.name || 'Nenhuma Playlist';
+      return playlists.find(p => p.id === dev.playlistId)?.nome || 'Nenhuma Playlist';
     }
-    const client = clients.find(c => c.id === dev.clientId);
+    const client = clients.find(c => c.id === dev.clienteId);
     if (!client || !client.playlistId) return 'Nenhuma Playlist';
-    return playlists.find(p => p.id === client.playlistId)?.name || 'Nenhuma Playlist';
+    return playlists.find(p => p.id === client.playlistId)?.nome || 'Nenhuma Playlist';
   };
 
   const handleCopyToken = (token: string) => {
@@ -70,16 +69,16 @@ export default function Monitoring({
   };
 
   // Sincronizar Agora
-  const handleSyncNow = async (device: Device) => {
+  const handleSyncNow = async (device: Tv) => {
     try {
-      const updated: Device = {
+      const updated: Tv = {
         ...device,
-        lastSync: new Date().toLocaleDateString('pt-BR') + ' ' + new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
+        ultimaSincronizacao: new Date().toLocaleDateString('pt-BR') + ' ' + new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
       };
-      const success = await tvsService.saveDevice(updated);
+      const success = await tvsService.saveTv(updated);
       if (success) {
         onUpdateDevices(devices.map(d => d.id === device.id ? updated : d));
-        showToast(`Comando de sincronização enviado para ${device.name}!`);
+        showToast(`Comando de sincronização enviado para ${device.nome}!`);
       } else {
         showToast('Erro ao sincronizar no Supabase.');
       }
@@ -90,10 +89,10 @@ export default function Monitoring({
   };
 
   // Open Edit Dialog
-  const handleOpenEdit = (device: Device) => {
+  const handleOpenEdit = (device: Tv) => {
     setEditingDevice(device);
-    setEditName(device.name);
-    setEditClientId(device.clientId);
+    setEditName(device.nome);
+    setEditClientId(device.clienteId);
     setEditPlaylistId(device.playlistId || '');
     setIsEditModalOpen(true);
   };
@@ -108,15 +107,15 @@ export default function Monitoring({
     }
 
     try {
-      const updated: Device = {
+      const updated: Tv = {
         ...editingDevice,
-        name: editName,
-        clientId: editClientId,
+        nome: editName,
+        clienteId: editClientId,
         playlistId: editPlaylistId || undefined,
-        lastSync: new Date().toLocaleDateString('pt-BR') + ' ' + new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
+        ultimaSincronizacao: new Date().toLocaleDateString('pt-BR') + ' ' + new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
       };
 
-      const success = await tvsService.saveDevice(updated);
+      const success = await tvsService.saveTv(updated);
       if (success) {
         onUpdateDevices(devices.map(d => d.id === editingDevice.id ? updated : d));
         showToast('TV atualizada com sucesso!');
@@ -136,7 +135,7 @@ export default function Monitoring({
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 border-b border-white/10 pb-5">
         <div>
           <h1 className="text-2xl font-extrabold tracking-tight text-white font-sans flex items-center gap-2">
-            <Radio className="w-6 h-6 text-blue-400" />
+            <Radio className="w-6 h-6 text-blue-400 font-bold" />
             Monitoramento de TVs
           </h1>
           <p className="text-sm text-slate-400 mt-1">
@@ -192,7 +191,7 @@ export default function Monitoring({
                 <th className="px-4 py-3">Nome</th>
                 <th className="px-4 py-3">Cliente</th>
                 <th className="px-4 py-3">Status Online</th>
-                <th className="px-4 py-3">Última Conexão</th>
+                <th className="px-4 py-3">Tempo Ativo</th>
                 <th className="px-4 py-3">Playlist</th>
                 <th className="px-4 py-3">Token</th>
                 <th className="px-4 py-3 text-right">Ações</th>
@@ -205,10 +204,10 @@ export default function Monitoring({
                   <td className="px-4 py-4">
                     <div className="flex items-center gap-3">
                       <div className={`p-2 rounded-lg ${device.status === 'Online' ? 'bg-emerald-500/10 text-emerald-400' : 'bg-rose-500/10 text-rose-400'}`}>
-                        <Tv className="w-4 h-4" />
+                        <TvIcon className="w-4 h-4" />
                       </div>
                       <div>
-                        <div className="text-sm font-semibold text-white">{device.name}</div>
+                        <div className="text-sm font-semibold text-white">{device.nome}</div>
                         <div className="text-[10px] text-slate-500 font-mono">ID: {device.id}</div>
                       </div>
                     </div>
@@ -216,7 +215,7 @@ export default function Monitoring({
 
                   {/* Client */}
                   <td className="px-4 py-4 text-sm text-slate-300">
-                    {getClientName(device.clientId)}
+                    {getClientName(device.clienteId)}
                   </td>
 
                   {/* Status Online */}
@@ -283,7 +282,7 @@ export default function Monitoring({
 
                       {/* Abrir Simulador */}
                       <button 
-                        onClick={() => onOpenSimulator(device.clientId)}
+                        onClick={() => onOpenSimulator(device.clienteId)}
                         title="Abrir Simulador"
                         className="p-2 bg-white/5 hover:bg-purple-500/20 text-slate-400 hover:text-purple-400 rounded-lg transition-colors border border-white/5"
                       >
@@ -317,7 +316,7 @@ export default function Monitoring({
             </button>
 
             <h2 className="text-xl font-bold text-white mb-5 flex items-center gap-2">
-              <Tv className="w-5 h-5 text-blue-400" />
+              <TvIcon className="w-5 h-5 text-blue-400" />
               Editar TV
             </h2>
 
@@ -346,7 +345,7 @@ export default function Monitoring({
                 >
                   {clients.map(client => (
                     <option key={client.id} value={client.id} className="bg-[#0a0a0f]">
-                      {client.name}
+                      {client.nome}
                     </option>
                   ))}
                 </select>
@@ -364,7 +363,7 @@ export default function Monitoring({
                   <option value="">Herdar do Cliente</option>
                   {playlists.map(pl => (
                     <option key={pl.id} value={pl.id} className="bg-[#0a0a0f]">
-                      {pl.name}
+                      {pl.nome}
                     </option>
                   ))}
                 </select>

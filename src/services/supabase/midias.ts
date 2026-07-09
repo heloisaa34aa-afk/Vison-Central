@@ -1,66 +1,52 @@
 import { supabase } from '../../lib/supabase';
-import { Media } from '../../types';
+import { Midia } from '../../types';
 
-export function mapDbToMedia(db: any): Media {
+export function mapDbToMidia(db: any): Midia {
   return {
     id: db.id,
-    name: db.nome || db.name || '',
-    url: db.url_storage || db.url || '',
-    type: (db.tipo || db.type || 'image') as any,
-    duration: db.duracao !== undefined ? Number(db.duracao) : Number(db.duration || 10),
-    size: db.tamanho || db.size || ''
+    nome: db.nome || '',
+    url: db.url_storage || '',
+    tipo: (db.tipo || 'image') as any,
+    duracao: db.duracao !== undefined ? Number(db.duracao) : 10,
+    tamanho: db.tamanho || undefined,
+    clienteId: db.cliente_id || undefined
   };
 }
 
-export function mapMediaToDb(media: Media): any {
+export function mapMidiaToDb(midia: Midia): any {
   return {
-    id: media.id,
-    nome: media.name,
-    tipo: media.type,
-    url_storage: media.url,
-    duracao: media.duration,
-    tamanho: media.size || null
+    id: midia.id,
+    nome: midia.nome,
+    tipo: midia.tipo,
+    url_storage: midia.url,
+    duracao: midia.duracao,
+    tamanho: midia.tamanho || null,
+    cliente_id: midia.clienteId || null
   };
 }
 
 export const midiasService = {
-  async getMedia(fallback: Media[]): Promise<Media[]> {
+  async getMidias(): Promise<Midia[]> {
     try {
       const { data, error } = await supabase.from('midias').select('*');
       if (error) {
-        // Fallback to alternate table 'media'
-        const { data: altData, error: altError } = await supabase.from('media').select('*');
-        if (!altError && altData) {
-          return altData.map(mapDbToMedia);
-        }
         console.warn('Erro ao buscar mídias:', error);
-        return fallback;
+        return [];
       }
-      return data ? data.map(mapDbToMedia) : fallback;
+      return data ? data.map(mapDbToMidia) : [];
     } catch (e) {
       console.error(e);
-      return fallback;
+      return [];
     }
   },
 
-  async saveMedia(media: Media): Promise<boolean> {
+  async saveMidia(midia: Midia): Promise<boolean> {
     try {
-      const dbData = mapMediaToDb(media);
+      const dbData = mapMidiaToDb(midia);
       const { error } = await supabase.from('midias').upsert(dbData);
       if (error) {
-        // Fallback to alternate table 'media'
-        const { error: altError } = await supabase.from('media').upsert({
-          id: media.id,
-          name: media.name,
-          url: media.url,
-          type: media.type,
-          duration: media.duration,
-          size: media.size || null
-        });
-        if (altError) {
-          console.warn('Erro ao salvar mídia:', altError);
-          return false;
-        }
+        console.warn('Erro ao salvar mídia:', error);
+        return false;
       }
       return true;
     } catch (e) {
@@ -69,11 +55,12 @@ export const midiasService = {
     }
   },
 
-  async deleteMedia(id: string): Promise<boolean> {
+  async deleteMidia(id: string): Promise<boolean> {
     try {
       const { error } = await supabase.from('midias').delete().eq('id', id);
       if (error) {
-        await supabase.from('media').delete().eq('id', id);
+        console.warn('Erro ao deletar mídia:', error);
+        return false;
       }
       return true;
     } catch (e) {

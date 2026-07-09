@@ -1,10 +1,9 @@
 import React, { useState } from 'react';
-import { Device, Client, Playlist } from '../types';
+import { Tv, Cliente, Playlist } from '../types';
 import { tvsService } from '../services/supabase/tvs';
 import { tokensService } from '../services/supabase/tokens';
-import { checkSupabaseConnection } from '../lib/supabase';
 import { 
-  Tv, 
+  Tv as TvIcon, 
   Plus, 
   Search, 
   Copy, 
@@ -14,15 +13,14 @@ import {
   Play, 
   Key, 
   X,
-  Radio,
-  FileVideo
+  Radio
 } from 'lucide-react';
 
 interface TVsManagerProps {
-  clients: Client[];
-  devices: Device[];
+  clients: Cliente[];
+  devices: Tv[];
   playlists: Playlist[];
-  onUpdateDevices: (devices: Device[]) => void;
+  onUpdateDevices: (tvs: Tv[]) => void;
   onOpenSimulator: (clientId: string) => void;
   showToast: (msg: string) => void;
 }
@@ -37,7 +35,7 @@ export default function TVsManager({
 }: TVsManagerProps) {
   const [search, setSearch] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [editingDevice, setEditingDevice] = useState<Device | null>(null);
+  const [editingDevice, setEditingDevice] = useState<Tv | null>(null);
   
   // Form States
   const [formName, setFormName] = useState('');
@@ -46,24 +44,24 @@ export default function TVsManager({
 
   const [copiedToken, setCopiedToken] = useState<string | null>(null);
 
-  // Filter & Search TVs
+  // Filtrar e pesquisar TVs
   const filteredDevices = devices.filter(d => {
-    const matchesSearch = d.name.toLowerCase().includes(search.toLowerCase()) || d.token.toLowerCase().includes(search.toLowerCase());
+    const matchesSearch = d.nome.toLowerCase().includes(search.toLowerCase()) || d.token.toLowerCase().includes(search.toLowerCase());
     return matchesSearch;
   });
 
   const getClientName = (clientId: string) => {
-    return clients.find(c => c.id === clientId)?.name || 'Cliente Removido';
+    return clients.find(c => c.id === clientId)?.nome || 'Cliente Removido';
   };
 
-  const getPlaylistName = (dev: Device) => {
+  const getPlaylistName = (dev: Tv) => {
     if (dev.playlistId) {
-      return playlists.find(p => p.id === dev.playlistId)?.name || 'Nenhuma Playlist';
+      return playlists.find(p => p.id === dev.playlistId)?.nome || 'Nenhuma Playlist';
     }
-    // Fallback to client's playlist
-    const client = clients.find(c => c.id === dev.clientId);
+    // Fallback para playlist do cliente
+    const client = clients.find(c => c.id === dev.clienteId);
     if (!client || !client.playlistId) return 'Nenhuma Playlist';
-    return playlists.find(p => p.id === client.playlistId)?.name || 'Nenhuma Playlist';
+    return playlists.find(p => p.id === client.playlistId)?.nome || 'Nenhuma Playlist';
   };
 
   const handleCopyToken = (token: string) => {
@@ -73,7 +71,7 @@ export default function TVsManager({
     setTimeout(() => setCopiedToken(null), 2000);
   };
 
-  // Open modal for creating new TV
+  // Abrir modal para nova TV
   const handleOpenCreateModal = () => {
     setEditingDevice(null);
     setFormName('');
@@ -82,16 +80,16 @@ export default function TVsManager({
     setIsModalOpen(true);
   };
 
-  // Open modal for editing existing TV
-  const handleOpenEditModal = (device: Device) => {
+  // Abrir modal para editar TV existente
+  const handleOpenEditModal = (device: Tv) => {
     setEditingDevice(device);
-    setFormName(device.name);
-    setFormClientId(device.clientId);
+    setFormName(device.nome);
+    setFormClientId(device.clienteId);
     setFormPlaylistId(device.playlistId || '');
     setIsModalOpen(true);
   };
 
-  // Generate an absolutely unique token in the format VC-XXXX-XX
+  // Gerar token único no formato VC-XXXX-XX
   const generateUniqueToken = async (): Promise<string> => {
     let attempts = 0;
     while (attempts < 100) {
@@ -106,7 +104,7 @@ export default function TVsManager({
     return tokensService.generateToken();
   };
 
-  // Save (Create or Edit) Handler
+  // Salvar (Criar ou Editar)
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!formName.trim()) {
@@ -120,16 +118,16 @@ export default function TVsManager({
 
     try {
       if (editingDevice) {
-        // Edit flow
-        const updated: Device = {
+        // Fluxo de Edição
+        const updated: Tv = {
           ...editingDevice,
-          name: formName,
-          clientId: formClientId,
+          nome: formName,
+          clienteId: formClientId,
           playlistId: formPlaylistId || undefined,
-          lastSync: new Date().toLocaleDateString('pt-BR') + ' ' + new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
+          ultimaSincronizacao: new Date().toLocaleDateString('pt-BR') + ' ' + new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
         };
 
-        const success = await tvsService.saveDevice(updated);
+        const success = await tvsService.saveTv(updated);
         if (success) {
           onUpdateDevices(devices.map(d => d.id === editingDevice.id ? updated : d));
           showToast('TV atualizada com sucesso!');
@@ -137,20 +135,20 @@ export default function TVsManager({
           showToast('Erro ao atualizar TV no Supabase.');
         }
       } else {
-        // Create flow
+        // Fluxo de Criação
         const generatedToken = await generateUniqueToken();
-        const newTv: Device = {
+        const newTv: Tv = {
           id: 'd-' + Math.random().toString(36).substring(2, 9),
-          clientId: formClientId,
-          name: formName,
+          clienteId: formClientId,
+          nome: formName,
           status: 'Offline',
           uptime: '0h 0m',
           token: generatedToken,
-          lastSync: new Date().toLocaleDateString('pt-BR') + ' ' + new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
+          ultimaSincronizacao: new Date().toLocaleDateString('pt-BR') + ' ' + new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
           playlistId: formPlaylistId || undefined
         };
 
-        const success = await tvsService.saveDevice(newTv);
+        const success = await tvsService.saveTv(newTv);
         if (success) {
           onUpdateDevices([...devices, newTv]);
           showToast('Nova TV cadastrada com sucesso!');
@@ -165,11 +163,11 @@ export default function TVsManager({
     }
   };
 
-  // Delete TV Handler
+  // Excluir TV
   const handleDelete = async (id: string) => {
     if (window.confirm('Deseja realmente excluir esta TV?')) {
       try {
-        const success = await tvsService.deleteDevice(id);
+        const success = await tvsService.deleteTv(id);
         if (success) {
           onUpdateDevices(devices.filter(d => d.id !== id));
           showToast('TV excluída com sucesso!');
@@ -183,17 +181,17 @@ export default function TVsManager({
     }
   };
 
-  // Generate new token for existing TV
-  const handleGenerateNewToken = async (device: Device) => {
+  // Gerar novo token para TV existente
+  const handleGenerateNewToken = async (device: Tv) => {
     if (window.confirm('Tem certeza que deseja gerar um novo token para esta TV? O player atual precisará ser reconectado.')) {
       try {
         const newToken = await generateUniqueToken();
-        const updated: Device = {
+        const updated: Tv = {
           ...device,
           token: newToken,
-          lastSync: new Date().toLocaleDateString('pt-BR') + ' ' + new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
+          ultimaSincronizacao: new Date().toLocaleDateString('pt-BR') + ' ' + new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
         };
-        const success = await tvsService.saveDevice(updated);
+        const success = await tvsService.saveTv(updated);
         if (success) {
           onUpdateDevices(devices.map(d => d.id === device.id ? updated : d));
           showToast('Novo token gerado e salvo!');
@@ -213,7 +211,7 @@ export default function TVsManager({
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 border-b border-white/10 pb-5">
         <div>
           <h1 className="text-2xl font-extrabold tracking-tight text-white font-sans flex items-center gap-2">
-            <Tv className="w-6 h-6 text-blue-400" />
+            <TvIcon className="w-6 h-6 text-blue-400" />
             Gerenciamento de TVs
           </h1>
           <p className="text-sm text-slate-400 mt-1">
@@ -255,218 +253,167 @@ export default function TVsManager({
                 <th className="px-4 py-3">Token</th>
                 <th className="px-4 py-3">Playlist</th>
                 <th className="px-4 py-3">Status</th>
-                <th className="px-4 py-3">Última Conexão</th>
+                <th className="px-4 py-3">Tempo Ativo</th>
                 <th className="px-4 py-3">Última Sinc.</th>
                 <th className="px-4 py-3 text-right">Ações</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-white/5">
-              {filteredDevices.map(device => (
-                <tr key={device.id} className="hover:bg-white/5 transition-colors">
-                  {/* Name */}
-                  <td className="px-4 py-4">
-                    <div className="flex items-center gap-3">
-                      <div className={`p-2 rounded-lg ${device.status === 'Online' ? 'bg-emerald-500/10 text-emerald-400' : 'bg-slate-500/10 text-slate-400'}`}>
-                        <Tv className="w-4 h-4" />
-                      </div>
-                      <span className="text-sm font-semibold text-white">{device.name}</span>
-                    </div>
-                  </td>
-
-                  {/* Client */}
-                  <td className="px-4 py-4 text-sm text-slate-300">
-                    {getClientName(device.clientId)}
-                  </td>
-
-                  {/* Token */}
-                  <td className="px-4 py-4">
-                    <button 
-                      onClick={() => handleCopyToken(device.token)}
-                      className="group flex items-center gap-2 px-3 py-1.5 bg-white/5 hover:bg-white/10 rounded-lg text-xs font-mono font-bold text-slate-300 transition-colors border border-white/5"
-                    >
-                      {device.token}
-                      {copiedToken === device.token ? (
-                        <CheckCircle className="w-3.5 h-3.5 text-emerald-400" />
-                      ) : (
-                        <Copy className="w-3.5 h-3.5 text-slate-500 group-hover:text-white" />
-                      )}
-                    </button>
-                  </td>
-
-                  {/* Playlist */}
-                  <td className="px-4 py-4 text-sm text-slate-300 max-w-[150px] truncate">
-                    {getPlaylistName(device)}
-                  </td>
-
-                  {/* Status */}
-                  <td className="px-4 py-4">
-                    <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium ${
-                      device.status === 'Online' 
-                        ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' 
-                        : 'bg-rose-500/10 text-rose-400 border border-rose-500/20'
-                    }`}>
-                      <span className={`w-1.5 h-1.5 rounded-full ${device.status === 'Online' ? 'bg-emerald-400 animate-pulse' : 'bg-rose-400'}`} />
-                      {device.status}
-                    </span>
-                  </td>
-
-                  {/* Uptime (Última Conexão) */}
-                  <td className="px-4 py-4 text-xs text-slate-400 font-mono">
-                    {device.status === 'Online' ? device.uptime || '24h 0m' : 'Inativo'}
-                  </td>
-
-                  {/* Last Sync */}
-                  <td className="px-4 py-4 text-xs text-slate-400 font-mono">
-                    {device.lastSync || 'Nunca'}
-                  </td>
-
-                  {/* Actions */}
-                  <td className="px-4 py-4 text-right">
-                    <div className="flex justify-end gap-1.5">
-                      {/* Edit */}
-                      <button 
-                        onClick={() => handleOpenEditModal(device)}
-                        title="Editar"
-                        className="p-2 bg-white/5 hover:bg-white/10 text-slate-400 hover:text-white rounded-lg transition-colors border border-white/5"
-                      >
-                        <Edit className="w-3.5 h-3.5" />
-                      </button>
-
-                      {/* New Token */}
-                      <button 
-                        onClick={() => handleGenerateNewToken(device)}
-                        title="Gerar Novo Token"
-                        className="p-2 bg-white/5 hover:bg-blue-500/20 text-slate-400 hover:text-blue-400 rounded-lg transition-colors border border-white/5"
-                      >
-                        <Key className="w-3.5 h-3.5" />
-                      </button>
-
-                      {/* Open Simulator */}
-                      <button 
-                        onClick={() => onOpenSimulator(device.clientId)}
-                        title="Abrir Simulador"
-                        className="p-2 bg-white/5 hover:bg-purple-500/20 text-slate-400 hover:text-purple-400 rounded-lg transition-colors border border-white/5"
-                      >
-                        <Play className="w-3.5 h-3.5" />
-                      </button>
-
-                      {/* Delete */}
-                      <button 
-                        onClick={() => handleDelete(device.id)}
-                        title="Excluir"
-                        className="p-2 bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 hover:text-rose-300 rounded-lg transition-colors border border-rose-500/10"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-              {filteredDevices.length === 0 && (
+            <tbody className="divide-y divide-white/5 text-sm">
+              {filteredDevices.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="px-4 py-12 text-center text-slate-500 text-sm font-medium">
-                    Nenhuma TV encontrada.
+                  <td colSpan={8} className="text-center py-12 text-slate-500">
+                    Nenhuma TV cadastrada ou encontrada para "{search}".
                   </td>
                 </tr>
+              ) : (
+                filteredDevices.map(dev => (
+                  <tr key={dev.id} className="hover:bg-white/5 transition-colors">
+                    <td className="px-4 py-4 font-bold text-white">{dev.nome}</td>
+                    <td className="px-4 py-4 text-slate-300 font-medium">{getClientName(dev.clienteId)}</td>
+                    <td className="px-4 py-4 font-mono font-bold text-cyan-400 flex items-center gap-2">
+                      <span className="bg-white/5 border border-white/10 px-2 py-1 rounded text-xs select-all">
+                        {dev.token}
+                      </span>
+                      <button 
+                        onClick={() => handleCopyToken(dev.token)}
+                        className="text-slate-400 hover:text-white p-1 rounded hover:bg-white/5"
+                        title="Copiar Código"
+                      >
+                        {copiedToken === dev.token ? <CheckCircle className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4" />}
+                      </button>
+                    </td>
+                    <td className="px-4 py-4 text-slate-300">
+                      <span className="text-xs bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 px-2 py-1 rounded-full font-medium">
+                        {getPlaylistName(dev)}
+                      </span>
+                    </td>
+                    <td className="px-4 py-4">
+                      <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-bold border ${
+                        dev.status === 'Online' 
+                          ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' 
+                          : dev.status === 'Warning'
+                          ? 'bg-amber-500/10 text-amber-400 border-amber-500/20 animate-pulse'
+                          : 'bg-rose-500/10 text-rose-400 border-rose-500/20'
+                      }`}>
+                        <span className={`w-1.5 h-1.5 rounded-full ${
+                          dev.status === 'Online' ? 'bg-emerald-400' : dev.status === 'Warning' ? 'bg-amber-400' : 'bg-rose-400'
+                        }`} />
+                        {dev.status}
+                      </span>
+                    </td>
+                    <td className="px-4 py-4 text-slate-400 font-mono text-xs">{dev.uptime}</td>
+                    <td className="px-4 py-4 text-slate-400 font-mono text-xs">{dev.ultimaSincronizacao || 'Nunca'}</td>
+                    <td className="px-4 py-4 text-right">
+                      <div className="flex items-center justify-end gap-1.5">
+                        <button 
+                          onClick={() => handleGenerateNewToken(dev)}
+                          className="p-2 text-slate-400 hover:text-cyan-400 hover:bg-white/5 rounded-lg transition-colors border border-white/5"
+                          title="Gerar Novo Token"
+                        >
+                          <Key className="w-4 h-4" />
+                        </button>
+                        <button 
+                          onClick={() => handleOpenEditModal(dev)}
+                          className="p-2 text-slate-400 hover:text-blue-400 hover:bg-white/5 rounded-lg transition-colors border border-white/5"
+                          title="Editar TV"
+                        >
+                          <Edit className="w-4 h-4" />
+                        </button>
+                        <button 
+                          onClick={() => onOpenSimulator(dev.clienteId)}
+                          className="p-2 text-slate-400 hover:text-emerald-400 hover:bg-white/5 rounded-lg transition-colors border border-white/5"
+                          title="Iniciar Simulador"
+                        >
+                          <Play className="w-4 h-4" />
+                        </button>
+                        <button 
+                          onClick={() => handleDelete(dev.id)}
+                          className="p-2 text-slate-400 hover:text-rose-400 hover:bg-white/5 rounded-lg transition-colors border border-white/5"
+                          title="Excluir TV"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))
               )}
             </tbody>
           </table>
         </div>
       </div>
 
-      {/* CREATE/EDIT MODAL */}
+      {/* Create / Edit Modal */}
       {isModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-md animate-fade-in">
-          <div className="w-full max-w-md bg-[#0a0a0f] border border-white/10 rounded-2xl p-6 shadow-2xl relative">
-            {/* Close button */}
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in">
+          <div className="w-full max-w-md bg-[#0d0d12] rounded-2xl border border-white/10 shadow-2xl p-6 relative overflow-hidden">
             <button 
               onClick={() => setIsModalOpen(false)}
-              className="absolute top-4 right-4 p-1.5 hover:bg-white/5 text-slate-400 hover:text-white rounded-lg transition-colors"
+              className="absolute top-4 right-4 text-slate-400 hover:text-white p-1 rounded-lg hover:bg-white/5 transition-all"
             >
-              <X className="w-4 h-4" />
+              <X className="w-5 h-5" />
             </button>
 
-            {/* Modal Title */}
-            <h2 className="text-xl font-bold text-white mb-5 flex items-center gap-2">
-              <Tv className="w-5 h-5 text-blue-400" />
-              {editingDevice ? 'Editar TV' : 'Nova TV'}
-            </h2>
+            <h3 className="text-lg font-bold text-white mb-4 font-sans flex items-center gap-2">
+              <Radio className="w-5 h-5 text-blue-400" />
+              {editingDevice ? 'Editar Configurações da TV' : 'Cadastrar Nova TV / Mural'}
+            </h3>
 
-            {/* Modal Form */}
             <form onSubmit={handleSave} className="space-y-4">
-              <div>
-                <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-1.5">
-                  Nome da TV
-                </label>
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold text-slate-400 uppercase">Nome de Identificação da TV</label>
                 <input
                   type="text"
-                  required
+                  placeholder="Ex: Recepção Entrada Principal"
                   value={formName}
                   onChange={(e) => setFormName(e.target.value)}
-                  placeholder="EX: TV Recepção"
-                  className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-blue-500/50 placeholder-slate-600"
+                  className="w-full px-3.5 py-2.5 bg-[#050508] border border-white/10 rounded-lg text-sm text-white focus:outline-none focus:border-blue-500 transition-colors"
                 />
               </div>
 
-              <div>
-                <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-1.5">
-                  Cliente
-                </label>
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold text-slate-400 uppercase">Cliente Vinculado</label>
                 <select
                   value={formClientId}
                   onChange={(e) => setFormClientId(e.target.value)}
-                  className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-blue-500/50"
+                  className="w-full px-3.5 py-2.5 bg-[#050508] border border-white/10 rounded-lg text-sm text-slate-200 focus:outline-none focus:border-blue-500 transition-colors"
                 >
-                  {clients.map(client => (
-                    <option key={client.id} value={client.id} className="bg-[#0a0a0f]">
-                      {client.name}
-                    </option>
+                  {clients.map(c => (
+                    <option key={c.id} value={c.id}>{c.nome}</option>
                   ))}
                 </select>
               </div>
 
-              <div>
-                <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-1.5">
-                  Playlist Inicial <span className="text-slate-500">(Opcional)</span>
-                </label>
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold text-slate-400 uppercase">Playlist Exclusiva (Opcional)</label>
                 <select
                   value={formPlaylistId}
                   onChange={(e) => setFormPlaylistId(e.target.value)}
-                  className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-blue-500/50"
+                  className="w-full px-3.5 py-2.5 bg-[#050508] border border-white/10 rounded-lg text-sm text-slate-200 focus:outline-none focus:border-blue-500 transition-colors"
                 >
-                  <option value="" className="bg-[#0a0a0f]">Herdar do Cliente</option>
-                  {playlists.map(pl => (
-                    <option key={pl.id} value={pl.id} className="bg-[#0a0a0f]">
-                      {pl.name}
-                    </option>
+                  <option value="">Usar Playlist Padrão da Unidade Cliente</option>
+                  {playlists.map(p => (
+                    <option key={p.id} value={p.id}>{p.nome}</option>
                   ))}
                 </select>
+                <p className="text-[10px] text-slate-500">
+                  Se nenhuma playlist exclusiva for selecionada, o terminal reproduzirá a playlist ativa do cliente.
+                </p>
               </div>
 
-              {/* Token visual notice (only for Create) */}
-              {!editingDevice && (
-                <div className="p-3 bg-blue-500/5 border border-blue-500/10 rounded-lg flex items-start gap-2.5">
-                  <Key className="w-4 h-4 text-blue-400 shrink-0 mt-0.5" />
-                  <p className="text-[11px] text-slate-400 leading-relaxed">
-                    O token exclusivo de ativação será gerado automaticamente no formato padrão <strong className="text-white">VC-XXXX-XX</strong> e gravado com segurança.
-                  </p>
-                </div>
-              )}
-
-              {/* Actions Footer */}
-              <div className="flex justify-end gap-3 pt-4 border-t border-white/5 mt-6">
+              <div className="flex justify-end gap-2.5 pt-3 border-t border-white/5 mt-5">
                 <button
                   type="button"
                   onClick={() => setIsModalOpen(false)}
-                  className="px-4 py-2 bg-white/5 hover:bg-white/10 text-slate-300 hover:text-white rounded-lg text-xs font-bold transition-all"
+                  className="px-4 py-2.5 bg-white/5 hover:bg-white/10 border border-white/10 text-slate-300 rounded-lg text-xs font-bold transition-all"
                 >
                   Cancelar
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-2 bg-gradient-to-r from-blue-600 to-cyan-500 hover:from-blue-500 hover:to-cyan-400 text-white rounded-lg text-xs font-bold transition-all shadow-[0_0_15px_rgba(37,99,235,0.2)]"
+                  className="px-5 py-2.5 bg-gradient-to-r from-blue-600 to-cyan-500 hover:opacity-95 text-white rounded-lg text-xs font-bold transition-all shadow-lg"
                 >
-                  Salvar
+                  {editingDevice ? 'Salvar TV' : 'Ativar & Registrar'}
                 </button>
               </div>
             </form>

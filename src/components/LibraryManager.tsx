@@ -1,29 +1,22 @@
 import React, { useState } from 'react';
-import { Media, Playlist } from '../types';
+import { Midia, Playlist } from '../types';
 import { 
   FileVideo, 
-  Image, 
-  ListMusic, 
+  Image as ImageIcon, 
   Plus, 
   Trash2, 
   Clock, 
   Search, 
   Check, 
   FolderPlus,
-  Tv,
-  Layers,
-  Sparkles,
-  Link,
-  ChevronRight,
-  ExternalLink,
   X
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
 interface LibraryManagerProps {
-  media: Media[];
+  media: Midia[];
   playlists: Playlist[];
-  onAddMedia: (m: Media) => void;
+  onAddMedia: (m: Midia) => void;
   onDeleteMedia: (id: string) => void;
   onAddPlaylist: (p: Playlist) => void;
   onDeletePlaylist: (id: string) => void;
@@ -56,28 +49,26 @@ export default function LibraryManager({
 
   // Filtering media list
   const filteredMedia = media.filter(m => 
-    m.name.toLowerCase().includes(mediaSearch.toLowerCase())
+    m.nome.toLowerCase().includes(mediaSearch.toLowerCase())
   );
 
   const handleCreateMedia = (e: React.FormEvent) => {
     e.preventDefault();
     if (!mediaName.trim() || !mediaUrl.trim()) return;
 
-    // Validate Unsplash URL or give standard backup if not correct
     let finalUrl = mediaUrl;
     if (mediaType === 'video' && !mediaUrl.endsWith('.mp4')) {
-      // Use dynamic pexels/mixkit sample video if it doesn't look correct to guarantee success
       if (!mediaUrl.includes('assets.') && !mediaUrl.includes('pexels') && !mediaUrl.includes('mixkit')) {
         finalUrl = 'https://assets.mixkit.co/videos/preview/mixkit-waterfall-in-forest-2213-large.mp4';
       }
     }
 
-    const newMedia: Media = {
+    const newMedia: Midia = {
       id: `m-${Date.now()}`,
-      name: mediaName,
+      nome: mediaName,
       url: finalUrl,
-      type: mediaType,
-      duration: Number(mediaDuration)
+      tipo: mediaType,
+      duracao: Number(mediaDuration)
     };
 
     onAddMedia(newMedia);
@@ -95,8 +86,8 @@ export default function LibraryManager({
 
     const newPlaylist: Playlist = {
       id: `p-${Date.now()}`,
-      name: playlistName,
-      mediaIds: selectedMediaIds
+      nome: playlistName,
+      midiasIds: selectedMediaIds
     };
 
     onAddPlaylist(newPlaylist);
@@ -120,169 +111,114 @@ export default function LibraryManager({
       <div className="flex border-b border-white/10">
         <button
           onClick={() => setActiveSubTab('media')}
-          className={`px-5 py-3 text-sm font-bold flex items-center gap-2 border-b-2 -mb-px transition-all ${
+          className={`px-4 py-2.5 text-xs font-bold uppercase tracking-wider border-b-2 transition-all ${
             activeSubTab === 'media'
-              ? 'border-blue-500 text-cyan-400 font-semibold'
-              : 'border-transparent text-slate-400 hover:text-slate-200'
+              ? 'border-blue-500 text-white'
+              : 'border-transparent text-slate-400 hover:text-white'
           }`}
         >
-          <Layers className="w-4 h-4" />
-          Arquivos de Mídia ({media.length})
+          Mídias ({media.length})
         </button>
         <button
           onClick={() => setActiveSubTab('playlists')}
-          className={`px-5 py-3 text-sm font-bold flex items-center gap-2 border-b-2 -mb-px transition-all ${
+          className={`px-4 py-2.5 text-xs font-bold uppercase tracking-wider border-b-2 transition-all ${
             activeSubTab === 'playlists'
-              ? 'border-blue-500 text-cyan-400 font-semibold'
-              : 'border-transparent text-slate-400 hover:text-slate-200'
+              ? 'border-blue-500 text-white'
+              : 'border-transparent text-slate-400 hover:text-white'
           }`}
         >
-          <ListMusic className="w-4 h-4" />
-          Playlists de Transmissão ({playlists.length})
+          Playlists ({playlists.length})
         </button>
       </div>
 
-      {/* MEDIA TAB SUB SECTION */}
-      {activeSubTab === 'media' && (
-        <div className="space-y-6">
-          {/* Top Controls for Media */}
-          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-[#0d0d12]/60 p-4 rounded-xl border border-white/10 shadow-xl backdrop-blur-xl">
-            <div className="relative w-full sm:w-72">
-              <Search className="absolute left-3 top-2.5 w-4 h-4 text-slate-500" />
+      {activeSubTab === 'media' ? (
+        <div className="space-y-6" id="subtab-media-content">
+          {/* Controls Bar */}
+          <div className="flex flex-col sm:flex-row justify-between items-stretch sm:items-center gap-3">
+            <div className="relative flex-1 max-w-md">
+              <Search className="w-4 h-4 text-slate-500 absolute left-3 top-1/2 transform -translate-y-1/2" />
               <input 
                 type="text" 
-                placeholder="Buscar arquivos de mídia..."
+                placeholder="Pesquisar mídia..."
                 value={mediaSearch}
                 onChange={(e) => setMediaSearch(e.target.value)}
-                className="w-full pl-9 pr-4 py-2 bg-[#050508]/40 border border-white/10 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all text-white placeholder:text-slate-500"
+                className="w-full bg-[#0d0d12]/60 border border-white/10 rounded-xl pl-9 pr-4 py-2 text-xs focus:ring-1 focus:ring-blue-500 focus:outline-none"
               />
             </div>
 
-            <button 
+            <button
               onClick={() => setShowAddMedia(!showAddMedia)}
-              className="flex items-center gap-1.5 px-4 py-2 bg-gradient-to-r from-blue-600 to-cyan-500 text-white rounded-lg text-sm font-semibold transition-all shadow-sm w-full sm:w-auto justify-center hover:opacity-95"
+              className="flex items-center justify-center gap-1.5 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-bold transition-all shadow-md shrink-0"
             >
-              {showAddMedia ? <X className="w-4 h-4" /> : <Plus className="w-4 h-4" />}
-              Adicionar Arquivo
+              <Plus className="w-4 h-4" /> Cadastrar Mídia
             </button>
           </div>
 
-          {/* Add Media Form View */}
+          {/* Add Media Modal */}
           <AnimatePresence>
             {showAddMedia && (
               <motion.div 
-                initial={{ opacity: 0, height: 0 }}
-                animate={{ opacity: 1, height: 'auto' }}
-                exit={{ opacity: 0, height: 0 }}
-                className="overflow-hidden"
+                initial={{ opacity: 0, y: -10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                className="bg-[#0d0d12]/80 border border-white/10 rounded-2xl p-5 space-y-4 backdrop-blur-xl"
               >
-                <form onSubmit={handleCreateMedia} className="bg-[#0d0d12]/80 p-6 rounded-xl border border-white/10 shadow-2xl space-y-4 backdrop-blur-xl">
-                  <h3 className="text-sm font-bold text-white uppercase tracking-wider flex items-center gap-2">
-                    <Sparkles className="w-4 h-4 text-cyan-400" />
-                    Enviar Novo Arquivo para Nuvem de Transmissão
-                  </h3>
+                <div className="flex justify-between items-center border-b border-white/10 pb-3">
+                  <h3 className="text-sm font-bold text-white uppercase tracking-wider">Cadastrar Nova Mídia</h3>
+                  <button onClick={() => setShowAddMedia(false)} className="text-slate-500 hover:text-white">
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
 
+                <form onSubmit={handleCreateMedia} className="space-y-4">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {/* Nome do Conteúdo */}
                     <div className="space-y-1">
-                      <label className="text-xs font-bold text-slate-400 uppercase">Nome Comercial da Mídia</label>
+                      <label className="text-[10px] font-bold text-slate-400 uppercase">Título da Mídia</label>
                       <input 
                         type="text" 
                         required
-                        placeholder="Ex: Campanha Descontos Novembro / Tip de Saúde"
+                        placeholder="Ex: Vídeo Institucional Julho"
                         value={mediaName}
                         onChange={(e) => setMediaName(e.target.value)}
-                        className="w-full px-3 py-2 bg-[#050508]/40 border border-white/10 text-white rounded-lg text-sm focus:ring-1 focus:ring-blue-500 focus:outline-none"
+                        className="w-full bg-[#050508]/40 border border-white/10 rounded-lg px-3 py-2 text-xs text-slate-200 focus:ring-1 focus:ring-blue-500 focus:outline-none"
                       />
                     </div>
 
-                    {/* URL de Origem */}
                     <div className="space-y-1">
-                      <label className="text-xs font-bold text-slate-400 uppercase flex items-center justify-between">
-                        <span>URL do Arquivo (Imagem ou MP4)</span>
-                        <span className="text-[10px] text-slate-500 normal-case">(Recomendado: Unsplash ou Mixkit)</span>
-                      </label>
-                      <input 
-                        type="url" 
-                        required
-                        placeholder="https://images.unsplash.com/photo-..."
-                        value={mediaUrl}
-                        onChange={(e) => setMediaUrl(e.target.value)}
-                        className="w-full px-3 py-2 bg-[#050508]/40 border border-white/10 text-white rounded-lg text-sm focus:ring-1 focus:ring-blue-500 focus:outline-none"
-                      />
-                    </div>
-
-                    {/* Tipo */}
-                    <div className="space-y-1">
-                      <label className="text-xs font-bold text-slate-400 uppercase">Formato de Mídia</label>
-                      <select
+                      <label className="text-[10px] font-bold text-slate-400 uppercase">Tipo</label>
+                      <select 
                         value={mediaType}
-                        onChange={(e) => setMediaType(e.target.value as 'image' | 'video')}
-                        className="w-full px-3 py-2 bg-[#050508]/40 border border-white/10 text-slate-200 rounded-lg text-sm focus:ring-1"
+                        onChange={(e) => setMediaType(e.target.value as any)}
+                        className="w-full bg-[#050508]/40 border border-white/10 rounded-lg px-3 py-2 text-xs text-slate-200 focus:ring-1 focus:ring-blue-500 focus:outline-none"
                       >
-                        <option value="image">Imagem Estática (JPG, PNG, WebP)</option>
-                        <option value="video">Vídeo em Loop (MP4, WebM)</option>
+                        <option value="image" className="bg-[#0d0d12]">Imagem (.png, .jpg, webp)</option>
+                        <option value="video" className="bg-[#0d0d12]">Vídeo (.mp4)</option>
                       </select>
                     </div>
 
-                    {/* Tempo de exibição */}
-                    <div className="space-y-1">
-                      <label className="text-xs font-bold text-slate-400 uppercase">Tempo de Exibição Padrão (Segundos)</label>
+                    <div className="space-y-1 md:col-span-2">
+                      <label className="text-[10px] font-bold text-slate-400 uppercase">URL do arquivo</label>
                       <input 
-                        type="number" 
-                        min="3" 
-                        max="300"
-                        value={mediaDuration}
-                        onChange={(e) => setMediaDuration(Number(e.target.value))}
-                        className="w-full px-3 py-2 bg-[#050508]/40 border border-white/10 text-white rounded-lg text-sm"
+                        type="url" 
+                        required
+                        placeholder="https://exemplo.com/mídia.jpg"
+                        value={mediaUrl}
+                        onChange={(e) => setMediaUrl(e.target.value)}
+                        className="w-full bg-[#050508]/40 border border-white/10 rounded-lg px-3 py-2 text-xs text-slate-200 focus:ring-1 focus:ring-blue-500 focus:outline-none"
                       />
                     </div>
-                  </div>
 
-                  {/* Sugestoes rapidas de URL para ajudar o usuario */}
-                  <div className="bg-[#050508]/60 p-3 rounded-lg border border-white/10 space-y-1">
-                    <p className="text-[10px] font-bold text-slate-400 uppercase">💡 Links de Amostra Rápidos para Copiar/Colar:</p>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-[10px] text-blue-400">
-                      <div 
-                        onClick={() => {
-                          setMediaName('Menu Promocional Gastronomia');
-                          setMediaType('image');
-                          setMediaUrl('https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&w=800&q=80');
-                        }}
-                        className="p-1.5 bg-[#0d0d12]/40 hover:bg-white/5 rounded border border-white/5 cursor-pointer truncate"
-                      >
-                        [IMAGEM] Prato Gourmet Saudável (Unsplash)
-                      </div>
-                      <div 
-                        onClick={() => {
-                          setMediaName('Campanha Pilates & Ergonomia');
-                          setMediaType('image');
-                          setMediaUrl('https://images.unsplash.com/photo-1518611012118-696072aa579a?auto=format&fit=crop&w=800&q=80');
-                        }}
-                        className="p-1.5 bg-[#0d0d12]/40 hover:bg-white/5 rounded border border-white/5 cursor-pointer truncate"
-                      >
-                        [IMAGEM] Pose de Yoga & Postura (Unsplash)
-                      </div>
-                      <div 
-                        onClick={() => {
-                          setMediaName('Video Loop: Natureza das Montanhas');
-                          setMediaType('video');
-                          setMediaUrl('https://assets.mixkit.co/videos/preview/mixkit-forest-stream-with-mossy-rocks-2070-large.mp4');
-                        }}
-                        className="p-1.5 bg-[#0d0d12]/40 hover:bg-white/5 rounded border border-white/5 cursor-pointer truncate"
-                      >
-                        [VÍDEO] Corredeira na Floresta (Mixkit mp4)
-                      </div>
-                      <div 
-                        onClick={() => {
-                          setMediaName('Video Loop: Café Quente Coando');
-                          setMediaType('video');
-                          setMediaUrl('https://assets.mixkit.co/videos/preview/mixkit-coffee-brewing-in-cafetiere-33230-large.mp4');
-                        }}
-                        className="p-1.5 bg-[#0d0d12]/40 hover:bg-white/5 rounded border border-white/5 cursor-pointer truncate"
-                      >
-                        [VÍDEO] Café Especial (Mixkit mp4)
-                      </div>
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-bold text-slate-400 uppercase">Duração (Segundos)</label>
+                      <input 
+                        type="number" 
+                        min={1}
+                        max={3600}
+                        required
+                        value={mediaDuration}
+                        onChange={(e) => setMediaDuration(Number(e.target.value))}
+                        className="w-full bg-[#050508]/40 border border-white/10 rounded-lg px-3 py-2 text-xs text-slate-200 focus:ring-1 focus:ring-blue-500 focus:outline-none"
+                      />
                     </div>
                   </div>
 
@@ -296,9 +232,9 @@ export default function LibraryManager({
                     </button>
                     <button 
                       type="submit" 
-                      className="px-5 py-2 text-xs font-bold text-white bg-gradient-to-r from-blue-600 to-cyan-500 hover:opacity-95 rounded-lg transition-colors"
+                      className="px-5 py-2 text-xs font-bold text-white bg-gradient-to-r from-blue-600 to-cyan-500 hover:opacity-95 rounded-lg transition-colors shadow-lg"
                     >
-                      Cadastrar Mídia
+                      Salvar Mídia
                     </button>
                   </div>
                 </form>
@@ -306,164 +242,144 @@ export default function LibraryManager({
             )}
           </AnimatePresence>
 
-          {/* Media Grid Display */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-5" id="media-assets-grid">
+          {/* Media Grid Cards */}
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4" id="media-items-grid">
             {filteredMedia.map(m => (
               <div 
                 key={m.id}
-                className="bg-[#0d0d12]/60 rounded-xl border border-white/10 shadow-xl overflow-hidden flex flex-col justify-between hover:border-blue-500/30 transition-all group backdrop-blur-xl"
+                className="bg-[#0d0d12]/60 rounded-xl border border-white/10 overflow-hidden hover:border-blue-500/40 transition-all flex flex-col justify-between group shadow-lg backdrop-blur-xl"
               >
-                {/* Media Preview Stage */}
-                <div className="relative aspect-video bg-[#050508] overflow-hidden shrink-0 flex items-center justify-center">
-                  {m.type === 'video' ? (
-                    <>
-                      <video 
-                        src={m.url} 
-                        muted 
-                        className="w-full h-full object-cover opacity-70 group-hover:scale-105 transition-all"
-                        preload="metadata"
-                      />
-                      <div className="absolute top-2 right-2 bg-blue-600 text-white p-1 rounded-md text-[10px] font-bold font-mono tracking-wider flex items-center gap-1">
-                        <FileVideo className="w-3.5 h-3.5" />
-                        VÍDEO
-                      </div>
-                    </>
+                {/* Visual Preview */}
+                <div className="aspect-video bg-[#050508] relative overflow-hidden flex items-center justify-center">
+                  {m.tipo === 'image' ? (
+                    <img 
+                      src={m.url} 
+                      alt={m.nome} 
+                      className="w-full h-full object-cover opacity-85 group-hover:opacity-100 transition-opacity" 
+                      referrerPolicy="no-referrer"
+                    />
                   ) : (
-                    <>
-                      <img 
-                        src={m.url} 
-                        alt={m.name} 
-                        referrerPolicy="no-referrer"
-                        className="w-full h-full object-cover group-hover:scale-105 transition-all"
-                      />
-                      <div className="absolute top-2 right-2 bg-emerald-600 text-white p-1 rounded-md text-[10px] font-bold font-mono tracking-wider flex items-center gap-1">
-                        <Image className="w-3.5 h-3.5" />
-                        IMAGEM
-                      </div>
-                    </>
+                    <video 
+                      src={m.url} 
+                      className="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-opacity" 
+                      muted 
+                    />
                   )}
-                  {/* Dynamic hovering action overlay */}
-                  <div className="absolute inset-0 bg-slate-950/45 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
-                    <a 
-                      href={m.url} 
-                      target="_blank" 
-                      rel="noopener noreferrer" 
-                      className="p-1.5 bg-white text-gray-800 rounded-lg text-xs font-semibold hover:bg-gray-100 flex items-center gap-1 shadow"
-                    >
-                      <ExternalLink className="w-3.5 h-3.5" /> Abrir Link
-                    </a>
-                  </div>
+                  {m.tipo === 'video' && (
+                    <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                      <div className="w-8 h-8 rounded-full bg-black/50 border border-white/20 flex items-center justify-center">
+                        <FileVideo className="w-4 h-4 text-white animate-pulse" />
+                      </div>
+                    </div>
+                  )}
+                  <span className="absolute bottom-2 right-2 bg-black/70 px-1.5 py-0.5 rounded font-mono text-[9px] text-slate-300 border border-white/10">
+                    {m.duracao}s
+                  </span>
                 </div>
 
-                {/* Content description & actions */}
-                <div className="p-4 flex-1 flex flex-col justify-between gap-3">
+                {/* Details info */}
+                <div className="p-3 space-y-2">
                   <div>
-                    <h4 className="text-xs font-bold text-white leading-snug group-hover:text-cyan-400 transition-colors line-clamp-2">
-                      {m.name}
-                    </h4>
-                    <p className="text-[10px] text-slate-400 font-mono mt-1.5 flex items-center gap-1">
-                      <Clock className="w-3 h-3" /> Exibição: {m.duration}s
-                    </p>
+                    <h4 className="text-xs font-bold text-white truncate" title={m.nome}>{m.nome}</h4>
+                    <p className="text-[10px] text-slate-500 font-mono mt-0.5 truncate uppercase">{m.tipo}</p>
                   </div>
 
-                  <div className="flex justify-between items-center border-t border-white/5 pt-3 mt-1">
-                    <span className="text-[10px] font-semibold font-mono bg-white/5 text-slate-400 border border-white/5 px-1.5 py-0.5 rounded">
-                      ID: {m.id}
-                    </span>
+                  <div className="flex justify-between items-center border-t border-white/5 pt-2">
                     <button 
                       onClick={() => onDeleteMedia(m.id)}
-                      className="text-slate-500 hover:text-rose-400 p-1.5 rounded-lg hover:bg-white/5 transition-colors"
+                      className="text-slate-500 hover:text-rose-400 p-1 rounded hover:bg-white/5 transition-colors"
                       title="Excluir Mídia"
                     >
-                      <Trash2 className="w-4 h-4" />
+                      <Trash2 className="w-3.5 h-3.5" />
                     </button>
                   </div>
                 </div>
               </div>
             ))}
+            {filteredMedia.length === 0 && (
+              <div className="col-span-full py-16 text-center text-slate-500 text-xs">
+                Nenhuma mídia cadastrada na biblioteca.
+              </div>
+            )}
           </div>
         </div>
-      )}
-
-      {/* PLAYLISTS TAB SUB SECTION */}
-      {activeSubTab === 'playlists' && (
-        <div className="space-y-6">
-          {/* Top Control Panel for Playlists */}
-          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-[#0d0d12]/60 p-4 rounded-xl border border-white/10 shadow-xl backdrop-blur-xl">
-            <div>
-              <p className="text-xs text-slate-400 font-medium">As playlists agrupam os conteúdos em sequência repetitiva.</p>
-            </div>
-
-            <button 
+      ) : (
+        <div className="space-y-6" id="subtab-playlists-content">
+          {/* Controls Bar */}
+          <div className="flex justify-between items-center gap-3">
+            <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest">Suas Playlists</h3>
+            <button
               onClick={() => setShowAddPlaylist(!showAddPlaylist)}
-              className="flex items-center gap-1.5 px-4 py-2 bg-gradient-to-r from-blue-600 to-cyan-500 text-white rounded-lg text-sm font-semibold transition-all shadow-sm w-full sm:w-auto justify-center hover:opacity-95"
+              className="flex items-center justify-center gap-1.5 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-bold transition-all shadow-md shrink-0"
             >
-              {showAddPlaylist ? <X className="w-4 h-4" /> : <FolderPlus className="w-4 h-4" />}
-              Criar Nova Playlist
+              <FolderPlus className="w-4 h-4" /> Nova Playlist
             </button>
           </div>
 
-          {/* Add Playlist Form View */}
+          {/* Add Playlist Form */}
           <AnimatePresence>
             {showAddPlaylist && (
               <motion.div 
-                initial={{ opacity: 0, height: 0 }}
-                animate={{ opacity: 1, height: 'auto' }}
-                exit={{ opacity: 0, height: 0 }}
-                className="overflow-hidden"
+                initial={{ opacity: 0, y: -10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                className="bg-[#0d0d12]/80 border border-white/10 rounded-2xl p-5 space-y-4 backdrop-blur-xl"
               >
-                <form onSubmit={handleCreatePlaylist} className="bg-[#0d0d12]/80 p-6 rounded-xl border border-white/10 shadow-2xl space-y-4 backdrop-blur-xl">
-                  <h3 className="text-sm font-bold text-white uppercase tracking-wider flex items-center gap-2">
-                    <ListMusic className="w-4 h-4 text-cyan-400" />
-                    Montar Nova Grade de Programação (Playlist)
-                  </h3>
+                <div className="flex justify-between items-center border-b border-white/10 pb-3">
+                  <h3 className="text-sm font-bold text-white uppercase tracking-wider">Criar Nova Playlist</h3>
+                  <button onClick={() => setShowAddPlaylist(false)} className="text-slate-500 hover:text-white">
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
 
+                <form onSubmit={handleCreatePlaylist} className="space-y-4">
                   <div className="space-y-1">
-                    <label className="text-xs font-bold text-slate-400 uppercase">Nome Identificador da Playlist</label>
+                    <label className="text-[10px] font-bold text-slate-400 uppercase">Nome da Playlist</label>
                     <input 
                       type="text" 
                       required
-                      placeholder="Ex: Comercial Outono - Lojas Físicas / Academia Horário de Pico"
+                      placeholder="Ex: Playlist Promocional Sábado"
                       value={playlistName}
                       onChange={(e) => setPlaylistName(e.target.value)}
-                      className="w-full px-3 py-2 bg-[#050508]/40 border border-white/10 text-white rounded-lg text-sm focus:ring-1 focus:ring-blue-500 focus:outline-none"
+                      className="w-full bg-[#050508]/40 border border-white/10 rounded-lg px-3 py-2 text-xs text-slate-200 focus:ring-1 focus:ring-blue-500 focus:outline-none"
                     />
                   </div>
 
-                  {/* Media Selector with checkboxes */}
+                  {/* Media Picker */}
                   <div className="space-y-2">
-                    <label className="text-xs font-bold text-slate-400 uppercase block">
-                      Selecione as mídias para tocar nesta playlist (Serão reproduzidas em sequência)
-                    </label>
-
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2.5 max-h-60 overflow-y-auto border border-white/10 p-3 rounded-lg bg-[#050508]/40">
+                    <label className="text-[10px] font-bold text-slate-400 uppercase block">Selecione as Mídias da Sequência</label>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 max-h-[180px] overflow-y-auto pr-2 scrollbar-thin">
                       {media.map(m => {
                         const isSelected = selectedMediaIds.includes(m.id);
                         return (
                           <div 
                             key={m.id}
                             onClick={() => toggleMediaInPlaylistSelection(m.id)}
-                            className={`p-2.5 rounded-lg border text-xs cursor-pointer flex items-center justify-between gap-3 transition-all ${
+                            className={`p-2 rounded-lg border cursor-pointer flex items-center gap-2 transition-all relative ${
                               isSelected 
-                                ? 'bg-blue-500/10 border-blue-500/30 text-white font-medium' 
-                                : 'bg-[#0d0d12]/40 hover:bg-white/5 border-white/10 text-slate-300'
+                                ? 'bg-blue-500/10 border-blue-500/50' 
+                                : 'bg-[#050508]/40 border-white/5 hover:border-white/20'
                             }`}
                           >
-                            <div className="flex items-center gap-2 truncate">
-                              {m.type === 'video' ? <FileVideo className="w-4 h-4 text-blue-400 shrink-0" /> : <Image className="w-4 h-4 text-emerald-400 shrink-0" />}
-                              <span className="truncate">{m.name}</span>
+                            <div className="w-8 h-8 bg-[#0d0d12] rounded overflow-hidden shrink-0 flex items-center justify-center">
+                              {m.tipo === 'image' ? (
+                                <img src={m.url} alt={m.nome} className="w-full h-full object-cover" />
+                              ) : (
+                                <FileVideo className="w-4 h-4 text-slate-500" />
+                              )}
                             </div>
-                            <div className="flex items-center gap-1.5 shrink-0 font-mono text-[10px]">
-                              <span>{m.duration}s</span>
-                              <div className={`w-4 h-4 rounded-full border flex items-center justify-center transition-all ${
-                                isSelected ? 'bg-blue-600 border-blue-600 text-white' : 'border-white/20'
-                              }`}>
-                                {isSelected && <Check className="w-3 h-3 stroke-[3]" />}
+                            <span className="text-[10px] font-semibold truncate text-slate-300 flex-1">{m.nome}</span>
+                            {isSelected && (
+                              <div className="absolute top-1 right-1 bg-blue-500 rounded-full p-0.5">
+                                <Check className="w-2.5 h-2.5 text-white" />
                               </div>
-                            </div>
+                            )}
                           </div>
                         );
                       })}
+                      {media.length === 0 && (
+                        <p className="text-xs text-slate-500 col-span-full py-4 text-center">Nenhuma mídia cadastrada na biblioteca ainda.</p>
+                      )}
                     </div>
                   </div>
 
@@ -495,11 +411,11 @@ export default function LibraryManager({
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4" id="playlists-list-grid">
             {playlists.map(pl => {
               // Get actual media list in correct order
-              const playlistMedia = pl.mediaIds
+              const playlistMedia = pl.midiasIds
                 .map(mid => media.find(m => m.id === mid))
-                .filter(Boolean) as Media[];
+                .filter(Boolean) as Midia[];
 
-              const totalDuration = playlistMedia.reduce((acc, m) => acc + m.duration, 0);
+              const totalDuration = playlistMedia.reduce((acc, m) => acc + m.duracao, 0);
 
               return (
                 <div 
@@ -509,7 +425,7 @@ export default function LibraryManager({
                   <div className="space-y-3">
                     <div className="flex justify-between items-start gap-4">
                       <div>
-                        <h4 className="text-sm font-bold text-white font-sans">{pl.name}</h4>
+                        <h4 className="text-sm font-bold text-white font-sans">{pl.nome}</h4>
                         <div className="flex items-center gap-2 mt-1.5 text-xs text-slate-400 font-mono">
                           <span>{playlistMedia.length} mídias</span>
                           <span>·</span>
@@ -537,28 +453,27 @@ export default function LibraryManager({
                             <div key={`${m.id}-${idx}`} className="flex items-center justify-between text-xs text-slate-300 gap-4">
                               <div className="flex items-center gap-1.5 truncate">
                                 <span className="text-[10px] font-bold text-blue-400 w-3 font-mono">{idx + 1}.</span>
-                                {m.type === 'video' ? <FileVideo className="w-3.5 h-3.5 text-blue-500 shrink-0" /> : <Image className="w-3.5 h-3.5 text-emerald-500 shrink-0" />}
-                                <span className="truncate">{m.name}</span>
+                                {m.tipo === 'video' ? <FileVideo className="w-3.5 h-3.5 text-blue-500 shrink-0" /> : <ImageIcon className="w-3.5 h-3.5 text-emerald-500 shrink-0" />}
+                                <span className="truncate max-w-[150px]" title={m.nome}>{m.nome}</span>
                               </div>
-                              <span className="text-[10px] text-slate-500 font-mono">{m.duration}s</span>
+                              <span className="font-mono text-[10px] text-slate-500 shrink-0">{m.duracao}s</span>
                             </div>
                           ))
                         )}
                       </div>
                     </div>
                   </div>
-
-                  <div className="bg-[#050508]/60 p-2.5 rounded-lg border border-white/10 text-[10px] text-slate-400 flex justify-between items-center font-mono">
-                    <span>ID: {pl.id}</span>
-                    <span className="text-blue-400 font-bold uppercase tracking-wider">Código Prontidão</span>
-                  </div>
                 </div>
               );
             })}
+            {playlists.length === 0 && (
+              <div className="col-span-full py-16 text-center text-slate-500 text-xs">
+                Nenhuma playlist criada.
+              </div>
+            )}
           </div>
         </div>
       )}
-
     </div>
   );
 }

@@ -1,12 +1,12 @@
 import React from 'react';
-import { Client, Device, Playlist } from '../../types';
-import { Tv, Key, RefreshCw, Trash2, Edit } from 'lucide-react';
+import { Cliente, Tv, Playlist } from '../../types';
+import { Tv as TvIcon, Key, RefreshCw, Trash2 } from 'lucide-react';
 
 interface ClientTVsProps {
-  client: Client;
-  devices: Device[];
+  client: Cliente;
+  devices: Tv[];
   playlists: Playlist[];
-  onUpdateDevices: (updateFn: (prev: Device[]) => Device[]) => void;
+  onUpdateDevices: (updateFn: (prev: Tv[]) => Tv[]) => void;
   showToast: (msg: string) => void;
 }
 
@@ -21,7 +21,7 @@ export default function ClientTVs({ client, devices, playlists, onUpdateDevices,
   const handleSyncNow = (deviceId: string) => {
     onUpdateDevices(prev => prev.map(d => d.id === deviceId ? { 
       ...d, 
-      lastSync: new Date().toLocaleDateString('pt-BR') + ' ' + new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) 
+      ultimaSincronizacao: new Date().toLocaleDateString('pt-BR') + ' ' + new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) 
     } : d));
     showToast('Comando de sincronização enviado.');
   };
@@ -35,7 +35,7 @@ export default function ClientTVs({ client, devices, playlists, onUpdateDevices,
 
   const getPlaylistName = (id?: string) => {
     if (!id) return 'Nenhuma';
-    return playlists.find(p => p.id === id)?.name || 'Desconhecida';
+    return playlists.find(p => p.id === id)?.nome || 'Desconhecida';
   };
 
   return (
@@ -56,7 +56,7 @@ export default function ClientTVs({ client, devices, playlists, onUpdateDevices,
           <tbody className="divide-y divide-white/5">
             {devices.map(device => (
               <tr key={device.id} className="hover:bg-white/5 transition-colors">
-                <td className="px-4 py-4 text-sm font-semibold text-white">{device.name}</td>
+                <td className="px-4 py-4 text-sm font-semibold text-white">{device.nome}</td>
                 <td className="px-4 py-4">
                   <span className={`inline-flex items-center gap-1.5 px-2 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider ${
                     device.status === 'Online' ? 'bg-emerald-500/10 text-emerald-400' : 'bg-rose-500/10 text-rose-400'
@@ -66,7 +66,7 @@ export default function ClientTVs({ client, devices, playlists, onUpdateDevices,
                 </td>
                 <td className="px-4 py-4 text-sm text-slate-300">{getPlaylistName(client.playlistId)}</td>
                 <td className="px-4 py-4 font-mono text-xs text-slate-400">{device.token}</td>
-                <td className="px-4 py-4 text-xs text-slate-500">{device.lastSync || 'Nunca'}</td>
+                <td className="px-4 py-4 text-xs text-slate-500">{device.ultimaSincronizacao || 'Nunca'}</td>
                 <td className="px-4 py-4 text-right">
                   <div className="flex justify-end gap-2">
                     <button onClick={() => handleGenerateNewToken(device.id)} className="p-1.5 bg-white/5 hover:bg-white/10 text-slate-400 rounded transition-colors" title="Gerar Novo Token">

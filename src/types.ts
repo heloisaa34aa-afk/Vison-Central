@@ -1,50 +1,51 @@
-export interface Media {
+export interface Midia {
   id: string;
-  name: string;
+  nome: string;
   url: string;
-  type: 'image' | 'video';
-  duration: number; // seconds
-  size?: string;
+  tipo: 'image' | 'video';
+  duracao: number; // segundos
+  tamanho?: string;
+  clienteId?: string;
 }
 
 export interface Playlist {
   id: string;
-  name: string;
-  mediaIds: string[];
+  nome: string;
+  midiasIds: string[];
+  clienteId?: string;
 }
 
-export interface Device {
+export interface Tv {
   id: string;
-  clientId: string;
-  name: string;
+  clienteId: string;
+  nome: string;
   status: 'Online' | 'Offline' | 'Warning';
   uptime: string;
   token: string;
-  lastSync: string;
+  ultimaSincronizacao: string;
   playlistId?: string;
-  lastConnected?: string;
+  ultimaConexao?: string;
 }
 
-export interface Client {
+export interface Cliente {
   id: string;
-  name: string;
-  category: string;
+  nome: string;
+  categoria: string;
   status: 'Ativo' | 'Inativo' | 'Sincronizando';
-  screensCount: number;
-  city: string;
-  neighborhood: string;
-  iconType: 'store' | 'dumbbell' | 'hospital' | 'shopping' | 'briefcase';
-  orientation: 'Vertical' | 'Horizontal';
-  timezone: string;
+  quantidadeTelas: number;
+  cidade: string;
+  bairro: string;
+  tipoIcone: 'store' | 'dumbbell' | 'hospital' | 'shopping' | 'briefcase';
+  orientacao: 'Vertical' | 'Horizontal';
+  fusoHorario: string;
   playlistId?: string;
-  tickerText?: string;
+  textoTicker?: string;
 }
 
-export interface AlertLog {
+export interface LogAlerta {
   id: string;
-  clientId: string;
-  clientName: string;
-  message: string;
-  type: 'info' | 'warning' | 'error';
-  timestamp: string;
+  tvId: string;
+  mensagem: string;
+  tipo: 'info' | 'warning' | 'error';
+  criadoEm: string;
 }

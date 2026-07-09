@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Device, Playlist, Media } from '../types';
+import { Tv, Playlist, Midia } from '../types';
 import { playerService } from '../services/supabase/player';
 import { tokensService } from '../services/supabase/tokens';
 
@@ -7,30 +7,12 @@ export default function Player() {
   const [step, setStep] = useState<'input' | 'validating' | 'downloading' | 'playing'>('input');
   const [tokenInput, setTokenInput] = useState('');
   const [error, setError] = useState<string | null>(null);
-  
-  const [playlistMedia, setPlaylistMedia] = useState<Media[]>([]);
+  const [playlistMedia, setPlaylistMedia] = useState<Midia[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
-  const [activeDevice, setActiveDevice] = useState<Device | null>(null);
+  const [activeDevice, setActiveDevice] = useState<Tv | null>(null);
 
   const containerRef = useRef<HTMLDivElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
-
-  // Auto-seed Supabase on player load if needed
-  useEffect(() => {
-    const runSeed = async () => {
-      try {
-        const { checkSupabaseConnection } = await import('../lib/supabase');
-        if (await checkSupabaseConnection()) {
-          const { storageService } = await import('../lib/storage');
-          const { initialClients, initialPlaylists, initialMedia, initialDevices } = await import('../mockData');
-          await storageService.ensureDatabaseSeeded(initialClients, initialPlaylists, initialMedia, initialDevices);
-        }
-      } catch (err) {
-        console.warn('Erro ao rodar seed no Player:', err);
-      }
-    };
-    runSeed();
-  }, []);
 
   const handleStart = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -47,17 +29,17 @@ export default function Player() {
       // Load real player configuration from Supabase
       const data = await playerService.getPlayerConfig(cleanToken);
       
-      if (!data.playlist || data.media.length === 0) {
+      if (!data.playlist || data.midias.length === 0) {
         setError('Nenhuma playlist associada ou playlist vazia.');
         setStep('input');
         return;
       }
 
       // Mark status as Online immediately
-      await playerService.updateTvStatus(data.device.id, 'Online');
+      await playerService.updateTvStatus(data.tv.id, 'Online');
 
-      setActiveDevice(data.device);
-      setPlaylistMedia(data.media);
+      setActiveDevice(data.tv);
+      setPlaylistMedia(data.midias);
       setStep('downloading');
       
       // Simulate downloading media duration
@@ -87,10 +69,10 @@ export default function Player() {
       
       let timer: NodeJS.Timeout;
       
-      if (currentMedia && currentMedia.type === 'image') {
+      if (currentMedia && currentMedia.tipo === 'image') {
         timer = setTimeout(() => {
           setCurrentIndex((prev) => (prev + 1) % playlistMedia.length);
-        }, currentMedia.duration * 1000);
+        }, currentMedia.duracao * 1000);
       }
 
       return () => clearTimeout(timer);
@@ -105,14 +87,14 @@ export default function Player() {
         try {
           const cleanToken = tokensService.normalizeToken(activeDevice.token);
           const data = await playerService.getPlayerConfig(cleanToken);
-          if (data.media && data.media.length > 0) {
+          if (data.midias && data.midias.length > 0) {
             // Update the media list dynamically without interrupting playback or reloading page
             setPlaylistMedia(prev => {
               // Check if contents are identical to avoid flickering
               const prevUrls = prev.map(m => m.url).join(',');
-              const newUrls = data.media.map(m => m.url).join(',');
+              const newUrls = data.midias.map(m => m.url).join(',');
               if (prevUrls !== newUrls) {
-                return data.media;
+                return data.midias;
               }
               return prev;
             });
@@ -207,7 +189,7 @@ export default function Player() {
 
   return (
     <div ref={containerRef} className="w-screen h-screen bg-black overflow-hidden flex items-center justify-center cursor-none">
-      {currentMedia.type === 'image' ? (
+      {currentMedia.tipo === 'image' ? (
         <img 
           src={currentMedia.url} 
           alt="Current Media" 

@@ -1,12 +1,12 @@
 import React, { useState, useRef } from 'react';
-import { Client, Media } from '../../types';
-import { UploadCloud, File, Image as ImageIcon, Video, Trash2, X, CheckCircle } from 'lucide-react';
+import { Cliente, Midia } from '../../types';
+import { UploadCloud, File, Image as ImageIcon, Video, Trash2 } from 'lucide-react';
 import { storageServiceSupabase } from '../../services/supabase/storage';
 
 interface ClientLibraryProps {
-  client: Client;
-  media: Media[];
-  onUpdateMedia: (updateFn: (prev: Media[]) => Media[]) => void;
+  client: Cliente;
+  media: Midia[];
+  onUpdateMedia: (updateFn: (prev: Midia[]) => Midia[]) => void;
   showToast: (msg: string) => void;
 }
 
@@ -43,7 +43,7 @@ export default function ClientLibrary({ client, media, onUpdateMedia, showToast 
       setUploadingFiles(prev => [...prev, { name: progressName, progress: 10 }]);
 
       try {
-        // Simulate progress up to 80% while upload starts
+        // Simular progresso até 80% enquanto o upload inicia
         let p = 10;
         const interval = setInterval(() => {
           if (p < 80) {
@@ -52,7 +52,7 @@ export default function ClientLibrary({ client, media, onUpdateMedia, showToast 
           }
         }, 150);
 
-        // Actual upload to Supabase storage
+        // Upload para o storage do Supabase
         const uploadedUrl = await storageServiceSupabase.uploadMediaFile(file);
         
         clearInterval(interval);
@@ -61,13 +61,13 @@ export default function ClientLibrary({ client, media, onUpdateMedia, showToast 
         setTimeout(() => {
           setUploadingFiles(prev => prev.filter(f => f.name !== progressName));
           
-          const newMedia: Media = {
+          const newMedia: Midia = {
             id: `m-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
-            name: file.name,
-            type: isVideo ? 'video' : 'image',
+            nome: file.name,
+            tipo: isVideo ? 'video' : 'image',
             url: uploadedUrl,
-            duration: isVideo ? 15 : 10,
-            size: `${(file.size / (1024 * 1024)).toFixed(2)} MB`
+            duracao: isVideo ? 15 : 10,
+            tamanho: `${(file.size / (1024 * 1024)).toFixed(2)} MB`
           };
           onUpdateMedia(prev => [newMedia, ...prev]);
           showToast(`${file.name} enviado e cadastrado com sucesso!`);
@@ -99,10 +99,10 @@ export default function ClientLibrary({ client, media, onUpdateMedia, showToast 
     }
   };
 
-  const imageMedia = media.filter(m => m.type === 'image');
-  const videoMedia = media.filter(m => m.type === 'video');
+  const imageMedia = media.filter(m => m.tipo === 'image');
+  const videoMedia = media.filter(m => m.tipo === 'video');
 
-  const renderMediaGrid = (items: Media[], icon: React.ReactNode, title: string) => (
+  const renderMediaGrid = (items: Midia[], icon: React.ReactNode, title: string) => (
     <div className="space-y-4 mb-8">
       <h4 className="text-sm font-bold text-white flex items-center gap-2 border-b border-white/10 pb-2">
         {icon}
@@ -112,12 +112,12 @@ export default function ClientLibrary({ client, media, onUpdateMedia, showToast 
         {items.map(item => (
           <div key={item.id} className="bg-white/5 border border-white/10 rounded-xl overflow-hidden group hover:border-blue-500/50 transition-all relative">
             <div className="aspect-video bg-[#050508] relative overflow-hidden flex items-center justify-center">
-              {item.type === 'image' ? (
-                <img src={item.url} alt={item.name} className="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-opacity" />
+              {item.tipo === 'image' ? (
+                <img src={item.url} alt={item.nome} className="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-opacity" />
               ) : (
                 <video src={item.url} className="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-opacity" muted />
               )}
-              {item.type === 'video' && (
+              {item.tipo === 'video' && (
                 <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
                   <div className="w-8 h-8 rounded-full bg-black/50 border border-white/20 flex items-center justify-center">
                     <Video className="w-4 h-4 text-white" />
@@ -132,10 +132,10 @@ export default function ClientLibrary({ client, media, onUpdateMedia, showToast 
               </button>
             </div>
             <div className="p-3">
-              <p className="text-xs font-semibold text-slate-200 truncate" title={item.name}>{item.name}</p>
+              <p className="text-xs font-semibold text-slate-200 truncate" title={item.nome}>{item.nome}</p>
               <div className="flex justify-between items-center mt-1 text-[10px] text-slate-500 font-mono">
-                <span>{item.duration}s</span>
-                <span>{item.size}</span>
+                <span>{item.duracao}s</span>
+                <span>{item.tamanho}</span>
               </div>
             </div>
           </div>

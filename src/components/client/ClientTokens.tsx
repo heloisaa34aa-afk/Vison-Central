@@ -1,13 +1,13 @@
 import React, { useState } from 'react';
-import { Client, Device, Playlist } from '../../types';
-import { Key, Copy, CheckCircle, Plus, RefreshCw, Unplug } from 'lucide-react';
+import { Cliente, Tv, Playlist } from '../../types';
+import { Copy, CheckCircle, Plus } from 'lucide-react';
 import { tokensService } from '../../services/supabase/tokens';
 
 interface ClientTokensProps {
-  client: Client;
-  devices: Device[];
+  client: Cliente;
+  devices: Tv[];
   playlists: Playlist[];
-  onUpdateDevices: (updateFn: (prev: Device[]) => Device[]) => void;
+  onUpdateDevices: (updateFn: (prev: Tv[]) => Tv[]) => void;
   showToast: (msg: string) => void;
 }
 
@@ -36,20 +36,20 @@ export default function ClientTokens({ client, devices, playlists, onUpdateDevic
   const handleSyncNow = (deviceId: string) => {
     onUpdateDevices(prev => prev.map(d => d.id === deviceId ? { 
       ...d, 
-      lastSync: new Date().toLocaleDateString('pt-BR') + ' ' + new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) 
+      ultimaSincronizacao: new Date().toLocaleDateString('pt-BR') + ' ' + new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) 
     } : d));
     showToast('Comando de sincronização enviado.');
   };
 
   const handleAddTV = () => {
     const newToken = tokensService.generateToken();
-    const newDevice: Device = {
+    const newDevice: Tv = {
       id: `dev-${Date.now()}`,
-      clientId: client.id,
-      name: `Nova TV ${devices.length + 1}`,
+      clienteId: client.id,
+      nome: `Nova TV ${devices.length + 1}`,
       status: 'Offline',
       token: newToken,
-      lastSync: '',
+      ultimaSincronizacao: '',
       uptime: '0h 0m'
     };
     onUpdateDevices(prev => [...prev, newDevice]);
@@ -58,7 +58,7 @@ export default function ClientTokens({ client, devices, playlists, onUpdateDevic
 
   const getPlaylistName = (id?: string) => {
     if (!id) return 'Nenhuma';
-    return playlists.find(p => p.id === id)?.name || 'Desconhecida';
+    return playlists.find(p => p.id === id)?.nome || 'Desconhecida';
   };
 
   return (
@@ -79,7 +79,7 @@ export default function ClientTokens({ client, devices, playlists, onUpdateDevic
           <div key={device.id} className="bg-white/5 border border-white/10 rounded-xl p-5 hover:border-blue-500/30 transition-all">
             <div className="flex justify-between items-start mb-4">
               <div>
-                <h4 className="text-sm font-bold text-white">{device.name}</h4>
+                <h4 className="text-sm font-bold text-white">{device.nome}</h4>
                 <p className="text-[10px] text-slate-500 font-mono mt-1">Playlist: {getPlaylistName(client.playlistId)}</p>
               </div>
               <span className={`w-2 h-2 rounded-full ${device.status === 'Online' ? 'bg-emerald-400 animate-pulse' : 'bg-rose-400'}`}></span>

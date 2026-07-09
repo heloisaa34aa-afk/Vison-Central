@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { Client, Device, Playlist, Media } from '../types';
-import { Tv, FolderHeart, ListVideo, Key, Settings, ArrowLeft, Plus } from 'lucide-react';
+import { Cliente, Tv, Playlist, Midia } from '../types';
+import { Tv as TvIcon, FolderHeart, ListVideo, Key, Settings } from 'lucide-react';
 import ClientTVs from './client/ClientTVs';
 import ClientTokens from './client/ClientTokens';
 import ClientLibrary from './client/ClientLibrary';
@@ -8,14 +8,14 @@ import ClientPlaylists from './client/ClientPlaylists';
 
 interface ClientPageProps {
   clientId: string;
-  clients: Client[];
-  devices: Device[];
+  clients: Cliente[];
+  devices: Tv[];
   playlists: Playlist[];
-  media: Media[];
-  onUpdateClient: (client: Client) => void;
-  onUpdateDevices: (devices: Device[] | ((prev: Device[]) => Device[])) => void;
+  media: Midia[];
+  onUpdateClient: (client: Cliente) => void;
+  onUpdateDevices: (devices: Tv[] | ((prev: Tv[]) => Tv[])) => void;
   onUpdatePlaylists: (playlists: Playlist[] | ((prev: Playlist[]) => Playlist[])) => void;
-  onUpdateMedia: (media: Media[] | ((prev: Media[]) => Media[])) => void;
+  onUpdateMedia: (media: Midia[] | ((prev: Midia[]) => Midia[])) => void;
   showToast: (msg: string) => void;
 }
 
@@ -34,12 +34,10 @@ export default function ClientPage({
   const [activeTab, setActiveTab] = useState<'tvs' | 'library' | 'playlists' | 'tokens' | 'settings'>('tvs');
   
   const client = clients.find(c => c.id === clientId);
-  if (!client) return <div className="text-white">Cliente não encontrado.</div>;
+  if (!client) return <div className="text-white p-4">Cliente não encontrado.</div>;
 
-  const clientDevices = devices.filter(d => d.clientId === clientId);
-  // Filtering library items and playlists to belong to this client (mock simple logic, assuming they have clientId or we manage it globally for now, wait, the user asked for isolated libraries)
-  // Let's assume media and playlists have clientId
-  const clientMedia = media; // In a real backend, we'd filter: media.filter(m => m.clientId === clientId)
+  const clientDevices = devices.filter(d => d.clienteId === clientId);
+  const clientMedia = media; 
   const clientPlaylists = playlists;
 
   return (
@@ -47,20 +45,20 @@ export default function ClientPage({
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 border-b border-white/10 pb-5">
         <div>
           <span className="font-mono text-xs text-cyan-400 bg-cyan-500/10 border border-cyan-500/20 px-2.5 py-1 rounded-full font-medium">
-            {client.category} · {client.status}
+            {client.categoria} · {client.status}
           </span>
           <h1 className="text-3xl font-extrabold tracking-tight text-white mt-2 font-sans">
-            {client.name}
+            {client.nome}
           </h1>
           <p className="text-sm text-slate-400 mt-1 flex items-center gap-2">
-            <Tv className="w-4 h-4" /> {clientDevices.length} {clientDevices.length === 1 ? 'TV Vinculada' : 'TVs Vinculadas'}
+            <TvIcon className="w-4 h-4" /> {clientDevices.length} {clientDevices.length === 1 ? 'TV Vinculada' : 'TVs Vinculadas'}
           </p>
         </div>
       </div>
 
       <div className="flex bg-[#0d0d12] border border-white/10 rounded-lg p-1 overflow-x-auto scrollbar-none">
         {[
-          { id: 'tvs', label: 'TVs', icon: Tv },
+          { id: 'tvs', label: 'TVs', icon: TvIcon },
           { id: 'library', label: 'Biblioteca', icon: FolderHeart },
           { id: 'playlists', label: 'Playlists', icon: ListVideo },
           { id: 'tokens', label: 'Tokens', icon: Key },
@@ -87,7 +85,7 @@ export default function ClientPage({
             client={client} 
             devices={clientDevices} 
             playlists={clientPlaylists}
-            onUpdateDevices={onUpdateDevices}
+            onUpdateDevices={onUpdateDevices as any}
             showToast={showToast}
           />
         )}
@@ -95,7 +93,7 @@ export default function ClientPage({
           <ClientLibrary
             client={client}
             media={clientMedia}
-            onUpdateMedia={onUpdateMedia}
+            onUpdateMedia={onUpdateMedia as any}
             showToast={showToast}
           />
         )}
@@ -104,7 +102,7 @@ export default function ClientPage({
             client={client}
             playlists={clientPlaylists}
             media={clientMedia}
-            onUpdatePlaylists={onUpdatePlaylists}
+            onUpdatePlaylists={onUpdatePlaylists as any}
             showToast={showToast}
           />
         )}
@@ -113,7 +111,7 @@ export default function ClientPage({
             client={client}
             devices={clientDevices}
             playlists={clientPlaylists}
-            onUpdateDevices={onUpdateDevices}
+            onUpdateDevices={onUpdateDevices as any}
             showToast={showToast}
           />
         )}

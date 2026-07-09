@@ -1,11 +1,11 @@
 import React, { useState } from 'react';
-import { Client, Playlist, Media } from '../../types';
-import { ListVideo, Play, Edit2, Trash2, Copy, Plus, ArrowUp, ArrowDown, Image as ImageIcon, Video } from 'lucide-react';
+import { Cliente, Playlist, Midia } from '../../types';
+import { ListVideo, Edit2, Trash2, Copy, Plus, ArrowUp, ArrowDown, Image as ImageIcon, Video } from 'lucide-react';
 
 interface ClientPlaylistsProps {
-  client: Client;
+  client: Cliente;
   playlists: Playlist[];
-  media: Media[];
+  media: Midia[];
   onUpdatePlaylists: (updateFn: (prev: Playlist[]) => Playlist[]) => void;
   showToast: (msg: string) => void;
 }
@@ -16,8 +16,8 @@ export default function ClientPlaylists({ client, playlists, media, onUpdatePlay
   const handleCreatePlaylist = () => {
     const newPlaylist: Playlist = {
       id: `p-${Date.now()}`,
-      name: `Nova Playlist ${playlists.length + 1}`,
-      mediaIds: [],
+      nome: `Nova Playlist ${playlists.length + 1}`,
+      midiasIds: [],
     };
     onUpdatePlaylists(prev => [newPlaylist, ...prev]);
     showToast('Nova playlist criada.');
@@ -28,7 +28,7 @@ export default function ClientPlaylists({ client, playlists, media, onUpdatePlay
     const newPlaylist: Playlist = {
       ...playlist,
       id: `p-${Date.now()}`,
-      name: `${playlist.name} (Cópia)`
+      nome: `${playlist.nome} (Cópia)`
     };
     onUpdatePlaylists(prev => [newPlaylist, ...prev]);
     showToast('Playlist duplicada.');
@@ -58,35 +58,35 @@ export default function ClientPlaylists({ client, playlists, media, onUpdatePlay
   const handleDrop = (idx: number) => {
     if (draggedIdx === null || draggedIdx === idx || !activePlaylist) return;
     
-    const newMediaIds = [...activePlaylist.mediaIds];
-    const item = newMediaIds.splice(draggedIdx, 1)[0];
-    newMediaIds.splice(idx, 0, item);
+    const newMidiaIds = [...activePlaylist.midiasIds];
+    const item = newMidiaIds.splice(draggedIdx, 1)[0];
+    newMidiaIds.splice(idx, 0, item);
     
-    onUpdatePlaylists(prev => prev.map(p => p.id === activePlaylist.id ? { ...p, mediaIds: newMediaIds } : p));
+    onUpdatePlaylists(prev => prev.map(p => p.id === activePlaylist.id ? { ...p, midiasIds: newMidiaIds } : p));
     setDraggedIdx(null);
   };
 
   const handleRemoveFromPlaylist = (idx: number) => {
     if (!activePlaylist) return;
-    const newMediaIds = [...activePlaylist.mediaIds];
-    newMediaIds.splice(idx, 1);
-    onUpdatePlaylists(prev => prev.map(p => p.id === activePlaylist.id ? { ...p, mediaIds: newMediaIds } : p));
+    const newMidiaIds = [...activePlaylist.midiasIds];
+    newMidiaIds.splice(idx, 1);
+    onUpdatePlaylists(prev => prev.map(p => p.id === activePlaylist.id ? { ...p, midiasIds: newMidiaIds } : p));
   };
 
   const handleAddMediaToPlaylist = (mediaId: string) => {
     if (!activePlaylist) return;
-    onUpdatePlaylists(prev => prev.map(p => p.id === activePlaylist.id ? { ...p, mediaIds: [...p.mediaIds, mediaId] } : p));
+    onUpdatePlaylists(prev => prev.map(p => p.id === activePlaylist.id ? { ...p, midiasIds: [...p.midiasIds, mediaId] } : p));
   };
 
   const moveItem = (idx: number, direction: 'up' | 'down') => {
     if (!activePlaylist) return;
-    const newMediaIds = [...activePlaylist.mediaIds];
+    const newMidiaIds = [...activePlaylist.midiasIds];
     if (direction === 'up' && idx > 0) {
-      [newMediaIds[idx - 1], newMediaIds[idx]] = [newMediaIds[idx], newMediaIds[idx - 1]];
-    } else if (direction === 'down' && idx < newMediaIds.length - 1) {
-      [newMediaIds[idx + 1], newMediaIds[idx]] = [newMediaIds[idx], newMediaIds[idx + 1]];
+      [newMidiaIds[idx - 1], newMidiaIds[idx]] = [newMidiaIds[idx], newMidiaIds[idx - 1]];
+    } else if (direction === 'down' && idx < newMidiaIds.length - 1) {
+      [newMidiaIds[idx + 1], newMidiaIds[idx]] = [newMidiaIds[idx], newMidiaIds[idx + 1]];
     }
-    onUpdatePlaylists(prev => prev.map(p => p.id === activePlaylist.id ? { ...p, mediaIds: newMediaIds } : p));
+    onUpdatePlaylists(prev => prev.map(p => p.id === activePlaylist.id ? { ...p, midiasIds: newMidiaIds } : p));
   };
 
   return (
@@ -115,7 +115,7 @@ export default function ClientPlaylists({ client, playlists, media, onUpdatePlay
               }`}
             >
               <div className="flex justify-between items-start mb-2">
-                <h4 className="text-sm font-bold text-white truncate pr-2">{playlist.name}</h4>
+                <h4 className="text-sm font-bold text-white truncate pr-2">{playlist.nome}</h4>
                 <div className="flex gap-1 shrink-0">
                   <button onClick={() => setEditingPlaylistId(playlist.id)} className="p-1 text-slate-400 hover:text-blue-400 transition-colors" title="Editar">
                     <Edit2 className="w-3.5 h-3.5" />
@@ -128,7 +128,7 @@ export default function ClientPlaylists({ client, playlists, media, onUpdatePlay
                   </button>
                 </div>
               </div>
-              <p className="text-xs text-slate-500">{playlist.mediaIds.length} {playlist.mediaIds.length === 1 ? 'mídia' : 'mídias'}</p>
+              <p className="text-xs text-slate-500">{playlist.midiasIds.length} {playlist.midiasIds.length === 1 ? 'mídia' : 'mídias'}</p>
             </div>
           ))}
           {playlists.length === 0 && (
@@ -145,8 +145,8 @@ export default function ClientPlaylists({ client, playlists, media, onUpdatePlay
           <div className="flex justify-between items-center mb-6 border-b border-white/10 pb-4">
             <input 
               type="text"
-              value={activePlaylist.name}
-              onChange={(e) => onUpdatePlaylists(prev => prev.map(p => p.id === activePlaylist.id ? { ...p, name: e.target.value } : p))}
+              value={activePlaylist.nome}
+              onChange={(e) => onUpdatePlaylists(prev => prev.map(p => p.id === activePlaylist.id ? { ...p, nome: e.target.value } : p))}
               className="bg-transparent text-lg font-bold text-white focus:outline-none focus:border-b focus:border-blue-500/50"
             />
             <button onClick={() => setEditingPlaylistId(null)} className="text-xs text-slate-400 hover:text-white transition-colors">
@@ -158,10 +158,10 @@ export default function ClientPlaylists({ client, playlists, media, onUpdatePlay
             
             {/* Current Playlist Timeline */}
             <div>
-              <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">Cronograma ({activePlaylist.mediaIds.length} mídias)</h4>
+              <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">Cronograma ({activePlaylist.midiasIds.length} mídias)</h4>
               
               <div className="space-y-2 max-h-[400px] overflow-y-auto pr-2 scrollbar-thin">
-                {activePlaylist.mediaIds.map((mediaId, idx) => {
+                {activePlaylist.midiasIds.map((mediaId, idx) => {
                   const m = media.find(x => x.id === mediaId);
                   if (!m) return null;
                   
@@ -177,20 +177,20 @@ export default function ClientPlaylists({ client, playlists, media, onUpdatePlay
                       }`}
                     >
                       <div className="w-10 h-10 bg-[#0d0d12] rounded flex-shrink-0 overflow-hidden relative border border-white/5">
-                         {m.type === 'image' ? (
-                            <img src={m.url} alt={m.name} className="w-full h-full object-cover" />
+                         {m.tipo === 'image' ? (
+                            <img src={m.url} alt={m.nome} className="w-full h-full object-cover" />
                           ) : (
                             <video src={m.url} className="w-full h-full object-cover" />
                           )}
                       </div>
                       <div className="flex-1 min-w-0">
-                        <p className="text-xs font-medium text-white truncate">{m.name}</p>
-                        <p className="text-[10px] text-slate-500 font-mono">{m.duration}s</p>
+                        <p className="text-xs font-medium text-white truncate">{m.nome}</p>
+                        <p className="text-[10px] text-slate-500 font-mono">{m.duracao}s</p>
                       </div>
                       
                       <div className="flex flex-col gap-0.5">
                         <button onClick={() => moveItem(idx, 'up')} disabled={idx === 0} className="p-0.5 text-slate-500 hover:text-white disabled:opacity-30"><ArrowUp className="w-3 h-3" /></button>
-                        <button onClick={() => moveItem(idx, 'down')} disabled={idx === activePlaylist.mediaIds.length - 1} className="p-0.5 text-slate-500 hover:text-white disabled:opacity-30"><ArrowDown className="w-3 h-3" /></button>
+                        <button onClick={() => moveItem(idx, 'down')} disabled={idx === activePlaylist.midiasIds.length - 1} className="p-0.5 text-slate-500 hover:text-white disabled:opacity-30"><ArrowDown className="w-3 h-3" /></button>
                       </div>
                       
                       <button onClick={() => handleRemoveFromPlaylist(idx)} className="p-1.5 text-rose-500/70 hover:text-rose-400 hover:bg-rose-500/10 rounded ml-1 transition-colors">
@@ -199,7 +199,7 @@ export default function ClientPlaylists({ client, playlists, media, onUpdatePlay
                     </div>
                   );
                 })}
-                {activePlaylist.mediaIds.length === 0 && (
+                {activePlaylist.midiasIds.length === 0 && (
                   <div className="text-xs text-slate-500 text-center py-8 border border-dashed border-white/10 rounded-lg">
                     Playlist vazia. Adicione mídias ao lado.
                   </div>
@@ -214,15 +214,15 @@ export default function ClientPlaylists({ client, playlists, media, onUpdatePlay
                   {media.map(m => (
                     <div key={m.id} className="relative group rounded-lg overflow-hidden border border-white/10 bg-[#0d0d12] aspect-video flex flex-col justify-end">
                        <div className="absolute inset-0 opacity-60 group-hover:opacity-80 transition-opacity">
-                         {m.type === 'image' ? (
-                            <img src={m.url} alt={m.name} className="w-full h-full object-cover" />
+                         {m.tipo === 'image' ? (
+                            <img src={m.url} alt={m.nome} className="w-full h-full object-cover" />
                           ) : (
                             <video src={m.url} className="w-full h-full object-cover" />
                           )}
                        </div>
                        <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent"></div>
                        <div className="relative p-2 flex justify-between items-end">
-                         <span className="text-[10px] text-white truncate max-w-[70%]" title={m.name}>{m.name}</span>
+                         <span className="text-[10px] text-white truncate max-w-[70%]" title={m.nome}>{m.nome}</span>
                          <button 
                            onClick={() => handleAddMediaToPlaylist(m.id)}
                            className="p-1.5 bg-blue-600 hover:bg-blue-500 text-white rounded opacity-0 group-hover:opacity-100 transition-all translate-y-2 group-hover:translate-y-0"

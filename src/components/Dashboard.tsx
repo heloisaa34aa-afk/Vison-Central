@@ -1,41 +1,37 @@
 import React from 'react';
-import { Client, Device, AlertLog, Media } from '../types';
+import { Cliente, Tv, LogAlerta, Midia } from '../types';
 import { 
-  Tv, 
+  Tv as TvIcon, 
   Users, 
   Radio, 
-  TrendingUp,
   ArrowRight
 } from 'lucide-react';
 import { motion } from 'motion/react';
 
 interface DashboardProps {
-  clients: Client[];
-  devices: Device[];
-  alerts: AlertLog[];
-  media: Media[];
+  clientes: Cliente[];
+  tvs: Tv[];
+  alertas?: LogAlerta[];
+  midias?: Midia[];
   onNavigate: (tab: string) => void;
-  onSelectClientForSim: (clientId: string) => void;
-  onSelectClient: (clientId: string) => void;
+  onSelectCliente: (clienteId: string) => void;
 }
 
 export default function Dashboard({ 
-  clients, 
-  devices, 
+  clientes, 
+  tvs, 
   onNavigate,
-  onSelectClient 
+  onSelectCliente 
 }: DashboardProps) {
   
-  // Calculate statistics
-  const activeClients = clients.filter(c => c.status === 'Ativo').length;
-  const totalScreens = clients.reduce((acc, c) => acc + c.screensCount, 0);
-  
-  const onlineDevices = devices.filter(d => d.status === 'Online').length;
-  const offlineDevices = devices.filter(d => d.status === 'Offline').length;
+  // Calcular estatísticas
+  const totalTelas = clientes.reduce((acc, c) => acc + c.quantidadeTelas, 0);
+  const tvsOnline = tvs.filter(t => t.status === 'Online').length;
+  const tvsOffline = tvs.filter(t => t.status === 'Offline').length;
 
   return (
     <div className="space-y-8 text-slate-200" id="dashboard-viewport">
-      {/* Header Panel */}
+      {/* Painel do Cabeçalho */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 border-b border-white/10 pb-5">
         <div>
           <span className="font-mono text-xs text-cyan-400 bg-cyan-500/10 border border-cyan-500/20 px-2.5 py-1 rounded-full font-medium">
@@ -45,7 +41,7 @@ export default function Dashboard({
             Painel Geral da Rede
           </h1>
           <p className="text-sm text-slate-400 mt-1">
-            Monitoramento em tempo real de telas e dispositivos corporativos.
+            Monitoramento em tempo real de telas e TVs corporativas.
           </p>
         </div>
         <div className="flex gap-2">
@@ -53,7 +49,7 @@ export default function Dashboard({
             onClick={() => onNavigate('simulator')}
             className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-blue-600 to-cyan-500 hover:opacity-95 text-white rounded-lg text-sm font-medium transition-all shadow-[0_0_15px_rgba(59,130,246,0.3)]"
           >
-            <Tv className="w-4 h-4" />
+            <TvIcon className="w-4 h-4" />
             Simulador de TV
           </button>
         </div>
@@ -61,7 +57,7 @@ export default function Dashboard({
 
       {/* Grid de Métricas Principais */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5" id="stats-grid">
-        {/* Metrica 1 */}
+        {/* Métrica 1 */}
         <motion.div 
           initial={{ opacity: 0, y: 15 }}
           animate={{ opacity: 1, y: 0 }}
@@ -71,7 +67,7 @@ export default function Dashboard({
           <div className="flex justify-between items-start">
             <div>
               <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Total de Clientes</p>
-              <h3 className="text-3xl font-extrabold text-white mt-2 font-sans">{clients.length}</h3>
+              <h3 className="text-3xl font-extrabold text-white mt-2 font-sans">{clientes.length}</h3>
             </div>
             <div className="p-3 bg-blue-500/10 text-blue-400 rounded-lg group-hover:scale-110 transition-transform border border-blue-500/20">
               <Users className="w-5 h-5" />
@@ -79,7 +75,7 @@ export default function Dashboard({
           </div>
         </motion.div>
 
-        {/* Metrica 2 */}
+        {/* Métrica 2 */}
         <motion.div 
           initial={{ opacity: 0, y: 15 }}
           animate={{ opacity: 1, y: 0 }}
@@ -88,16 +84,16 @@ export default function Dashboard({
         >
           <div className="flex justify-between items-start">
             <div>
-              <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Total de TVs</p>
-              <h3 className="text-3xl font-extrabold text-white mt-2 font-sans">{totalScreens}</h3>
+              <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Total de Telas</p>
+              <h3 className="text-3xl font-extrabold text-white mt-2 font-sans">{totalTelas}</h3>
             </div>
             <div className="p-3 bg-indigo-500/10 text-indigo-400 rounded-lg group-hover:scale-110 transition-transform border border-indigo-500/20">
-              <Tv className="w-5 h-5" />
+              <TvIcon className="w-5 h-5" />
             </div>
           </div>
         </motion.div>
 
-        {/* Metrica 3 */}
+        {/* Métrica 3 */}
         <motion.div 
           initial={{ opacity: 0, y: 15 }}
           animate={{ opacity: 1, y: 0 }}
@@ -108,7 +104,7 @@ export default function Dashboard({
             <div>
               <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">TVs Online</p>
               <h3 className="text-3xl font-extrabold text-white mt-2 font-sans">
-                {onlineDevices} 
+                {tvsOnline} 
               </h3>
             </div>
             <div className="p-3 bg-emerald-500/10 text-emerald-400 rounded-lg group-hover:scale-110 transition-transform border border-emerald-500/20">
@@ -117,7 +113,7 @@ export default function Dashboard({
           </div>
         </motion.div>
 
-        {/* Metrica 4 */}
+        {/* Métrica 4 */}
         <motion.div 
           initial={{ opacity: 0, y: 15 }}
           animate={{ opacity: 1, y: 0 }}
@@ -127,7 +123,7 @@ export default function Dashboard({
           <div className="flex justify-between items-start">
             <div>
               <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">TVs Offline</p>
-              <h3 className="text-3xl font-extrabold text-white mt-2 font-sans">{offlineDevices}</h3>
+              <h3 className="text-3xl font-extrabold text-white mt-2 font-sans">{tvsOffline}</h3>
             </div>
             <div className="p-3 bg-rose-500/10 text-rose-400 rounded-lg group-hover:scale-110 transition-transform border border-rose-500/20">
               <Radio className="w-5 h-5" />
@@ -144,27 +140,27 @@ export default function Dashboard({
         </h3>
         
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {clients.map(client => (
-            <div key={client.id} className="bg-white/5 border border-white/5 rounded-xl p-5 hover:border-blue-500/30 transition-all flex flex-col justify-between min-h-[140px] group">
+          {clientes.map(cliente => (
+            <div key={cliente.id} className="bg-white/5 border border-white/5 rounded-xl p-5 hover:border-blue-500/30 transition-all flex flex-col justify-between min-h-[140px] group">
               <div>
                 <div className="flex justify-between items-start mb-2">
-                  <h4 className="text-sm font-bold text-white group-hover:text-blue-400 transition-colors">{client.name}</h4>
+                  <h4 className="text-sm font-bold text-white group-hover:text-blue-400 transition-colors">{cliente.nome}</h4>
                   <span className={`text-[10px] px-2 py-0.5 rounded font-mono font-bold ${
-                    client.status === 'Ativo' ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 
-                    client.status === 'Inativo' ? 'bg-rose-500/10 text-rose-400 border border-rose-500/20' : 
+                    cliente.status === 'Ativo' ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 
+                    cliente.status === 'Inativo' ? 'bg-rose-500/10 text-rose-400 border border-rose-500/20' : 
                     'bg-amber-500/10 text-amber-400 border border-amber-500/20'
                   }`}>
-                    {client.status}
+                    {cliente.status}
                   </span>
                 </div>
                 <p className="text-xs text-slate-400 flex items-center gap-1.5">
-                  <Tv className="w-3.5 h-3.5" />
-                  {client.screensCount} {client.screensCount === 1 ? 'TV' : 'TVs'} vinculadas
+                  <TvIcon className="w-3.5 h-3.5" />
+                  {cliente.quantidadeTelas} {cliente.quantidadeTelas === 1 ? 'TV' : 'TVs'} vinculadas
                 </p>
               </div>
               
               <button 
-                onClick={() => onSelectClient(client.id)}
+                onClick={() => onSelectCliente(cliente.id)}
                 className="mt-4 w-full py-2 bg-blue-500/10 hover:bg-blue-500/20 text-cyan-400 rounded-lg text-xs font-semibold transition-all border border-blue-500/20 flex items-center justify-center gap-1.5"
               >
                 Abrir Cliente

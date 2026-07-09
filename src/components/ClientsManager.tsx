@@ -1,36 +1,31 @@
 import React, { useState } from 'react';
-import { Client, Device, Playlist } from '../types';
+import { Cliente, Tv, Playlist } from '../types';
 import { tokensService } from '../services/supabase/tokens';
 import { 
   Building2, 
   MapPin, 
   Plus, 
   Trash2, 
-  Tv, 
+  Tv as TvIcon, 
   Laptop, 
   Search, 
   Edit3, 
   Check, 
   X, 
-  CheckCircle2, 
-  Play, 
-  HelpCircle,
-  Clock,
-  RotateCcw,
   Layout,
   MessageSquareQuote
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
 interface ClientsManagerProps {
-  clients: Client[];
-  devices: Device[];
+  clients: Cliente[];
+  devices: Tv[];
   playlists: Playlist[];
-  onAddClient: (client: Client) => void;
-  onUpdateClient: (client: Client) => void;
+  onAddClient: (cliente: Cliente) => void;
+  onUpdateClient: (cliente: Cliente) => void;
   onDeleteClient: (id: string) => void;
-  onAddDevice: (device: Device) => void;
-  onUpdateDevice: (device: Device) => void;
+  onAddDevice: (tv: Tv) => void;
+  onUpdateDevice: (tv: Tv) => void;
   onDeleteDevice: (id: string) => void;
 }
 
@@ -50,7 +45,7 @@ export default function ClientsManager({
   const [selectedCategory, setSelectedCategory] = useState('Todas');
   const [editingClientId, setEditingClientId] = useState<string | null>(null);
   
-  // New Client Form States
+  // Novo Cliente Form States
   const [showAddForm, setShowAddForm] = useState(false);
   const [newClientName, setNewClientName] = useState('');
   const [newClientCategory, setNewClientCategory] = useState('Academia');
@@ -76,26 +71,26 @@ export default function ClientsManager({
   const [newDeviceName, setNewDeviceName] = useState('');
 
   // Filter clients
-  const categories = ['Todas', ...Array.from(new Set(clients.map(c => c.category)))];
+  const categories = ['Todas', ...Array.from(new Set(clients.map(c => c.categoria)))];
   
   const filteredClients = clients.filter(c => {
-    const matchesSearch = c.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
-                          c.city.toLowerCase().includes(searchTerm.toLowerCase()) || 
-                          c.neighborhood.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesCategory = selectedCategory === 'Todas' || c.category === selectedCategory;
+    const matchesSearch = c.nome.toLowerCase().includes(searchTerm.toLowerCase()) || 
+                          c.cidade.toLowerCase().includes(searchTerm.toLowerCase()) || 
+                          c.bairro.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesCategory = selectedCategory === 'Todas' || c.categoria === selectedCategory;
     return matchesSearch && matchesCategory;
   });
 
-  const handleStartEdit = (client: Client) => {
+  const handleStartEdit = (client: Cliente) => {
     setEditingClientId(client.id);
-    setEditName(client.name);
-    setEditCategory(client.category);
-    setEditCity(client.city);
-    setEditNeighborhood(client.neighborhood);
-    setEditOrientation(client.orientation);
-    setEditScreens(client.screensCount);
+    setEditName(client.nome);
+    setEditCategory(client.categoria);
+    setEditCity(client.cidade);
+    setEditNeighborhood(client.bairro);
+    setEditOrientation(client.orientacao);
+    setEditScreens(client.quantidadeTelas);
     setEditPlaylist(client.playlistId || '');
-    setEditTicker(client.tickerText || '');
+    setEditTicker(client.textoTicker || '');
   };
 
   const handleSaveEdit = (id: string) => {
@@ -104,14 +99,14 @@ export default function ClientsManager({
 
     onUpdateClient({
       ...original,
-      name: editName,
-      category: editCategory,
-      city: editCity,
-      neighborhood: editNeighborhood,
-      orientation: editOrientation,
-      screensCount: Number(editScreens),
+      nome: editName,
+      categoria: editCategory,
+      cidade: editCity,
+      bairro: editNeighborhood,
+      orientacao: editOrientation,
+      quantidadeTelas: Number(editScreens),
       playlistId: editPlaylist || undefined,
-      tickerText: editTicker
+      textoTicker: editTicker
     });
     setEditingClientId(null);
   };
@@ -127,19 +122,19 @@ export default function ClientsManager({
       'Escritório': 'briefcase'
     };
 
-    const newClient: Client = {
+    const newClient: Cliente = {
       id: `c-${Date.now()}`,
-      name: newClientName,
-      category: newClientCategory,
+      nome: newClientName,
+      categoria: newClientCategory,
       status: 'Ativo',
-      screensCount: Number(newClientScreens),
-      city: newClientCity,
-      neighborhood: newClientNeighborhood,
-      iconType: iconMapping[newClientCategory] || 'store',
-      orientation: newClientOrientation,
-      timezone: 'America/Sao_Paulo',
+      quantidadeTelas: Number(newClientScreens),
+      cidade: newClientCity,
+      bairro: newClientNeighborhood,
+      tipoIcone: iconMapping[newClientCategory] || 'store',
+      orientacao: newClientOrientation,
+      fusoHorario: 'America/Sao_Paulo',
       playlistId: newClientPlaylist || undefined,
-      tickerText: newClientTicker
+      textoTicker: newClientTicker
     };
 
     onAddClient(newClient);
@@ -159,21 +154,21 @@ export default function ClientsManager({
     // Generate clean unique token via tokensService
     const mockToken = tokensService.generateToken();
 
-    const newDev: Device = {
+    const newDev: Tv = {
       id: `d-${Date.now()}`,
-      clientId,
-      name: newDeviceName,
+      clienteId: clientId,
+      nome: newDeviceName,
       status: 'Online',
       uptime: '0h 1m',
       token: mockToken,
-      lastSync: new Date().toLocaleDateString('pt-BR') + ' ' + new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
+      ultimaSincronizacao: new Date().toLocaleDateString('pt-BR') + ' ' + new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
     };
 
     onAddDevice(newDev);
     setNewDeviceName('');
   };
 
-  const toggleDeviceStatus = (dev: Device) => {
+  const toggleDeviceStatus = (dev: Tv) => {
     const statuses: ('Online' | 'Offline' | 'Warning')[] = ['Online', 'Warning', 'Offline'];
     const currentIndex = statuses.indexOf(dev.status);
     const nextStatus = statuses[(currentIndex + 1) % statuses.length];
@@ -351,7 +346,7 @@ export default function ClientsManager({
                   >
                     <option value="">Nenhuma (Ficará com tela de espera padrão)</option>
                     {playlists.map(pl => (
-                      <option key={pl.id} value={pl.id}>{pl.name}</option>
+                      <option key={pl.id} value={pl.id}>{pl.nome}</option>
                     ))}
                   </select>
                 </div>
@@ -399,7 +394,7 @@ export default function ClientsManager({
         ) : (
           filteredClients.map(client => {
             const isEditing = editingClientId === client.id;
-            const clientDevices = devices.filter(d => d.clientId === client.id);
+            const clientDevices = devices.filter(d => d.clienteId === client.id);
             const isExpanded = expandedClientId === client.id;
 
             return (
@@ -471,7 +466,7 @@ export default function ClientsManager({
                         >
                           <option value="">Nenhuma</option>
                           {playlists.map(p => (
-                            <option key={p.id} value={p.id}>{p.name}</option>
+                            <option key={p.id} value={p.id}>{p.nome}</option>
                           ))}
                         </select>
                       </div>
@@ -511,9 +506,9 @@ export default function ClientsManager({
                         </div>
                         <div className="space-y-1.5">
                           <div className="flex items-center gap-2 flex-wrap">
-                            <h4 className="text-base font-bold text-white font-sans">{client.name}</h4>
+                            <h4 className="text-base font-bold text-white font-sans">{client.nome}</h4>
                             <span className="text-[10px] bg-white/5 text-slate-400 border border-white/10 px-2 py-0.5 rounded-full font-semibold">
-                              {client.category}
+                              {client.categoria}
                             </span>
                             <span className={`text-[10px] px-2 py-0.5 rounded-full font-semibold ${
                               client.status === 'Ativo' 
@@ -529,25 +524,25 @@ export default function ClientsManager({
                           <div className="flex items-center gap-4 text-xs text-slate-400">
                             <span className="flex items-center gap-1">
                               <MapPin className="w-3.5 h-3.5 text-slate-500" />
-                              {client.neighborhood}, {client.city}
+                              {client.bairro}, {client.cidade}
                             </span>
                             <span className="flex items-center gap-1 font-semibold text-blue-400">
                               <Layout className="w-3.5 h-3.5" />
-                              {client.orientation}
+                              {client.orientacao}
                             </span>
                             <span className="flex items-center gap-1 font-mono text-[11px] bg-white/5 px-2 py-0.5 rounded text-slate-300 border border-white/5">
-                              <Tv className="w-3.5 h-3.5 text-slate-500" />
-                              {client.screensCount} {client.screensCount === 1 ? 'mural' : 'murais/telas'}
+                              <TvIcon className="w-3.5 h-3.5 text-slate-500" />
+                              {client.quantidadeTelas} {client.quantidadeTelas === 1 ? 'mural' : 'murais/telas'}
                             </span>
                           </div>
 
                           {client.playlistId ? (
-                            <p className="text-xs text-slate-300 flex items-center gap-1 pt-1">
+                            <div className="text-xs text-slate-300 flex items-center gap-1 pt-1">
                               <span className="font-semibold text-slate-500">Playlist Ativa:</span>
                               <span className="bg-blue-500/10 text-blue-400 border border-blue-500/20 px-1.5 py-0.5 rounded text-[11px] font-medium">
-                                {playlists.find(p => p.id === client.playlistId)?.name || 'Playlist Customizada'}
+                                {playlists.find(p => p.id === client.playlistId)?.nome || 'Playlist Customizada'}
                               </span>
-                            </p>
+                            </div>
                           ) : (
                             <p className="text-xs text-slate-500 italic pt-1">Nenhuma playlist vinculada. Tela de repouso ativa.</p>
                           )}
@@ -587,12 +582,12 @@ export default function ClientsManager({
                 </div>
 
                 {/* Ticker marquee preview inside client card */}
-                {client.tickerText && !isEditing && (
+                {client.textoTicker && !isEditing && (
                   <div className="bg-[#050508] text-amber-400 px-5 py-2 text-xs flex items-center gap-2 overflow-hidden border-t border-white/10">
                     <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400 border border-slate-700 px-1 rounded shrink-0 flex items-center gap-1">
                       <MessageSquareQuote className="w-3 h-3 text-amber-400" /> Letreiro:
                     </span>
-                    <span className="truncate italic">"{client.tickerText}"</span>
+                    <span className="truncate italic">"{client.textoTicker}"</span>
                   </div>
                 )}
 
@@ -620,7 +615,7 @@ export default function ClientsManager({
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-3" id={`devices-grid-${client.id}`}>
                           {clientDevices.length === 0 ? (
                             <div className="bg-[#0d0d12]/60 p-6 rounded-lg text-center border border-white/5 text-slate-500 col-span-2">
-                              <Tv className="w-8 h-8 mx-auto mb-2 text-slate-600" />
+                              <TvIcon className="w-8 h-8 mx-auto mb-2 text-slate-600" />
                               <p className="text-xs">Nenhum hardware player registrado para esta unidade corporativa.</p>
                             </div>
                           ) : (
@@ -630,13 +625,13 @@ export default function ClientsManager({
                                 className="bg-[#0d0d12]/40 p-3.5 rounded-lg border border-white/10 flex justify-between items-start gap-4 hover:border-blue-500/30 transition-colors"
                               >
                                 <div className="space-y-1">
-                                  <p className="text-xs font-bold text-white">{dev.name}</p>
+                                  <p className="text-xs font-bold text-white">{dev.nome}</p>
                                   <div className="flex items-center gap-2 text-[10px] text-slate-400 font-mono">
                                     <span>Token: <strong className="text-cyan-400 bg-white/5 px-1 rounded">{dev.token}</strong></span>
                                     <span>·</span>
                                     <span>Uptime: {dev.uptime}</span>
                                   </div>
-                                  <p className="text-[9px] text-slate-500 font-mono">Sincronizado em: {dev.lastSync}</p>
+                                  <p className="text-[9px] text-slate-500 font-mono">Sincronizado em: {dev.ultimaSincronizacao}</p>
                                 </div>
 
                                 <div className="flex items-center gap-2 shrink-0">

@@ -1,102 +1,76 @@
 import { supabase, checkSupabaseConnection } from '../../lib/supabase';
-import { Device, Playlist, Media, Client } from '../../types';
-import { mapDbToDevice } from './tvs';
-import { mapDbToClient } from './clientes';
+import { Tv, Playlist, Midia, Cliente } from '../../types';
+import { mapDbToTv } from './tvs';
+import { mapDbToCliente } from './clientes';
 import { playlistsService } from './playlists';
 import { midiasService } from './midias';
 import { tokensService } from './tokens';
-import { initialDevices, initialClients, initialPlaylists, initialMedia } from '../../mockData';
 
 export const playerService = {
-  async getPlayerConfig(token: string): Promise<{ device: Device; client: Client | null; playlist: Playlist | null; media: Media[] }> {
+  async getPlayerConfig(token: string): Promise<{ tv: Tv; cliente: Cliente | null; playlist: Playlist | null; midias: Midia[] }> {
     const normalized = tokensService.normalizeToken(token);
     
     if (!(await checkSupabaseConnection())) {
-      const matched = initialDevices.find(d => tokensService.normalizeToken(d.token) === normalized);
-      if (!matched) throw new Error('Token inválido');
-      
-      const client = initialClients.find(c => c.id === matched.clientId) || null;
-      const playlistId = client?.playlistId || null;
-      const playlist = initialPlaylists.find(p => p.id === playlistId) || null;
-      const media = playlist ? playlist.mediaIds.map(id => initialMedia.find(m => m.id === id)).filter(Boolean) as Media[] : [];
-      
-      return { device: matched, client, playlist, media };
+      throw new Error('Supabase não está configurado.');
     }
     
-    // 1. Fetch TV
+    // 1. Buscar TV pelo token
     const { data: tvData, error: tvError } = await supabase
       .from('tvs')
       .select('*');
 
     if (tvError || !tvData || tvData.length === 0) {
-      // try alternate table
-      const { data: altTvData, error: altTvError } = await supabase.from('devices').select('*');
-      if (altTvError || !altTvData || altTvData.length === 0) {
-        throw new Error('Token inválido');
-      }
-      const matched = altTvData.find((d: any) => tokensService.normalizeToken(d.token) === normalized);
-      if (!matched) throw new Error('Token inválido');
-      return this.loadFullConfig(mapDbToDevice(matched));
+      throw new Error('Token inválido');
     }
 
     const matchedTv = tvData.find((d: any) => tokensService.normalizeToken(d.token) === normalized);
     if (!matchedTv) {
-      // try alt table anyways just in case
-      const { data: altTvData } = await supabase.from('devices').select('*');
-      const altMatched = altTvData?.find((d: any) => tokensService.normalizeToken(d.token) === normalized);
-      if (!altMatched) throw new Error('Token inválido');
-      return this.loadFullConfig(mapDbToDevice(altMatched));
+      throw new Error('Token inválido');
     }
     
-    return this.loadFullConfig(mapDbToDevice(matchedTv));
+    return this.loadFullConfig(mapDbToTv(matchedTv));
   },
 
-  async loadFullConfig(device: Device): Promise<{ device: Device; client: Client | null; playlist: Playlist | null; media: Media[] }> {
+  async loadFullConfig(tv: Tv): Promise<{ tv: Tv; cliente: Cliente | null; playlist: Playlist | null; midias: Midia[] }> {
     if (!(await checkSupabaseConnection())) {
-      const client = initialClients.find(c => c.id === device.clientId) || null;
-      const playlistId = client?.playlistId || null;
-      const playlist = initialPlaylists.find(p => p.id === playlistId) || null;
-      const media = playlist ? playlist.mediaIds.map(id => initialMedia.find(m => m.id === id)).filter(Boolean) as Media[] : [];
-      return { device, client, playlist, media };
+      throw new Error('Supabase não está configurado.');
     }
 
-    // 2. Fetch Client
-    let client: Client | null = null;
-    const { data: clientData, error: clError } = await supabase.from('clientes').select('*').eq('id', device.clientId).single();
-    if (!clError && clientData) {
-      client = mapDbToClient(clientData);
-    } else {
-      // try alternate table
-      const { data: altClientData } = await supabase.from('clients').select('*').eq('id', device.clientId).single();
-      if (altClientData) {
-        client = mapDbToClient(altClientData);
+    // 2. Buscar Cliente
+    let cliente: Cliente | null = null;
+    if (tv.clienteId) {
+      const { data: clienteData, error: clError } = await supabase
+        .from('clientes')
+        .select('*')
+        .eq('id', tv.clienteId)
+        .single();
+      if (!clError && clienteData) {
+        cliente = mapDbToCliente(clienteData);
       }
     }
 
-    // 3. Fetch Playlist
+    // 3. Buscar Playlist
     let playlist: Playlist | null = null;
-    const playlistId = client?.playlistId || null;
+    const playlistId = tv.playlistId || cliente?.playlistId || null;
     if (playlistId) {
-      const playlists = await playlistsService.getPlaylists([]);
+      const playlists = await playlistsService.getPlaylists();
       playlist = playlists.find(p => p.id === playlistId) || null;
     }
 
-    // 4. Fetch Medias
-    let media: Media[] = [];
-    if (playlist && playlist.mediaIds && playlist.mediaIds.length > 0) {
-      const allMedia = await midiasService.getMedia([]);
-      media = playlist.mediaIds.map(id => allMedia.find(m => m.id === id)).filter(Boolean) as Media[];
+    // 4. Buscar Mídias da Playlist
+    let midias: Midia[] = [];
+    if (playlist && playlist.midiasIds && playlist.midiasIds.length > 0) {
+      const allMidias = await midiasService.getMidias();
+      midias = playlist.midiasIds
+        .map(id => allMidias.find(m => m.id === id))
+        .filter(Boolean) as Midia[];
     }
 
-    return { device, client, playlist, media };
+    return { tv, cliente, playlist, midias };
   },
 
-  async updateTvStatus(deviceId: string, status: 'Online' | 'Offline'): Promise<void> {
+  async updateTvStatus(tvId: string, status: 'Online' | 'Offline'): Promise<void> {
     if (!(await checkSupabaseConnection())) {
-      const matched = initialDevices.find(d => d.id === deviceId);
-      if (matched) {
-        matched.status = status;
-      }
       return;
     }
 
@@ -107,32 +81,16 @@ export const playerService = {
       ultima_sincronizacao: new Date().toISOString()
     };
     
-    const { error } = await supabase
+    await supabase
       .from('tvs')
       .update(updatePayload)
-      .eq('id', deviceId);
-
-    if (error) {
-      await supabase
-        .from('devices')
-        .update({
-          status,
-          uptime: status === 'Online' ? '24h 0m' : '0h 0m',
-          lastSync: new Date().toLocaleDateString('pt-BR') + ' ' + new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
-        })
-        .eq('id', deviceId);
-    }
+      .eq('id', tvId);
   },
 
   subscribeToUpdates(token: string, onUpdate: () => void): () => void {
-    const anonKey = (import.meta as any).env?.VITE_SUPABASE_ANON_KEY;
-    if (!supabase || !anonKey || anonKey === 'sb_publishable_lCyfBoX5m8JzQ7mldxloQA_6YN3MTqg' || anonKey.startsWith('sb_publishable_')) {
-      return () => {};
-    }
+    if (!supabase) return () => {};
 
-    const normalized = tokensService.normalizeToken(token);
-    
-    // Subscribe to changes in tvs, playlists, or clientes and trigger refresh!
+    // Inscrever-se para mudanças nas tabelas tvs, playlists ou clientes
     const channel = supabase
       .channel('player-changes')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'tvs' }, () => {

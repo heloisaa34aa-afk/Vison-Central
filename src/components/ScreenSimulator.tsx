@@ -1,19 +1,16 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Client, Playlist, Media } from '../types';
+import { Cliente, Playlist, Midia } from '../types';
 import { 
   Tv, 
   Play, 
   Pause, 
-  ChevronRight, 
-  Maximize,
-  RefreshCw,
-  Info
+  Maximize
 } from 'lucide-react';
 
 interface ScreenSimulatorProps {
-  clients: Client[];
+  clients: Cliente[];
   playlists: Playlist[];
-  media: Media[];
+  media: Midia[];
   selectedClientIdFromOutside: string | null;
 }
 
@@ -46,10 +43,10 @@ export default function ScreenSimulator({
   // Load playlist and current media list
   const clientPlaylist = playlists.find(p => p.id === activeClient?.playlistId);
   const mediaList = clientPlaylist 
-    ? (clientPlaylist.mediaIds.map(mid => media.find(m => m.id === mid)).filter(Boolean) as Media[])
+    ? (clientPlaylist.midiasIds.map(mid => media.find(m => m.id === mid)).filter(Boolean) as Midia[])
     : [];
 
-  const currentMedia: Media | undefined = mediaList[currentMediaIndex];
+  const currentMedia: Midia | undefined = mediaList[currentMediaIndex];
 
   // Media Player Loop simulation
   useEffect(() => {
@@ -58,7 +55,7 @@ export default function ScreenSimulator({
       return;
     }
 
-    const currentDuration = currentMedia ? currentMedia.duration * 1000 : 10000;
+    const currentDuration = currentMedia ? currentMedia.duracao * 1000 : 10000;
     const intervalTime = 100; // update progress every 100ms
     let elapsed = 0;
 
@@ -76,7 +73,7 @@ export default function ScreenSimulator({
     }, intervalTime);
 
     return () => clearInterval(playerTimer);
-  }, [isPlaying, currentMediaIndex, selectedClientId, mediaList.length]);
+  }, [isPlaying, currentMediaIndex, selectedClientId, mediaList.length, currentMedia]);
 
   // Reset indices when client changes
   useEffect(() => {
@@ -126,7 +123,7 @@ export default function ScreenSimulator({
             >
               {clients.map(c => (
                 <option key={c.id} value={c.id} className="bg-[#0d0d12]">
-                  {c.name} ({c.orientation})
+                  {c.nome} ({c.orientacao})
                 </option>
               ))}
             </select>
@@ -135,11 +132,11 @@ export default function ScreenSimulator({
           <div className="bg-[#050508]/40 p-3 rounded-lg text-xs space-y-2 text-slate-300 border border-white/5">
             <div className="flex justify-between">
               <span className="font-semibold text-slate-400">Orientação:</span>
-              <span className="font-mono text-cyan-400 bg-blue-500/10 border border-blue-500/20 px-1.5 py-0.5 rounded text-[10px]">{activeClient?.orientation}</span>
+              <span className="font-mono text-cyan-400 bg-blue-500/10 border border-blue-500/20 px-1.5 py-0.5 rounded text-[10px]">{activeClient?.orientacao}</span>
             </div>
             <div className="flex justify-between">
               <span className="font-semibold text-slate-400">Playlist:</span>
-              <span className="truncate max-w-[120px] text-blue-400 font-semibold" title={clientPlaylist?.name}>{clientPlaylist?.name || 'Nenhuma'}</span>
+              <span className="truncate max-w-[120px] text-blue-400 font-semibold" title={clientPlaylist?.nome}>{clientPlaylist?.nome || 'Nenhuma'}</span>
             </div>
           </div>
 
@@ -192,7 +189,7 @@ export default function ScreenSimulator({
 
         {/* Realistic Bezel TV frame */}
         <div ref={containerRef} className={`transition-all duration-500 relative flex justify-center items-center ${
-          activeClient?.orientation === 'Vertical' 
+          activeClient?.orientacao === 'Vertical' 
             ? 'w-full max-w-[280px] sm:max-w-[340px] aspect-[9/16]' 
             : 'w-full max-w-[680px] aspect-video'
         }`}>
@@ -213,7 +210,7 @@ export default function ScreenSimulator({
                 ) : (
                   currentMedia && (
                     <div className="w-full h-full relative">
-                      {currentMedia.type === 'video' ? (
+                      {currentMedia.tipo === 'video' ? (
                         <video 
                           key={currentMedia.id}
                           src={currentMedia.url} 
@@ -227,7 +224,7 @@ export default function ScreenSimulator({
                         <img 
                           key={currentMedia.id}
                           src={currentMedia.url} 
-                          alt={currentMedia.name} 
+                          alt={currentMedia.nome} 
                           referrerPolicy="no-referrer"
                           className="w-full h-full object-cover"
                         />

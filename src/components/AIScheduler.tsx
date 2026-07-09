@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Client } from '../types';
+import { Cliente } from '../types';
 import { 
   Sparkles, 
   Send, 
@@ -20,7 +20,7 @@ import {
 import { motion, AnimatePresence } from 'motion/react';
 
 interface AISchedulerProps {
-  clients: Client[];
+  clients: Cliente[];
   onUpdateClientTicker: (clientId: string, text: string) => void;
 }
 
@@ -224,7 +224,7 @@ export default function AIScheduler({ clients, onUpdateClientTicker }: AISchedul
             >
               <option value="" className="bg-[#0d0d12]">Selecione o Cliente Target...</option>
               {clients.map(c => (
-                <option key={c.id} value={c.id} className="bg-[#0d0d12]">{c.name}</option>
+                <option key={c.id} value={c.id} className="bg-[#0d0d12]">{c.nome}</option>
               ))}
             </select>
           </div>
@@ -343,7 +343,7 @@ function clientDevicesIdForApplying(id: string) {
   return id;
 }
 
-function clientIdOrFirst(currentId: string | null, clients: Client[]): string {
+function clientIdOrFirst(currentId: string | null, clients: Cliente[]): string {
   if (currentId) return currentId;
   return clients.length > 0 ? clients[0].id : '';
 }
