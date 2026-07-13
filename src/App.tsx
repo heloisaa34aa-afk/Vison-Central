@@ -4,6 +4,8 @@ import { storageService } from './lib/storage';
 import { supabase } from './lib/supabase';
 import { isTvOnline } from './utils/tvStatus';
 
+import { mapDbToTv } from './services/supabase/tvs';
+
 // Icons
 import { 
   LayoutDashboard, 
@@ -86,8 +88,18 @@ export default function App() {
       .on('postgres_changes', { event: '*', schema: 'public', table: 'clientes' }, () => {
         loadData();
       })
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'tvs' }, () => {
-        loadData();
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'tvs' }, (payload) => {
+        if (payload.eventType === 'UPDATE' && payload.new) {
+          const updatedTv = mapDbToTv(payload.new);
+          setDevices(prev => prev.map(tv => tv.id === updatedTv.id ? updatedTv : tv));
+        } else if (payload.eventType === 'INSERT' && payload.new) {
+          const newTv = mapDbToTv(payload.new);
+          setDevices(prev => [...prev, newTv]);
+        } else if (payload.eventType === 'DELETE' && payload.old) {
+          setDevices(prev => prev.filter(tv => tv.id !== payload.old.id));
+        } else {
+          loadData();
+        }
       })
       .on('postgres_changes', { event: '*', schema: 'public', table: 'playlists' }, () => {
         loadData();
@@ -108,37 +120,32 @@ export default function App() {
     };
   }, []);
 
-  // Automatic Offline Detector
+  // Automatic Offline Detector (Local State Only)
   useEffect(() => {
     if (!isLoaded) return;
 
-    const interval = setInterval(async () => {
+    const interval = setInterval(() => {
       const currentDevices = devicesRef.current;
       if (currentDevices.length === 0) return;
 
       const now = new Date();
       let hasUpdates = false;
-      const nextDevices = await Promise.all(currentDevices.map(async (d) => {
+      const nextDevices = currentDevices.map((d) => {
         if (d.status === 'Online' && d.ultimaConexao) {
           const lastConn = new Date(d.ultimaConexao);
           const diffSeconds = (now.getTime() - lastConn.getTime()) / 1000;
-          if (diffSeconds > 40) {
-            const updated = { ...d, status: 'Offline' as const };
-            await storageService.saveTv(updated);
+          if (diffSeconds > 30) {
             hasUpdates = true;
-            return updated;
+            return { ...d, status: 'Offline' as const };
           }
         }
         return d;
-      }));
+      });
 
       if (hasUpdates) {
         setDevices(nextDevices);
-        setClients(prevClients => prevClients.map(c => {
-          return { ...c, quantidadeTelas: nextDevices.filter(dev => dev.clienteId === c.id).length };
-        }));
       }
-    }, 10000);
+    }, 5000);
 
     return () => clearInterval(interval);
   }, [isLoaded]);

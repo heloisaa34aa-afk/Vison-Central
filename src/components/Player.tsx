@@ -12,7 +12,8 @@ export default function Player() {
   const [activeDevice, setActiveDevice] = useState<Tv | null>(null);
 
   const containerRef = useRef<HTMLDivElement>(null);
-  const videoRef = useRef<HTMLVideoElement>(null);
+  const playlistIdRef = useRef<string | undefined>(undefined);
+  playlistIdRef.current = activeDevice?.playlistId;
 
   const handleStart = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -87,60 +88,85 @@ export default function Player() {
       const deviceToken = activeDevice.token;
 
       // 1. Subscribe to updates on Supabase Realtime
-      const unsubscribe = playerService.subscribeToUpdates(deviceToken, async () => {
-        try {
-          // Buscar configurações atualizadas do dispositivo pelo ID
-          const data = await playerService.getPlayerConfigById(deviceId);
-          
-          // Caso o token do dispositivo tenha mudado no banco
-          if (tokensService.normalizeToken(data.tv.token) !== tokensService.normalizeToken(deviceToken)) {
-            setError('O token deste dispositivo foi alterado ou renovado. Conecte-se novamente.');
-            setStep('input');
-            setActiveDevice(null);
-            return;
-          }
-
-          // Atualizar o estado do dispositivo ativo
-          setActiveDevice(data.tv);
-
-          if (data.midias && data.midias.length > 0) {
-            // Atualizar mídias dinamicamente
-            setPlaylistMedia(prev => {
-              const changed = JSON.stringify(prev) !== JSON.stringify(data.midias);
-              if (changed) {
-                setCurrentIndex(curr => curr >= data.midias.length ? 0 : curr);
-                return data.midias;
+      const unsubscribe = playerService.subscribeToUpdates(
+        deviceId,
+        () => playlistIdRef.current,
+        {
+          onTvUpdate: async (newTvData?: any) => {
+            try {
+              if (newTvData) {
+                // If it's a heartbeat, it won't have token changes.
+                // But just in case, verify token
+                if (newTvData.token && tokensService.normalizeToken(newTvData.token) !== tokensService.normalizeToken(deviceToken)) {
+                  setError('O token deste dispositivo foi alterado ou renovado. Conecte-se novamente.');
+                  setStep('input');
+                  setActiveDevice(null);
+                  return;
+                }
+                
+                // Convert to Tv object
+                import('../services/supabase/tvs').then(({ mapDbToTv }) => {
+                   const tvMapped = mapDbToTv(newTvData);
+                   setActiveDevice(tvMapped);
+                });
+              } else {
+                const data = await playerService.getPlayerConfigById(deviceId);
+                if (tokensService.normalizeToken(data.tv.token) !== tokensService.normalizeToken(deviceToken)) {
+                  setError('O token deste dispositivo foi alterado ou renovado. Conecte-se novamente.');
+                  setStep('input');
+                  setActiveDevice(null);
+                  return;
+                }
+                setActiveDevice(data.tv);
               }
-              return prev;
+            } catch (e: any) {
+              console.error('Realtime update failed (TV):', e);
+              if (e.message && (e.message.includes('não encontrado') || e.message.includes('Token inválido'))) {
+                setError('Este dispositivo foi removido do painel.');
+                setStep('input');
+                setActiveDevice(null);
+              }
+            }
+          },
+          onConfigUpdate: (config: Partial<Tv>) => {
+            // Save locally
+            import('../services/local/tvConfigs').then(({ tvConfigsService }) => {
+              tvConfigsService.saveConfig(deviceId, config);
             });
-          } else {
-            setPlaylistMedia([]);
-            setError('Nenhuma mídia disponível na playlist associada.');
-            setStep('input');
-          }
-        } catch (e: any) {
-          console.error('Realtime update failed:', e);
-          if (e.message && (e.message.includes('não encontrado') || e.message.includes('Token inválido'))) {
-            setError('Este dispositivo foi removido do painel.');
-            setStep('input');
-            setActiveDevice(null);
+            // Update state
+            setActiveDevice(prev => prev ? { ...prev, ...config } : null);
+          },
+          onPlaylistUpdate: async () => {
+            try {
+              const data = await playerService.getPlayerConfigById(deviceId);
+              if (data.midias && data.midias.length > 0) {
+                setPlaylistMedia(prev => {
+                  const changed = JSON.stringify(prev) !== JSON.stringify(data.midias);
+                  if (changed) {
+                    setCurrentIndex(curr => curr >= data.midias.length ? 0 : curr);
+                    return data.midias;
+                  }
+                  return prev;
+                });
+              } else {
+                setPlaylistMedia([]);
+              }
+            } catch (e: any) {
+              console.error('Realtime update failed (Playlist):', e);
+            }
           }
         }
-      });
-  
+      );
+
       // Ensure the device is marked Online immediately when the effect is mounted
       playerService.updateTvStatus(deviceId, 'Online').catch(err => {
         console.error('Error marking online on start:', err);
       });
 
-      // 2. Periodic heartbeat to keep status Online and fresh (20 seconds)
-      const heartbeatInterval = setInterval(async () => {
-        try {
-          await playerService.updateTvStatus(deviceId, 'Online');
-        } catch (err) {
-          console.error('Heartbeat update failed:', err);
-        }
-      }, 20000);
+      // Heartbeat a cada 10 segundos para manter a TV Online
+      const heartbeatInterval = setInterval(() => {
+        playerService.sendHeartbeat(deviceId).catch(err => console.error('Heartbeat falhou:', err));
+      }, 10000);
 
       // 3. Set status to offline on window unload/close
       const handleUnload = () => {
@@ -159,13 +185,6 @@ export default function Player() {
       };
     }
   }, [step, activeDevice?.id, activeDevice?.token]);
-
-  useEffect(() => {
-    if (videoRef.current && activeDevice) {
-      const vol = activeDevice.volume !== undefined ? activeDevice.volume / 100 : 0.5;
-      videoRef.current.volume = vol;
-    }
-  }, [activeDevice, currentIndex, playlistMedia]);
 
   const handleVideoEnded = () => {
     setCurrentIndex((prev) => (prev + 1) % playlistMedia.length);
@@ -251,45 +270,59 @@ export default function Player() {
   const saturacao = activeDevice?.saturacao !== undefined ? activeDevice.saturacao : 100;
   const zoom = activeDevice?.zoom !== undefined ? activeDevice.zoom : 100;
   const volume = activeDevice?.volume !== undefined ? activeDevice.volume : 50;
+  const rotacao = activeDevice?.rotacao !== undefined ? activeDevice.rotacao : 0;
+  
+  const isRotated90 = rotacao === 90 || rotacao === 270;
+  const verticalMaxWidth = isRotated90 ? 'max-w-[100vw]' : 'max-w-[100vh]';
 
   return (
     <div ref={containerRef} className="w-screen h-screen bg-black overflow-hidden flex items-center justify-center cursor-none">
       <div 
-        className={`transition-all duration-500 w-full h-full flex items-center justify-center ${isVertical ? 'max-w-[100vh] aspect-[9/16]' : ''}`}
+        className="flex items-center justify-center transition-all duration-500"
         style={{
-          filter: `brightness(${brilho}%) contrast(${contraste}%) saturate(${saturacao}%)`,
-          transform: `scale(${zoom / 100})`,
+           width: isRotated90 ? '100vh' : '100vw',
+           height: isRotated90 ? '100vw' : '100vh',
+           transform: `rotate(${rotacao}deg) scale(${zoom / 100})`,
         }}
       >
-        {currentMedia.tipo === 'image' ? (
-          <img 
-            src={currentMedia.url} 
-            alt="Current Media" 
-            onError={handleMediaError}
-            className={`w-full h-full bg-black animate-fade-in ${
-              proporcao === 'cover' ? 'object-cover' : 
-              proporcao === 'contain' ? 'object-contain' : 
-              proporcao === '16:9' ? 'object-contain aspect-video' : 
-              proporcao === '4:3' ? 'object-contain aspect-[4/3]' : 'object-contain'
-            }`}
-            referrerPolicy="no-referrer"
-          />
-        ) : (
-          <video 
-            ref={videoRef}
-            src={currentMedia.url} 
-            autoPlay 
-            muted={volume === 0}
-            onEnded={handleVideoEnded}
-            onError={handleMediaError}
-            className={`w-full h-full bg-black animate-fade-in ${
-              proporcao === 'cover' ? 'object-cover' : 
-              proporcao === 'contain' ? 'object-contain' : 
-              proporcao === '16:9' ? 'object-contain aspect-video' : 
-              proporcao === '4:3' ? 'object-contain aspect-[4/3]' : 'object-contain'
-            }`}
-          />
-        )}
+        <div 
+          className={`w-full h-full flex items-center justify-center ${isVertical ? `${verticalMaxWidth} aspect-[9/16]` : ''}`}
+          style={{
+            filter: `brightness(${brilho}%) contrast(${contraste}%) saturate(${saturacao}%)`,
+          }}
+        >
+          {currentMedia.tipo === 'image' ? (
+            <img 
+              src={currentMedia.url} 
+              alt="Current Media" 
+              onError={handleMediaError}
+              className={`w-full h-full bg-black animate-fade-in ${
+                proporcao === 'cover' ? 'object-cover' : 
+                proporcao === 'contain' ? 'object-contain' : 
+                proporcao === '16:9' ? 'object-contain aspect-video' : 
+                proporcao === '4:3' ? 'object-contain aspect-[4/3]' : 'object-contain'
+              }`}
+              referrerPolicy="no-referrer"
+            />
+          ) : (
+            <video 
+              ref={(el) => {
+                if (el) el.volume = volume / 100;
+              }}
+              src={currentMedia.url} 
+              autoPlay 
+              muted={volume === 0}
+              onEnded={handleVideoEnded}
+              onError={handleMediaError}
+              className={`w-full h-full bg-black animate-fade-in ${
+                proporcao === 'cover' ? 'object-cover' : 
+                proporcao === 'contain' ? 'object-contain' : 
+                proporcao === '16:9' ? 'object-contain aspect-video' : 
+                proporcao === '4:3' ? 'object-contain aspect-[4/3]' : 'object-contain'
+              }`}
+            />
+          )}
+        </div>
       </div>
     </div>
   );

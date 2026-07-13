@@ -35,6 +35,7 @@ export interface Tv {
   zoom?: number;
   volume?: number;
   tempo_transicao?: number;
+  rotacao?: number;
 }
 
 export interface Cliente {

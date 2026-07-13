@@ -1,12 +1,13 @@
 import { supabase } from '../../lib/supabase';
 import { Tv } from '../../types';
+import { tvConfigsService } from '../local/tvConfigs';
 
 export function mapDbToTv(db: any): Tv {
   const parts = (db.nome || '').split(' | ');
   const baseNome = parts[0] || '';
   const orientacao = (db.orientacao || 'Horizontal') as 'Horizontal' | 'Vertical';
   
-  return {
+  const baseTv: Tv = {
     id: db.id,
     clienteId: db.cliente_id || '',
     nome: baseNome,
@@ -24,8 +25,11 @@ export function mapDbToTv(db: any): Tv {
     saturacao: db.saturacao !== undefined ? db.saturacao : 100,
     zoom: db.zoom !== undefined ? db.zoom : 100,
     volume: db.volume !== undefined ? db.volume : 50,
-    tempo_transicao: db.tempo_transicao !== undefined ? db.tempo_transicao : 3
+    tempo_transicao: db.tempo_transicao !== undefined ? db.tempo_transicao : 3,
+    rotacao: db.rotacao !== undefined ? db.rotacao : 0
   };
+  
+  return tvConfigsService.mergeTvWithConfig(baseTv);
 }
 
 export function mapTvToDb(tv: Tv): any {
@@ -38,16 +42,7 @@ export function mapTvToDb(tv: Tv): any {
     uptime: tv.uptime,
     ultima_sincronizacao: tv.ultimaSincronizacao || new Date().toISOString(),
     playlist_id: tv.playlistId || null,
-    ultima_conexao: tv.ultimaConexao || new Date().toISOString(),
-    orientacao: tv.orientacao || 'Horizontal',
-    proporcao: tv.proporcao || 'contain',
-    modo_exibicao: tv.modo_exibicao || 'Autoplay',
-    brilho: tv.brilho !== undefined ? tv.brilho : 100,
-    contraste: tv.contraste !== undefined ? tv.contraste : 100,
-    saturacao: tv.saturacao !== undefined ? tv.saturacao : 100,
-    zoom: tv.zoom !== undefined ? tv.zoom : 100,
-    volume: tv.volume !== undefined ? tv.volume : 50,
-    tempo_transicao: tv.tempo_transicao !== undefined ? tv.tempo_transicao : 3
+    ultima_conexao: tv.ultimaConexao || new Date().toISOString()
   };
 }
 

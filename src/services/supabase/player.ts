@@ -110,28 +110,97 @@ export const playerService = {
       .eq('id', tvId);
   },
 
-  subscribeToUpdates(token: string, onUpdate: () => void): () => void {
+  async sendHeartbeat(tvId: string): Promise<void> {
+    if (!(await checkSupabaseConnection())) {
+      return;
+    }
+
+    const updatePayload = {
+      status: 'Online',
+      uptime: '24h 0m',
+      ultima_conexao: new Date().toISOString()
+    };
+    
+    await supabase
+      .from('tvs')
+      .update(updatePayload)
+      .eq('id', tvId);
+  },
+
+  async broadcastConfigUpdate(tvId: string, config: Partial<Tv>) {
+    if (!supabase) return;
+    const channel = supabase.channel(`player-changes-${tvId}`);
+    channel.send({
+      type: 'broadcast',
+      event: 'config_update',
+      payload: config
+    });
+  },
+
+  subscribeToUpdates(
+    tvId: string,
+    getPlaylistId: () => string | undefined,
+    callbacks: {
+      onTvUpdate: (payload?: any) => void;
+      onPlaylistUpdate: () => void;
+      onConfigUpdate?: (config: Partial<Tv>) => void;
+    }
+  ): () => void {
     if (!supabase) return () => {};
 
-    // Inscrever-se para mudanças nas tabelas tvs, playlists ou clientes
-    const channel = supabase
-      .channel('player-changes')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'tvs' }, () => {
-        onUpdate();
-      })
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'playlists' }, () => {
-        onUpdate();
-      })
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'clientes' }, () => {
-        onUpdate();
-      })
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'midias' }, () => {
-        onUpdate();
-      })
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'playlist_midias' }, () => {
-        onUpdate();
-      })
-      .subscribe();
+    const channel = supabase.channel(`player-changes-${tvId}`);
+
+    // Update na TV conectada
+    channel.on(
+      'postgres_changes',
+      { event: 'UPDATE', schema: 'public', table: 'tvs', filter: `id=eq.${tvId}` },
+      (payload) => {
+        callbacks.onTvUpdate(payload.new);
+      }
+    );
+
+    // Broadcast channel for configs
+    channel.on(
+      'broadcast',
+      { event: 'config_update' },
+      (payload) => {
+        if (callbacks.onConfigUpdate && payload.payload) {
+          callbacks.onConfigUpdate(payload.payload as Partial<Tv>);
+        }
+      }
+    );
+
+    // Update na playlist
+    channel.on(
+      'postgres_changes',
+      { event: 'UPDATE', schema: 'public', table: 'playlists' },
+      (payload: any) => {
+        if (payload.new && payload.new.id === getPlaylistId()) {
+          callbacks.onPlaylistUpdate();
+        }
+      }
+    );
+    // INSERT ou DELETE em playlist_midias
+    channel.on(
+      'postgres_changes',
+      { event: 'INSERT', schema: 'public', table: 'playlist_midias' },
+      (payload: any) => {
+        if (payload.new && payload.new.playlist_id === getPlaylistId()) {
+          callbacks.onPlaylistUpdate();
+        }
+      }
+    );
+    channel.on(
+      'postgres_changes',
+      { event: 'DELETE', schema: 'public', table: 'playlist_midias' },
+      (payload: any) => {
+        if (payload.old && payload.old.playlist_id === getPlaylistId()) {
+          callbacks.onPlaylistUpdate();
+        }
+      }
+    );
+
+    channel.subscribe();
 
     return () => {
       supabase.removeChannel(channel);

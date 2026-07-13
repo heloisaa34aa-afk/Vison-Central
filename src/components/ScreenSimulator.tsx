@@ -53,6 +53,7 @@ export default function ScreenSimulator({
   const [tvZoom, setTvZoom] = useState(100);
   const [tvVolume, setTvVolume] = useState(50);
   const [tvTempoTransicao, setTvTempoTransicao] = useState(3);
+  const [tvRotacao, setTvRotacao] = useState(0);
 
   // Playback/Simulation states
   const [isPlaying, setIsPlaying] = useState(true);
@@ -100,8 +101,17 @@ export default function ScreenSimulator({
     if (supabase) {
       const channel = supabase
         .channel('tvs-simulator-updates')
-        .on('postgres_changes', { event: '*', schema: 'public', table: 'tvs' }, () => {
-          fetchTvsForClient();
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'tvs' }, (payload) => {
+          if (payload.eventType === 'UPDATE' && payload.new) {
+            import('../services/supabase/tvs').then(({ mapDbToTv }) => {
+              const updatedTv = mapDbToTv(payload.new);
+              if (updatedTv.clienteId === selectedClientId) {
+                setTvs(prev => prev.map(tv => tv.id === updatedTv.id ? updatedTv : tv));
+              }
+            });
+          } else {
+             fetchTvsForClient();
+          }
         })
         .subscribe();
 
@@ -127,6 +137,7 @@ export default function ScreenSimulator({
       setTvZoom(activeTv.zoom !== undefined ? activeTv.zoom : 100);
       setTvVolume(activeTv.volume !== undefined ? activeTv.volume : 50);
       setTvTempoTransicao(activeTv.tempo_transicao !== undefined ? activeTv.tempo_transicao : 3);
+      setTvRotacao(activeTv.rotacao !== undefined ? activeTv.rotacao : 0);
       setCurrentMediaIndex(0);
       setProgress(0);
     } else {
@@ -141,6 +152,7 @@ export default function ScreenSimulator({
       setTvZoom(100);
       setTvVolume(50);
       setTvTempoTransicao(3);
+      setTvRotacao(0);
     }
   }, [selectedTvId, activeTv]);
 
@@ -156,7 +168,8 @@ export default function ScreenSimulator({
     tvSaturacao !== (activeTv.saturacao !== undefined ? activeTv.saturacao : 100) ||
     tvZoom !== (activeTv.zoom !== undefined ? activeTv.zoom : 100) ||
     tvVolume !== (activeTv.volume !== undefined ? activeTv.volume : 50) ||
-    tvTempoTransicao !== (activeTv.tempo_transicao !== undefined ? activeTv.tempo_transicao : 3)
+    tvTempoTransicao !== (activeTv.tempo_transicao !== undefined ? activeTv.tempo_transicao : 3) ||
+    tvRotacao !== (activeTv.rotacao !== undefined ? activeTv.rotacao : 0)
   );
 
   // 5. Load playlist and current media list for active TV
@@ -235,11 +248,20 @@ export default function ScreenSimulator({
       zoom: tvZoom,
       volume: tvVolume,
       tempo_transicao: tvTempoTransicao,
+      rotacao: tvRotacao,
       ultimaSincronizacao: new Date().toISOString()
     };
 
     const success = await storageService.saveTv(updatedTv);
     if (success) {
+      // Import the services inside the component since we don't have them imported at the top
+      import('../services/local/tvConfigs').then(({ tvConfigsService }) => {
+        tvConfigsService.saveConfig(updatedTv.id, updatedTv);
+      });
+      import('../services/supabase/player').then(({ playerService }) => {
+        playerService.broadcastConfigUpdate(updatedTv.id, updatedTv);
+      });
+      
       // Update local state immediately
       setTvs(prev => prev.map(t => t.id === updatedTv.id ? updatedTv : t));
       showLocalToast('Configurações sincronizadas com sucesso!');
@@ -258,7 +280,7 @@ export default function ScreenSimulator({
     }, 60000);
 
     return () => clearInterval(autoSyncInterval);
-  }, [isDirty, activeTv, tvNome, tvPlaylistId, tvOrientacao, tvModoReproducao, tvProporcao, tvBrilho, tvContraste, tvSaturacao, tvZoom, tvVolume, tvTempoTransicao]);
+  }, [isDirty, activeTv, tvNome, tvPlaylistId, tvOrientacao, tvModoReproducao, tvProporcao, tvBrilho, tvContraste, tvSaturacao, tvZoom, tvVolume, tvTempoTransicao, tvRotacao]);
 
   const handleNextMedia = () => {
     if (mediaList.length > 0) {
@@ -403,17 +425,34 @@ export default function ScreenSimulator({
               </select>
             </div>
 
-            {/* Orientation Input */}
-            <div className="space-y-1.5">
-              <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Orientação</label>
-              <select
-                value={tvOrientacao}
-                onChange={(e) => setTvOrientacao(e.target.value as any)}
-                className="w-full px-3 py-2 text-xs bg-[#050508]/40 border border-white/10 rounded-lg text-slate-200 focus:outline-none focus:border-blue-500/50"
-              >
-                <option value="Horizontal">Horizontal (16:9)</option>
-                <option value="Vertical">Vertical (9:16)</option>
-              </select>
+            <div className="grid grid-cols-2 gap-4">
+              {/* Orientation Input */}
+              <div className="space-y-1.5">
+                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Orientação</label>
+                <select
+                  value={tvOrientacao}
+                  onChange={(e) => setTvOrientacao(e.target.value as any)}
+                  className="w-full px-3 py-2 text-xs bg-[#050508]/40 border border-white/10 rounded-lg text-slate-200 focus:outline-none focus:border-blue-500/50"
+                >
+                  <option value="Horizontal">Horizontal</option>
+                  <option value="Vertical">Vertical</option>
+                </select>
+              </div>
+
+              {/* Rotação Input */}
+              <div className="space-y-1.5">
+                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Rotação da Tela</label>
+                <select
+                  value={tvRotacao}
+                  onChange={(e) => setTvRotacao(Number(e.target.value))}
+                  className="w-full px-3 py-2 text-xs bg-[#050508]/40 border border-white/10 rounded-lg text-slate-200 focus:outline-none focus:border-blue-500/50"
+                >
+                  <option value="0">0° (Paisagem)</option>
+                  <option value="90">90° (Retrato dir.)</option>
+                  <option value="180">180° (Invertida)</option>
+                  <option value="270">270° (Retrato esq.)</option>
+                </select>
+              </div>
             </div>
 
             {/* Play Mode input */}
@@ -637,10 +676,12 @@ export default function ScreenSimulator({
                       ) : (
                         currentMedia && (
                           <div 
-                            className="w-full h-full relative" 
+                            className="flex items-center justify-center relative" 
                             style={{
+                              width: (tvRotacao === 90 || tvRotacao === 270) ? '200%' : '100%',
+                              height: (tvRotacao === 90 || tvRotacao === 270) ? '200%' : '100%',
                               filter: `brightness(${tvBrilho}%) contrast(${tvContraste}%) saturate(${tvSaturacao}%)`,
-                              transform: `scale(${tvZoom / 100})`,
+                              transform: `rotate(${tvRotacao}deg) scale(${tvZoom / 100})`,
                               transition: 'all 0.3s ease'
                             }}
                           >
@@ -658,6 +699,10 @@ export default function ScreenSimulator({
                                   tvProporcao === '16:9' ? 'object-contain aspect-video' : 
                                   tvProporcao === '4:3' ? 'object-contain aspect-[4/3]' : 'object-cover'
                                 }`}
+                                style={{
+                                  width: (tvRotacao === 90 || tvRotacao === 270) ? (tvOrientacao === 'Vertical' ? '56.25%' : '177.77%') : '100%',
+                                  height: (tvRotacao === 90 || tvRotacao === 270) ? (tvOrientacao === 'Vertical' ? '177.77%' : '56.25%') : '100%',
+                                }}
                               />
                             ) : (
                               <img 
@@ -671,6 +716,10 @@ export default function ScreenSimulator({
                                   tvProporcao === '16:9' ? 'object-contain aspect-video' : 
                                   tvProporcao === '4:3' ? 'object-contain aspect-[4/3]' : 'object-cover'
                                 }`}
+                                style={{
+                                  width: (tvRotacao === 90 || tvRotacao === 270) ? (tvOrientacao === 'Vertical' ? '56.25%' : '177.77%') : '100%',
+                                  height: (tvRotacao === 90 || tvRotacao === 270) ? (tvOrientacao === 'Vertical' ? '177.77%' : '56.25%') : '100%',
+                                }}
                               />
                             )}
                           </div>
