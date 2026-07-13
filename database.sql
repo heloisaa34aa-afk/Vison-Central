@@ -12,7 +12,6 @@ CREATE TABLE IF NOT EXISTS clientes (
     cidade TEXT NOT NULL,
     bairro TEXT NOT NULL,
     status TEXT NOT NULL DEFAULT 'Ativo',
-    screens_count INTEGER DEFAULT 1,
     icon_type TEXT DEFAULT 'store',
     orientation TEXT NOT NULL DEFAULT 'Horizontal',
     timezone TEXT NOT NULL DEFAULT 'America/Sao_Paulo',

@@ -8,14 +8,11 @@ import {
   Tv as TvIcon, 
   Radio, 
   CheckCircle,
-  Activity,
   Building2
 } from 'lucide-react';
 
 // Components
 import Dashboard from './components/Dashboard';
-import Monitoring from './components/Monitoring';
-import TVsManager from './components/TVsManager';
 import ClientsManager from './components/ClientsManager';
 import ClientPage from './components/ClientPage';
 import ScreenSimulator from './components/ScreenSimulator';
@@ -73,6 +70,38 @@ export default function App() {
     };
     loadData();
   }, []);
+
+  // Automatic Offline Detector
+  useEffect(() => {
+    if (!isLoaded || devices.length === 0) return;
+
+    const interval = setInterval(async () => {
+      const now = new Date();
+      let hasUpdates = false;
+      const nextDevices = await Promise.all(devices.map(async (d) => {
+        if (d.status === 'Online' && d.ultimaConexao) {
+          const lastConn = new Date(d.ultimaConexao);
+          const diffSeconds = (now.getTime() - lastConn.getTime()) / 1000;
+          if (diffSeconds > 25) {
+            const updated = { ...d, status: 'Offline' as const };
+            await storageService.saveTv(updated);
+            hasUpdates = true;
+            return updated;
+          }
+        }
+        return d;
+      }));
+
+      if (hasUpdates) {
+        setDevices(nextDevices);
+        setClients(prevClients => prevClients.map(c => {
+          return { ...c, quantidadeTelas: nextDevices.filter(d => d.clienteId === c.id).length || 1 };
+        }));
+      }
+    }, 15000);
+
+    return () => clearInterval(interval);
+  }, [isLoaded, devices]);
 
   // Toast notification helper
   const showToast = (message: string) => {
@@ -134,7 +163,12 @@ export default function App() {
     // 2. Additions or Updates
     for (const np of nextPlaylists) {
       const prev = playlists.find(p => p.id === np.id);
-      if (!prev || prev.nome !== np.nome || JSON.stringify(prev.midiasIds) !== JSON.stringify(np.midiasIds)) {
+      if (
+        !prev || 
+        prev.nome !== np.nome || 
+        JSON.stringify(prev.midiasIds) !== JSON.stringify(np.midiasIds) ||
+        JSON.stringify(prev.midiasDurations) !== JSON.stringify(np.midiasDurations)
+      ) {
         await storageService.savePlaylist(np);
       }
     }
@@ -153,7 +187,7 @@ export default function App() {
     // 2. Additions or Updates
     for (const nm of nextMedia) {
       const prev = media.find(m => m.id === nm.id);
-      if (!prev) {
+      if (!prev || prev.nome !== nm.nome || prev.duracao !== nm.duracao || prev.url !== nm.url) {
         await storageService.saveMidia(nm);
       }
     }
@@ -228,31 +262,6 @@ export default function App() {
           </button>
 
           <button
-            onClick={() => { setActiveTab('monitoring'); setSelectedClientIdForSim(null); setSelectedClientId(null); }}
-            className={`flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold transition-all whitespace-nowrap md:w-full ${
-              activeTab === 'monitoring'
-                ? 'bg-gradient-to-r from-blue-600 to-cyan-500 text-white shadow-[0_0_15px_rgba(37,99,235,0.3)]'
-                : 'text-slate-400 hover:bg-white/5 hover:text-white'
-            }`}
-          >
-            <Activity className="w-4 h-4 shrink-0" />
-            Monitoramento
-          </button>
-
-          <button
-            onClick={() => { setActiveTab('tvs'); setSelectedClientIdForSim(null); setSelectedClientId(null); }}
-            className={`flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold transition-all whitespace-nowrap md:w-full ${
-              activeTab === 'tvs'
-                ? 'bg-gradient-to-r from-blue-600 to-cyan-500 text-white shadow-[0_0_15px_rgba(37,99,235,0.3)]'
-                : 'text-slate-400 hover:bg-white/5 hover:text-white'
-            }`}
-            id="tab-tvs"
-          >
-            <TvIcon className="w-4 h-4 shrink-0" />
-            TVs
-          </button>
-
-          <button
             onClick={() => { setActiveTab('simulator'); setSelectedClientId(null); }}
             className={`flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold transition-all whitespace-nowrap md:w-full ${
               activeTab === 'simulator'
@@ -298,88 +307,38 @@ export default function App() {
                       showToast('Erro ao criar cliente.');
                     }
                   }}
-                  onUpdateClient={handleUpdateClient}
                   onDeleteClient={async (id) => {
-                    const success = await storageService.deleteCliente(id);
-                    if (success) {
-                      setClients(prev => prev.filter(c => c.id !== id));
-                      showToast('Cliente removido com sucesso!');
-                    } else {
-                      showToast('Erro ao remover cliente.');
-                    }
-                  }}
-                  onAddDevice={async (newDevice) => {
-                    const success = await storageService.saveTv(newDevice);
-                    if (success) {
-                      setDevices(prev => {
-                        const nextDevices = [...prev, newDevice];
-                        // Dynamically update corresponding client's screens count
-                        setClients(prevClients => prevClients.map(c => {
-                          if (c.id === newDevice.clienteId) {
-                            return { ...c, quantidadeTelas: nextDevices.filter(d => d.clienteId === c.id).length || 1 };
-                          }
-                          return c;
-                        }));
-                        return nextDevices;
-                      });
-                      showToast('Dispositivo pareado com sucesso!');
-                    } else {
-                      showToast('Erro ao parear dispositivo.');
-                    }
-                  }}
-                  onUpdateDevice={async (updatedDevice) => {
-                    const success = await storageService.saveTv(updatedDevice);
-                    if (success) {
-                      setDevices(prev => prev.map(d => d.id === updatedDevice.id ? updatedDevice : d));
-                      showToast('Dispositivo atualizado!');
-                    } else {
-                      showToast('Erro ao atualizar dispositivo.');
-                    }
-                  }}
-                  onDeleteDevice={async (id) => {
-                    const success = await storageService.deleteTv(id);
-                    if (success) {
-                      setDevices(prev => {
-                        const nextDevices = prev.filter(d => d.id !== id);
-                        // Dynamically update corresponding client's screens count
-                        setClients(prevClients => prevClients.map(c => {
-                          return { ...c, quantidadeTelas: nextDevices.filter(d => d.clienteId === c.id).length || 1 };
-                        }));
-                        return nextDevices;
-                      });
-                      showToast('Dispositivo despareado!');
-                    } else {
-                      showToast('Erro ao desparear dispositivo.');
-                    }
-                  }}
-                />
-              )}
+                    if (confirm('Atenção: excluir este cliente irá deletar permanentemente todas as suas TVs, playlists e mídias vinculadas. Deseja prosseguir?')) {
+                      // 1. Delete associated TVs
+                      const clientDevices = devices.filter(d => d.clienteId === id);
+                      for (const d of clientDevices) {
+                        await storageService.deleteTv(d.id);
+                      }
+                      // 2. Delete associated Playlists
+                      const clientPlaylists = playlists.filter(p => p.clienteId === id);
+                      for (const p of clientPlaylists) {
+                        await storageService.deletePlaylist(p.id);
+                      }
+                      // 3. Delete associated Midias
+                      const clientMidias = media.filter(m => m.clienteId === id);
+                      for (const m of clientMidias) {
+                        await storageService.deleteMidia(m.id);
+                      }
 
-              {activeTab === 'monitoring' && (
-                <Monitoring 
-                  clients={clients} 
-                  devices={devices} 
-                  playlists={playlists}
-                  onOpenSimulator={(id) => {
-                    setSelectedClientIdForSim(id);
-                    setActiveTab('simulator');
+                      // 4. Delete client itself
+                      const success = await storageService.deleteCliente(id);
+                      if (success) {
+                        setClients(prev => prev.filter(c => c.id !== id));
+                        setDevices(prev => prev.filter(d => d.clienteId !== id));
+                        setPlaylists(prev => prev.filter(p => p.clienteId !== id));
+                        setMedia(prev => prev.filter(m => m.clienteId !== id));
+                        showToast('Cliente e todos os dados vinculados foram removidos do Supabase!');
+                      } else {
+                        showToast('Erro ao remover cliente.');
+                      }
+                    }
                   }}
-                  onUpdateDevices={handleUpdateDevices}
-                  showToast={showToast}
-                />
-              )}
-
-              {activeTab === 'tvs' && (
-                <TVsManager 
-                  clients={clients} 
-                  devices={devices} 
-                  playlists={playlists}
-                  onUpdateDevices={handleUpdateDevices}
-                  onOpenSimulator={(id) => {
-                    setSelectedClientIdForSim(id);
-                    setActiveTab('simulator');
-                  }}
-                  showToast={showToast}
+                  onSelectCliente={handleSelectClient}
                 />
               )}
 

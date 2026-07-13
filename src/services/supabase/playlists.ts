@@ -19,12 +19,15 @@ export const playlistsService = {
         .order('ordem', { ascending: true });
 
       const relationMap: Record<string, string[]> = {};
+      const durationMap: Record<string, number[]> = {};
       if (!relError && relations) {
         relations.forEach((rel: any) => {
           if (!relationMap[rel.playlist_id]) {
             relationMap[rel.playlist_id] = [];
+            durationMap[rel.playlist_id] = [];
           }
           relationMap[rel.playlist_id].push(rel.midia_id);
+          durationMap[rel.playlist_id].push(rel.duracao || 10);
         });
       }
 
@@ -33,6 +36,7 @@ export const playlistsService = {
           id: pl.id,
           nome: pl.nome || '',
           midiasIds: relationMap[pl.id] || [],
+          midiasDurations: durationMap[pl.id] || [],
           clienteId: pl.cliente_id || undefined
         };
       });
@@ -61,13 +65,18 @@ export const playlistsService = {
 
       // 3. Inserir as novas relações em playlist_midias
       if (playlist.midiasIds && playlist.midiasIds.length > 0) {
-        const relations = playlist.midiasIds.map((midiaId, idx) => ({
-          id: `${playlist.id}-${midiaId}-${idx}-${Date.now()}`,
-          playlist_id: playlist.id,
-          midia_id: midiaId,
-          ordem: idx,
-          duracao: 10
-        }));
+        const relations = playlist.midiasIds.map((midiaId, idx) => {
+          const itemDur = (playlist.midiasDurations && playlist.midiasDurations[idx] !== undefined)
+            ? playlist.midiasDurations[idx]
+            : 10;
+          return {
+            id: `${playlist.id}-${midiaId}-${idx}-${Date.now()}`,
+            playlist_id: playlist.id,
+            midia_id: midiaId,
+            ordem: idx,
+            duracao: itemDur
+          };
+        });
 
         const { error: relError } = await supabase.from('playlist_midias').insert(relations);
         if (relError) {

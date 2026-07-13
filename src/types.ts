@@ -12,6 +12,7 @@ export interface Playlist {
   id: string;
   nome: string;
   midiasIds: string[];
+  midiasDurations?: number[];
   clienteId?: string;
 }
 

@@ -1,7 +1,8 @@
 import React, { useState, useRef } from 'react';
 import { Cliente, Midia } from '../../types';
-import { UploadCloud, File, Image as ImageIcon, Video, Trash2 } from 'lucide-react';
+import { UploadCloud, File, Image as ImageIcon, Video, Trash2, Edit2, Check } from 'lucide-react';
 import { storageServiceSupabase } from '../../services/supabase/storage';
+import { storageService } from '../../lib/storage';
 
 interface ClientLibraryProps {
   client: Cliente;
@@ -10,9 +11,28 @@ interface ClientLibraryProps {
   showToast: (msg: string) => void;
 }
 
+const getVideoDuration = (file: File): Promise<number> => {
+  return new Promise((resolve) => {
+    const video = document.createElement('video');
+    video.preload = 'metadata';
+    video.onloadedmetadata = () => {
+      if (video.src.startsWith('blob:')) {
+        window.URL.revokeObjectURL(video.src);
+      }
+      resolve(Math.round(video.duration) || 15);
+    };
+    video.onerror = () => {
+      resolve(15);
+    };
+    video.src = URL.createObjectURL(file);
+  });
+};
+
 export default function ClientLibrary({ client, media, onUpdateMedia, showToast }: ClientLibraryProps) {
   const [isDragging, setIsDragging] = useState(false);
   const [uploadingFiles, setUploadingFiles] = useState<{name: string, progress: number}[]>([]);
+  const [editingMediaId, setEditingMediaId] = useState<string | null>(null);
+  const [editMediaName, setEditMediaName] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleDragOver = (e: React.DragEvent) => {
@@ -24,61 +44,79 @@ export default function ClientLibrary({ client, media, onUpdateMedia, showToast 
     setIsDragging(false);
   };
 
-  const processFiles = (files: FileList | null) => {
+  const processFiles = async (files: FileList | null) => {
     if (!files || files.length === 0) return;
     
-    const newFiles = Array.from(files).filter(file => {
+    const validFiles = Array.from(files).filter(file => {
       const type = file.type;
       return type.includes('image/jpeg') || type.includes('image/png') || type.includes('image/webp') || type.includes('video/mp4');
     });
 
-    if (newFiles.length === 0) {
-      showToast('Nenhum arquivo válido. Aceitamos JPG, PNG, WEBP, MP4.');
+    if (validFiles.length === 0) {
+      showToast('Nenhum arquivo válido selecionado (JPG, PNG, WEBP, MP4).');
       return;
     }
 
-    newFiles.forEach(async (file) => {
+    const createdMedias: Midia[] = [];
+
+    for (const file of validFiles) {
       const isVideo = file.type.includes('video');
       const progressName = file.name;
       setUploadingFiles(prev => [...prev, { name: progressName, progress: 10 }]);
 
       try {
-        // Simular progresso até 80% enquanto o upload inicia
         let p = 10;
         const interval = setInterval(() => {
           if (p < 80) {
             p += 15;
             setUploadingFiles(prev => prev.map(f => f.name === progressName ? { ...f, progress: p } : f));
           }
-        }, 150);
+        }, 120);
 
-        // Upload para o storage do Supabase
+        // Upload to storage
         const uploadedUrl = await storageServiceSupabase.uploadMediaFile(file);
         
         clearInterval(interval);
         setUploadingFiles(prev => prev.map(f => f.name === progressName ? { ...f, progress: 100 } : f));
 
-        setTimeout(() => {
-          setUploadingFiles(prev => prev.filter(f => f.name !== progressName));
-          
-          const newMedia: Midia = {
-            id: `m-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
-            nome: file.name,
-            tipo: isVideo ? 'video' : 'image',
-            url: uploadedUrl,
-            duracao: isVideo ? 15 : 10,
-            tamanho: `${(file.size / (1024 * 1024)).toFixed(2)} MB`
-          };
-          onUpdateMedia(prev => [newMedia, ...prev]);
-          showToast(`${file.name} enviado e cadastrado com sucesso!`);
-        }, 500);
+        let duration = isVideo ? 15 : 10;
+        if (isVideo) {
+          try {
+            duration = await getVideoDuration(file);
+          } catch (e) {
+            console.warn('Não foi possível obter a duração real do vídeo:', e);
+          }
+        }
 
-      } catch (err) {
-        setUploadingFiles(prev => prev.filter(f => f.name !== progressName));
-        showToast(`Erro ao enviar ${file.name}`);
+        const newMedia: Midia = {
+          id: `m-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+          nome: file.name,
+          tipo: isVideo ? 'video' : 'image',
+          url: uploadedUrl,
+          duracao: duration,
+          tamanho: `${(file.size / (1024 * 1024)).toFixed(2)} MB`,
+          clienteId: client.id
+        };
+
+        // Salva imediatamente no Supabase Database para evitar orfandade
+        const saved = await storageService.saveMidia(newMedia);
+        if (!saved) {
+          throw new Error('Falha ao salvar metadados da mídia no banco de dados.');
+        }
+
+        createdMedias.push(newMedia);
+        showToast(`Arquivo "${file.name}" carregado com sucesso!`);
+      } catch (err: any) {
+        showToast(`Erro ao enviar "${file.name}": ${err.message || 'Falha no processo'}`);
         console.error(err);
+      } finally {
+        setUploadingFiles(prev => prev.filter(f => f.name !== progressName));
       }
-    });
+    }
+
+    if (createdMedias.length > 0) {
+      onUpdateMedia(prev => [...createdMedias, ...prev]);
+    }
   };
 
   const handleDrop = (e: React.DragEvent) => {
@@ -93,27 +131,41 @@ export default function ClientLibrary({ client, media, onUpdateMedia, showToast 
   };
 
   const handleDelete = (id: string) => {
-    if (confirm('Deseja excluir esta mídia? Ela pode estar em uso em alguma playlist.')) {
+    if (confirm('Deseja excluir esta mídia? Ela será removida da biblioteca e de todas as playlists.')) {
       onUpdateMedia(prev => prev.filter(m => m.id !== id));
-      showToast('Mídia excluída da biblioteca.');
+      showToast('Mídia excluída com sucesso.');
     }
   };
 
-  const imageMedia = media.filter(m => m.tipo === 'image');
-  const videoMedia = media.filter(m => m.tipo === 'video');
+  const handleStartRename = (item: Midia) => {
+    setEditingMediaId(item.id);
+    setEditMediaName(item.nome);
+  };
+
+  const handleSaveRename = (item: Midia) => {
+    if (!editMediaName.trim()) return;
+    onUpdateMedia(prev => prev.map(m => m.id === item.id ? { ...m, nome: editMediaName.trim() } : m));
+    setEditingMediaId(null);
+    showToast('Mídia renomeada com sucesso.');
+  };
+
+  // Filtrar mídias para exibir apenas as pertencentes a este cliente
+  const clientMedia = media.filter(m => m.clienteId === client.id);
+  const imageMedia = clientMedia.filter(m => m.tipo === 'image');
+  const videoMedia = clientMedia.filter(m => m.tipo === 'video');
 
   const renderMediaGrid = (items: Midia[], icon: React.ReactNode, title: string) => (
-    <div className="space-y-4 mb-8">
+    <div className="space-y-4 mb-8" id={`media-section-${title.toLowerCase()}`}>
       <h4 className="text-sm font-bold text-white flex items-center gap-2 border-b border-white/10 pb-2">
         {icon}
-        {title}
+        {title} ({items.length})
       </h4>
       <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
         {items.map(item => (
-          <div key={item.id} className="bg-white/5 border border-white/10 rounded-xl overflow-hidden group hover:border-blue-500/50 transition-all relative">
+          <div key={item.id} className="bg-white/5 border border-white/10 rounded-xl overflow-hidden group hover:border-blue-500/50 transition-all relative flex flex-col justify-between">
             <div className="aspect-video bg-[#050508] relative overflow-hidden flex items-center justify-center">
               {item.tipo === 'image' ? (
-                <img src={item.url} alt={item.nome} className="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-opacity" />
+                <img src={item.url} alt={item.nome} className="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-opacity" referrerPolicy="no-referrer" />
               ) : (
                 <video src={item.url} className="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-opacity" muted />
               )}
@@ -127,13 +179,41 @@ export default function ClientLibrary({ client, media, onUpdateMedia, showToast 
               <button 
                 onClick={() => handleDelete(item.id)}
                 className="absolute top-2 right-2 p-1.5 bg-black/60 hover:bg-rose-500/80 text-white rounded opacity-0 group-hover:opacity-100 transition-all backdrop-blur-sm"
+                title="Excluir Mídia"
               >
                 <Trash2 className="w-3.5 h-3.5" />
               </button>
             </div>
-            <div className="p-3">
-              <p className="text-xs font-semibold text-slate-200 truncate" title={item.nome}>{item.nome}</p>
-              <div className="flex justify-between items-center mt-1 text-[10px] text-slate-500 font-mono">
+            <div className="p-3 space-y-2">
+              {editingMediaId === item.id ? (
+                <div className="flex items-center gap-1">
+                  <input
+                    type="text"
+                    value={editMediaName}
+                    onChange={(e) => setEditMediaName(e.target.value)}
+                    className="bg-black text-white text-xs border border-white/10 rounded px-1.5 py-1 w-full focus:outline-none focus:border-blue-500"
+                  />
+                  <button
+                    onClick={() => handleSaveRename(item)}
+                    className="p-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded shrink-0"
+                    title="Salvar"
+                  >
+                    <Check className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              ) : (
+                <div className="flex items-start justify-between gap-1 group/name">
+                  <p className="text-xs font-semibold text-slate-200 truncate flex-1" title={item.nome}>{item.nome}</p>
+                  <button
+                    onClick={() => handleStartRename(item)}
+                    className="opacity-0 group-hover/name:opacity-100 p-0.5 text-slate-500 hover:text-white transition-all shrink-0"
+                    title="Renomear Mídia"
+                  >
+                    <Edit2 className="w-3 h-3" />
+                  </button>
+                </div>
+              )}
+              <div className="flex justify-between items-center text-[10px] text-slate-500 font-mono">
                 <span>{item.duracao}s</span>
                 <span>{item.tamanho}</span>
               </div>
@@ -141,7 +221,9 @@ export default function ClientLibrary({ client, media, onUpdateMedia, showToast 
           </div>
         ))}
         {items.length === 0 && (
-          <div className="col-span-full py-4 text-xs text-slate-500">Nenhum arquivo nesta categoria.</div>
+          <div className="col-span-full py-8 text-center text-xs text-slate-500 border border-dashed border-white/5 rounded-xl bg-white/2">
+            Nenhum arquivo nesta categoria.
+          </div>
         )}
       </div>
     </div>
@@ -150,7 +232,7 @@ export default function ClientLibrary({ client, media, onUpdateMedia, showToast 
   return (
     <div className="space-y-6">
       
-      {/* Upload Area */}
+      {/* Area de Drag and Drop */}
       <div 
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
@@ -161,7 +243,7 @@ export default function ClientLibrary({ client, media, onUpdateMedia, showToast 
       >
         <UploadCloud className={`w-10 h-10 mx-auto mb-4 ${isDragging ? 'text-blue-400' : 'text-slate-500'}`} />
         <h3 className="text-sm font-bold text-white mb-2">Arraste seus arquivos para cá</h3>
-        <p className="text-xs text-slate-400 mb-4">Arquivos suportados: JPG, PNG, WEBP, MP4.</p>
+        <p className="text-xs text-slate-400 mb-4">Suporta envios múltiplos de imagens (JPG, PNG, WEBP) e vídeos (MP4).</p>
         
         <input 
           type="file" 
@@ -179,10 +261,10 @@ export default function ClientLibrary({ client, media, onUpdateMedia, showToast 
         </button>
       </div>
 
-      {/* Progress Bars */}
+      {/* Barras de Progresso */}
       {uploadingFiles.length > 0 && (
         <div className="space-y-3 bg-[#0d0d12]/80 p-4 rounded-xl border border-white/10">
-          <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Enviando arquivos...</h4>
+          <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Enviando arquivos para o Supabase Storage...</h4>
           {uploadingFiles.map((file, idx) => (
             <div key={idx} className="space-y-1.5">
               <div className="flex justify-between text-xs">
@@ -200,7 +282,7 @@ export default function ClientLibrary({ client, media, onUpdateMedia, showToast 
         </div>
       )}
 
-      {/* Media Lists */}
+      {/* Listas de Mídias */}
       <div className="mt-8">
         {renderMediaGrid(imageMedia, <ImageIcon className="w-4 h-4 text-emerald-400" />, 'Imagens')}
         {renderMediaGrid(videoMedia, <Video className="w-4 h-4 text-purple-400" />, 'Vídeos')}

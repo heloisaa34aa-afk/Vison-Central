@@ -99,12 +99,27 @@ export default function Player() {
               return prev;
             });
           }
-        } catch (e) {
+        } catch (e: any) {
           console.error('Realtime update failed:', e);
+          // Invalidate immediately if token changed or device was deleted
+          if (e.message && (e.message.includes('Token inválido') || e.message.includes('não encontrado'))) {
+            setError('Dispositivo desconectado pelo administrador.');
+            setStep('input');
+            setActiveDevice(null);
+          }
         }
       });
 
-      // 2. Set status to offline on window unload/close
+      // 2. Periodic heartbeat to keep status Online and fresh
+      const heartbeatInterval = setInterval(async () => {
+        try {
+          await playerService.updateTvStatus(activeDevice.id, 'Online');
+        } catch (err) {
+          console.error('Heartbeat update failed:', err);
+        }
+      }, 10000);
+
+      // 3. Set status to offline on window unload/close
       const handleUnload = () => {
         playerService.updateTvStatus(activeDevice.id, 'Offline');
       };
@@ -114,6 +129,7 @@ export default function Player() {
 
       return () => {
         unsubscribe();
+        clearInterval(heartbeatInterval);
         handleUnload();
         window.removeEventListener('beforeunload', handleUnload);
         window.removeEventListener('unload', handleUnload);
@@ -179,6 +195,16 @@ export default function Player() {
 
   const currentMedia = playlistMedia[currentIndex];
 
+  const handleMediaError = () => {
+    console.warn('Erro de carregamento na mídia:', currentMedia?.nome || currentIndex);
+    // Avoid rapid infinite loops by setting a 2 second timeout before skipping to the next index
+    setTimeout(() => {
+      if (playlistMedia.length > 1) {
+        setCurrentIndex((prev) => (prev + 1) % playlistMedia.length);
+      }
+    }, 2000);
+  };
+
   if (!currentMedia) {
     return (
       <div className="min-h-screen bg-black flex items-center justify-center text-white">
@@ -193,7 +219,9 @@ export default function Player() {
         <img 
           src={currentMedia.url} 
           alt="Current Media" 
+          onError={handleMediaError}
           className="w-full h-full object-contain bg-black animate-fade-in"
+          referrerPolicy="no-referrer"
         />
       ) : (
         <video 
@@ -202,6 +230,7 @@ export default function Player() {
           autoPlay 
           muted 
           onEnded={handleVideoEnded}
+          onError={handleMediaError}
           className="w-full h-full object-contain bg-black animate-fade-in"
         />
       )}

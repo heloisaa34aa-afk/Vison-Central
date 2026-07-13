@@ -62,7 +62,19 @@ export const playerService = {
     if (playlist && playlist.midiasIds && playlist.midiasIds.length > 0) {
       const allMidias = await midiasService.getMidias();
       midias = playlist.midiasIds
-        .map(id => allMidias.find(m => m.id === id))
+        .map((id, idx) => {
+          const original = allMidias.find(m => m.id === id);
+          if (!original) return null;
+          
+          let dur = original.duracao;
+          if (playlist?.midiasDurations && playlist.midiasDurations[idx] !== undefined) {
+            dur = playlist.midiasDurations[idx];
+          }
+          return {
+            ...original,
+            duracao: dur
+          };
+        })
         .filter(Boolean) as Midia[];
     }
 

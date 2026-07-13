@@ -7,7 +7,7 @@ export function mapDbToCliente(db: any): Cliente {
     nome: db.nome || '',
     categoria: db.categoria || '',
     status: (db.status as any) || 'Ativo',
-    quantidadeTelas: db.screens_count !== undefined ? Number(db.screens_count) : 1,
+    quantidadeTelas: 1,
     cidade: db.cidade || '',
     bairro: db.bairro || '',
     tipoIcone: (db.icon_type || 'store') as any,
@@ -37,12 +37,29 @@ export function mapClienteToDb(cliente: Cliente): any {
 export const clientesService = {
   async getClientes(): Promise<Cliente[]> {
     try {
-      const { data, error } = await supabase.from('clientes').select('*');
-      if (error) {
-        console.warn('Erro ao buscar clientes:', error);
+      const { data: clientsData, error: clientsError } = await supabase.from('clientes').select('*');
+      if (clientsError) {
+        console.warn('Erro ao buscar clientes:', clientsError);
         return [];
       }
-      return data ? data.map(mapDbToCliente) : [];
+      if (!clientsData) return [];
+
+      const { data: tvsData, error: tvsError } = await supabase.from('tvs').select('cliente_id');
+      const tvsCountMap: Record<string, number> = {};
+      if (!tvsError && tvsData) {
+        tvsData.forEach((tv: any) => {
+          const cId = tv.cliente_id;
+          if (cId) {
+            tvsCountMap[cId] = (tvsCountMap[cId] || 0) + 1;
+          }
+        });
+      }
+
+      return clientsData.map((db: any) => {
+        const mapped = mapDbToCliente(db);
+        mapped.quantidadeTelas = tvsCountMap[db.id] || 0;
+        return mapped;
+      });
     } catch (e) {
       console.error(e);
       return [];
