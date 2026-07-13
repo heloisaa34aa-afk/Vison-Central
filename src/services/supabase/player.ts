@@ -31,6 +31,17 @@ export const playerService = {
     return this.loadFullConfig(mapDbToTv(matchedTv));
   },
 
+  async getPlayerConfigById(id: string): Promise<{ tv: Tv; cliente: Cliente | null; playlist: Playlist | null; midias: Midia[] }> {
+    if (!(await checkSupabaseConnection())) {
+      throw new Error('Supabase não está configurado.');
+    }
+    const { data, error } = await supabase.from('tvs').select('*').eq('id', id).single();
+    if (error || !data) {
+      throw new Error('Dispositivo não encontrado');
+    }
+    return this.loadFullConfig(mapDbToTv(data));
+  },
+
   async loadFullConfig(tv: Tv): Promise<{ tv: Tv; cliente: Cliente | null; playlist: Playlist | null; midias: Midia[] }> {
     if (!(await checkSupabaseConnection())) {
       throw new Error('Supabase não está configurado.');
@@ -112,6 +123,12 @@ export const playerService = {
         onUpdate();
       })
       .on('postgres_changes', { event: '*', schema: 'public', table: 'clientes' }, () => {
+        onUpdate();
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'midias' }, () => {
+        onUpdate();
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'playlist_midias' }, () => {
         onUpdate();
       })
       .subscribe();

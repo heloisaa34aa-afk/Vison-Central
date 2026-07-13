@@ -85,12 +85,23 @@ export default function Player() {
       // 1. Subscribe to updates on Supabase Realtime
       const unsubscribe = playerService.subscribeToUpdates(activeDevice.token, async () => {
         try {
-          const cleanToken = tokensService.normalizeToken(activeDevice.token);
-          const data = await playerService.getPlayerConfig(cleanToken);
+          // Buscar configurações atualizadas do dispositivo pelo ID
+          const data = await playerService.getPlayerConfigById(activeDevice.id);
+          
+          // Caso o token do dispositivo tenha mudado no banco
+          if (tokensService.normalizeToken(data.tv.token) !== tokensService.normalizeToken(activeDevice.token)) {
+            setError('O token deste dispositivo foi alterado ou renovado. Conecte-se novamente.');
+            setStep('input');
+            setActiveDevice(null);
+            return;
+          }
+
+          // Atualizar o estado do dispositivo ativo
+          setActiveDevice(data.tv);
+
           if (data.midias && data.midias.length > 0) {
-            // Update the media list dynamically without interrupting playback or reloading page
+            // Atualizar mídias dinamicamente
             setPlaylistMedia(prev => {
-              // Check if contents are identical to avoid flickering
               const prevUrls = prev.map(m => m.url).join(',');
               const newUrls = data.midias.map(m => m.url).join(',');
               if (prevUrls !== newUrls) {
@@ -98,26 +109,29 @@ export default function Player() {
               }
               return prev;
             });
+          } else {
+            setPlaylistMedia([]);
+            setError('Nenhuma mídia disponível na playlist associada.');
+            setStep('input');
           }
         } catch (e: any) {
           console.error('Realtime update failed:', e);
-          // Invalidate immediately if token changed or device was deleted
-          if (e.message && (e.message.includes('Token inválido') || e.message.includes('não encontrado'))) {
-            setError('Dispositivo desconectado pelo administrador.');
+          if (e.message && (e.message.includes('não encontrado') || e.message.includes('Token inválido'))) {
+            setError('Este dispositivo foi removido do painel.');
             setStep('input');
             setActiveDevice(null);
           }
         }
       });
-
-      // 2. Periodic heartbeat to keep status Online and fresh
+ 
+      // 2. Periodic heartbeat to keep status Online and fresh (30 seconds)
       const heartbeatInterval = setInterval(async () => {
         try {
           await playerService.updateTvStatus(activeDevice.id, 'Online');
         } catch (err) {
           console.error('Heartbeat update failed:', err);
         }
-      }, 10000);
+      }, 30000);
 
       // 3. Set status to offline on window unload/close
       const handleUnload = () => {

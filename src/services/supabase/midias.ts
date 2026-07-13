@@ -1,5 +1,6 @@
 import { supabase } from '../../lib/supabase';
 import { Midia } from '../../types';
+import { storageServiceSupabase } from './storage';
 
 export function mapDbToMidia(db: any): Midia {
   return {
@@ -57,11 +58,36 @@ export const midiasService = {
 
   async deleteMidia(id: string): Promise<boolean> {
     try {
-      const { error } = await supabase.from('midias').delete().eq('id', id);
-      if (error) {
-        console.warn('Erro ao deletar mídia:', error);
+      // 1. Obter a URL da mídia primeiro
+      const { data: mediaData, error: fetchError } = await supabase
+        .from('midias')
+        .select('url_storage')
+        .eq('id', id)
+        .single();
+      
+      if (fetchError) {
+        console.warn('Erro ao buscar mídia para exclusão:', fetchError);
+      }
+
+      // 2. Deletar os vínculos em playlist_midias primeiro para evitar violações de FK
+      try {
+        await supabase.from('playlist_midias').delete().eq('midia_id', id);
+      } catch (e) {
+        console.warn('Aviso ao deletar mídias de playlists:', e);
+      }
+
+      // 3. Deletar do banco de dados
+      const { error: deleteError } = await supabase.from('midias').delete().eq('id', id);
+      if (deleteError) {
+        console.warn('Erro ao deletar mídia do banco:', deleteError);
         return false;
       }
+
+      // 4. Deletar do storage se a URL estiver disponível
+      if (mediaData && mediaData.url_storage) {
+        await storageServiceSupabase.deleteMediaFile(mediaData.url_storage);
+      }
+
       return true;
     } catch (e) {
       console.error(e);

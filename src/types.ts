@@ -26,6 +26,9 @@ export interface Tv {
   ultimaSincronizacao: string;
   playlistId?: string;
   ultimaConexao?: string;
+  resolucao?: string;
+  orientacao?: 'Horizontal' | 'Vertical';
+  modoReproducao?: string;
 }
 
 export interface Cliente {

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Cliente, Tv, Playlist, Midia } from './types';
 import { storageService } from './lib/storage';
+import { supabase } from './lib/supabase';
 
 // Icons
 import { 
@@ -40,7 +41,7 @@ export default function App() {
   const [notification, setNotification] = useState<string | null>(null);
   const [isLoaded, setIsLoaded] = useState(false);
 
-  // Initialize data
+  // Initialize data and subscribe to global real-time updates
   useEffect(() => {
     const loadData = async () => {
       try {
@@ -54,7 +55,7 @@ export default function App() {
           const clientDevices = loadedDevices.filter(d => d.clienteId === client.id);
           return {
             ...client,
-            quantidadeTelas: clientDevices.length || 1
+            quantidadeTelas: clientDevices.length
           };
         });
 
@@ -68,7 +69,36 @@ export default function App() {
         setIsLoaded(true);
       }
     };
+
+    // Initial load
     loadData();
+
+    // Subscribe to real-time events on all relevant tables to keep the global state synchronized
+    const channel = supabase
+      .channel('visioncentral-global-dashboard-sync')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'clientes' }, () => {
+        loadData();
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'tvs' }, () => {
+        loadData();
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'playlists' }, () => {
+        loadData();
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'midias' }, () => {
+        loadData();
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'playlist_midias' }, () => {
+        loadData();
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'configuracoes' }, () => {
+        loadData();
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, []);
 
   // Automatic Offline Detector
@@ -144,7 +174,18 @@ export default function App() {
     // 2. Additions or Updates
     for (const nd of nextDevices) {
       const prev = devices.find(d => d.id === nd.id);
-      if (!prev || prev.nome !== nd.nome || prev.status !== nd.status || prev.token !== nd.token || prev.ultimaSincronizacao !== nd.ultimaSincronizacao) {
+      if (
+        !prev || 
+        prev.nome !== nd.nome || 
+        prev.status !== nd.status || 
+        prev.token !== nd.token || 
+        prev.ultimaSincronizacao !== nd.ultimaSincronizacao ||
+        prev.playlistId !== nd.playlistId ||
+        prev.orientacao !== nd.orientacao ||
+        prev.resolucao !== nd.resolucao ||
+        prev.modoReproducao !== nd.modoReproducao ||
+        prev.ultimaConexao !== nd.ultimaConexao
+      ) {
         await storageService.saveTv(nd);
       }
     }
@@ -270,7 +311,7 @@ export default function App() {
             }`}
           >
             <TvIcon className="w-4 h-4 shrink-0" />
-            Simulador de TV
+            Configuração de TV
           </button>
 
         </aside>
@@ -309,23 +350,6 @@ export default function App() {
                   }}
                   onDeleteClient={async (id) => {
                     if (confirm('Atenção: excluir este cliente irá deletar permanentemente todas as suas TVs, playlists e mídias vinculadas. Deseja prosseguir?')) {
-                      // 1. Delete associated TVs
-                      const clientDevices = devices.filter(d => d.clienteId === id);
-                      for (const d of clientDevices) {
-                        await storageService.deleteTv(d.id);
-                      }
-                      // 2. Delete associated Playlists
-                      const clientPlaylists = playlists.filter(p => p.clienteId === id);
-                      for (const p of clientPlaylists) {
-                        await storageService.deletePlaylist(p.id);
-                      }
-                      // 3. Delete associated Midias
-                      const clientMidias = media.filter(m => m.clienteId === id);
-                      for (const m of clientMidias) {
-                        await storageService.deleteMidia(m.id);
-                      }
-
-                      // 4. Delete client itself
                       const success = await storageService.deleteCliente(id);
                       if (success) {
                         setClients(prev => prev.filter(c => c.id !== id));

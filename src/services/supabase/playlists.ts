@@ -94,6 +94,16 @@ export const playlistsService = {
 
   async deletePlaylist(id: string): Promise<boolean> {
     try {
+      // 1. Desvincular das unidades (clientes)
+      await supabase.from('clientes').update({ playlist_id: null }).eq('playlist_id', id);
+
+      // 2. Desvincular das TVs
+      await supabase.from('tvs').update({ playlist_id: null }).eq('playlist_id', id);
+
+      // 3. Deletar os vínculos em playlist_midias explicitamente
+      await supabase.from('playlist_midias').delete().eq('playlist_id', id);
+
+      // 4. Finalmente, deletar a playlist do banco
       const { error } = await supabase.from('playlists').delete().eq('id', id);
       if (error) {
         console.warn('Erro ao deletar playlist:', error);
