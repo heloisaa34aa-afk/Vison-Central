@@ -70,14 +70,18 @@ export default function Player() {
       let timer: NodeJS.Timeout;
       
       if (currentMedia && currentMedia.tipo === 'image') {
+        const displayDuration = activeDevice?.tempoTransicao !== undefined 
+          ? activeDevice.tempoTransicao 
+          : (currentMedia.duracao || 10);
+
         timer = setTimeout(() => {
           setCurrentIndex((prev) => (prev + 1) % playlistMedia.length);
-        }, currentMedia.duracao * 1000);
+        }, displayDuration * 1000);
       }
 
       return () => clearTimeout(timer);
     }
-  }, [step, currentIndex, playlistMedia]);
+  }, [step, currentIndex, playlistMedia, activeDevice?.tempoTransicao]);
 
   // Handle Realtime synchronization & Status monitoring (Online / Offline)
   useEffect(() => {
@@ -100,11 +104,12 @@ export default function Player() {
           setActiveDevice(data.tv);
 
           if (data.midias && data.midias.length > 0) {
-            // Atualizar mídias dinamicamente
+            // Atualizar mídias dinamicamente se houver mudança de ID, URL ou duracao
             setPlaylistMedia(prev => {
-              const prevUrls = prev.map(m => m.url).join(',');
-              const newUrls = data.midias.map(m => m.url).join(',');
-              if (prevUrls !== newUrls) {
+              const serializeMedia = (list: Midia[]) => list.map(m => `${m.id}:${m.url}:${m.duracao}`).join('|');
+              const prevStr = serializeMedia(prev);
+              const newStr = serializeMedia(data.midias);
+              if (prevStr !== newStr) {
                 return data.midias;
               }
               return prev;
@@ -149,7 +154,7 @@ export default function Player() {
         window.removeEventListener('unload', handleUnload);
       };
     }
-  }, [step, activeDevice]);
+  }, [step, activeDevice?.id, activeDevice?.token]);
 
   const handleVideoEnded = () => {
     setCurrentIndex((prev) => (prev + 1) % playlistMedia.length);
@@ -207,6 +212,13 @@ export default function Player() {
     );
   }
 
+  // Auto check currentIndex out of bounds if playlist changed
+  useEffect(() => {
+    if (currentIndex >= playlistMedia.length && playlistMedia.length > 0) {
+      setCurrentIndex(0);
+    }
+  }, [playlistMedia, currentIndex]);
+
   const currentMedia = playlistMedia[currentIndex];
 
   const handleMediaError = () => {
@@ -227,27 +239,83 @@ export default function Player() {
     );
   }
 
+  const isVertical = activeDevice?.orientacao === 'Vertical';
+  const displayMode = activeDevice?.modoExibicao || 'contain';
+  const brightness = activeDevice?.brilho !== undefined ? activeDevice.brilho : 100;
+  const contrast = activeDevice?.contraste !== undefined ? activeDevice.contraste : 100;
+  const saturation = activeDevice?.saturacao !== undefined ? activeDevice.saturacao : 100;
+  const zoom = activeDevice?.zoom !== undefined ? activeDevice.zoom : 100;
+  const volume = activeDevice?.volume !== undefined ? activeDevice.volume : 50;
+  const proportion = activeDevice?.proporcao || '16:9';
+
+  // Apply volume dynamically to video tag if playing
+  useEffect(() => {
+    if (videoRef.current) {
+      videoRef.current.volume = volume / 100;
+      videoRef.current.muted = volume === 0;
+    }
+  }, [volume, currentIndex, currentMedia]);
+
+  // Style objects for transition/scaling/rotation
+  const playerContainerStyle: React.CSSProperties = isVertical ? {
+    transform: 'translate(-50%, -50%) rotate(90deg)',
+    width: '100vh',
+    height: '100vw',
+    position: 'absolute',
+    top: '50%',
+    left: '50%',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'hidden',
+    backgroundColor: 'black',
+  } : {
+    width: '100vw',
+    height: '100vh',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'hidden',
+    backgroundColor: 'black',
+  };
+
+  const mediaStyle: React.CSSProperties = {
+    objectFit: displayMode as any,
+    filter: `brightness(${brightness}%) contrast(${contrast}%) saturate(${saturation}%)`,
+    transform: `scale(${zoom / 100})`,
+    aspectRatio: proportion !== 'Livre' ? proportion.replace(':', '/') : undefined,
+    width: proportion === 'Livre' ? '100%' : undefined,
+    height: proportion === 'Livre' ? '100%' : undefined,
+    maxWidth: '100%',
+    maxHeight: '100%',
+    transition: 'transform 0.3s ease, filter 0.3s ease',
+  };
+
   return (
-    <div ref={containerRef} className="w-screen h-screen bg-black overflow-hidden flex items-center justify-center cursor-none">
-      {currentMedia.tipo === 'image' ? (
-        <img 
-          src={currentMedia.url} 
-          alt="Current Media" 
-          onError={handleMediaError}
-          className="w-full h-full object-contain bg-black animate-fade-in"
-          referrerPolicy="no-referrer"
-        />
-      ) : (
-        <video 
-          ref={videoRef}
-          src={currentMedia.url} 
-          autoPlay 
-          muted 
-          onEnded={handleVideoEnded}
-          onError={handleMediaError}
-          className="w-full h-full object-contain bg-black animate-fade-in"
-        />
-      )}
+    <div className="relative w-screen h-screen bg-black overflow-hidden flex items-center justify-center">
+      <div ref={containerRef} style={playerContainerStyle} className="cursor-none">
+        {currentMedia.tipo === 'image' ? (
+          <img 
+            src={currentMedia.url} 
+            alt="Current Media" 
+            onError={handleMediaError}
+            className="bg-black animate-fade-in"
+            style={mediaStyle}
+            referrerPolicy="no-referrer"
+          />
+        ) : (
+          <video 
+            ref={videoRef}
+            src={currentMedia.url} 
+            autoPlay 
+            muted={volume === 0}
+            onEnded={handleVideoEnded}
+            onError={handleMediaError}
+            className="bg-black animate-fade-in"
+            style={mediaStyle}
+          />
+        )}
+      </div>
     </div>
   );
 }

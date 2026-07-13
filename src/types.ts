@@ -29,6 +29,14 @@ export interface Tv {
   resolucao?: string;
   orientacao?: 'Horizontal' | 'Vertical';
   modoReproducao?: string;
+  proporcao?: string;
+  modoExibicao?: string;
+  brilho?: number;
+  contraste?: number;
+  saturacao?: number;
+  zoom?: number;
+  volume?: number;
+  tempoTransicao?: number;
 }
 
 export interface Cliente {
