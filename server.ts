@@ -3,8 +3,6 @@ import path from "path";
 import dotenv from "dotenv";
 import { GoogleGenAI, Type } from "@google/genai";
 import { createServer as createViteServer } from "vite";
-import multer from "multer";
-import fs from "fs";
 
 dotenv.config();
 
@@ -12,66 +10,6 @@ const app = express();
 const PORT = 3000;
 
 app.use(express.json());
-
-// Ensure local uploads directory exists
-const uploadsDir = path.join(process.cwd(), "uploads");
-if (!fs.existsSync(uploadsDir)) {
-  fs.mkdirSync(uploadsDir, { recursive: true });
-}
-
-// Serve the uploads directory statically BEFORE other middleware
-app.use("/uploads", express.static(uploadsDir));
-
-// Configure multer storage
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    cb(null, uploadsDir);
-  },
-  filename: (req, file, cb) => {
-    const fileExt = path.extname(file.originalname) || ".png";
-    const uniqueName = `${Date.now()}-${Math.random().toString(36).substring(2, 9)}${fileExt}`;
-    cb(null, uniqueName);
-  },
-});
-
-const upload = multer({
-  storage,
-  limits: { fileSize: 100 * 1024 * 1024 }, // limit to 100MB
-});
-
-// Endpoint for local file uploads
-app.post("/api/upload", upload.single("file"), (req, res) => {
-  if (!req.file) {
-    return res.status(400).json({ error: "Nenhum arquivo enviado." });
-  }
-
-  // Return the relative URL of the uploaded file
-  const fileUrl = `/uploads/${req.file.filename}`;
-  res.json({ url: fileUrl });
-});
-
-// Endpoint for local file deletion
-app.delete("/api/delete-file", (req, res) => {
-  const { url } = req.body;
-  if (!url || typeof url !== "string" || !url.startsWith("/uploads/")) {
-    return res.status(400).json({ error: "URL inválida ou não suportada para exclusão local." });
-  }
-
-  const filename = path.basename(url);
-  const filePath = path.join(uploadsDir, filename);
-
-  try {
-    if (fs.existsSync(filePath)) {
-      fs.unlinkSync(filePath);
-      return res.json({ success: true });
-    } else {
-      return res.status(404).json({ error: "Arquivo não encontrado localmente." });
-    }
-  } catch (error: any) {
-    console.error("Erro ao deletar arquivo local:", error);
-    return res.status(500).json({ error: "Erro interno ao deletar arquivo." });
-  }
-});
 
 // Initialize Gemini client on the server side
 // Check if GEMINI_API_KEY is available. If not, we will output warnings

@@ -2,65 +2,67 @@ import { supabase } from '../../lib/supabase';
 
 export const storageServiceSupabase = {
   async ensureBucketExists(): Promise<void> {
-    // No-op since we use local uploads/ folder served statically by Express
+    try {
+      // Tenta criar o bucket 'midias' se ele não existir
+      await supabase.storage.createBucket('midias', {
+        public: true,
+        fileSizeLimit: 104857600, // 100MB
+      });
+    } catch (e) {
+      // Ignora silenciosamente erros de criação caso o bucket já exista ou não tenha permissão de admin
+      console.warn('Aviso ao garantir existência do bucket:', e);
+    }
   },
 
   async uploadMediaFile(file: File): Promise<string> {
     try {
-      const formData = new FormData();
-      formData.append('file', file);
+      await this.ensureBucketExists();
 
-      const response = await fetch('/api/upload', {
-        method: 'POST',
-        body: formData,
-      });
+      const fileExt = file.name.split('.').pop() || 'png';
+      const fileName = `${Date.now()}-${Math.random().toString(36).substring(2, 9)}.${fileExt}`;
+      const filePath = fileName;
 
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.error || `Erro de rede ou permissão insuficiente (${response.status}) ao fazer upload.`);
+      const { error } = await supabase.storage
+        .from('midias')
+        .upload(filePath, file, {
+          cacheControl: '3600',
+          upsert: false,
+        });
+
+      if (error) {
+        throw error;
       }
 
-      const data = await response.json();
-      if (!data.url) {
+      const { data: publicUrlData } = supabase.storage
+        .from('midias')
+        .getPublicUrl(filePath);
+
+      if (!publicUrlData || !publicUrlData.publicUrl) {
         throw new Error('Não foi possível obter a URL pública do arquivo enviado.');
       }
 
-      return data.url;
+      return publicUrlData.publicUrl;
     } catch (e: any) {
-      console.error('Erro no upload para o servidor:', e);
+      console.error('Erro no upload para o Supabase Storage:', e);
       throw e;
     }
   },
 
   async deleteMediaFile(fileUrl: string): Promise<boolean> {
     try {
-      if (fileUrl.startsWith('/uploads/')) {
-        const response = await fetch('/api/delete-file', {
-          method: 'DELETE',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ url: fileUrl }),
-        });
-        if (response.ok) {
-          const data = await response.json();
-          return !!data.success;
+      const parts = fileUrl.split('/storage/v1/object/public/');
+      if (parts.length > 1) {
+        const pathAndBucket = parts[1];
+        const bucketParts = pathAndBucket.split('/');
+        const bucket = bucketParts[0];
+        const path = bucketParts.slice(1).join('/');
+        
+        const { error } = await supabase.storage.from(bucket).remove([path]);
+        if (error) {
+          console.warn('Erro ao deletar do Supabase Storage:', error);
+          return false;
         }
-      } else {
-        // Se for uma URL do Supabase Storage real, tenta deletar por lá também
-        const parts = fileUrl.split('/storage/v1/object/public/');
-        if (parts.length > 1) {
-          const pathAndBucket = parts[1];
-          const bucketParts = pathAndBucket.split('/');
-          const bucket = bucketParts[0];
-          const path = bucketParts.slice(1).join('/');
-          const { error } = await supabase.storage.from(bucket).remove([path]);
-          if (error) {
-            console.warn('Erro ao deletar do Supabase Storage:', error);
-          } else {
-            return true;
-          }
-        }
+        return true;
       }
       return false;
     } catch (e) {
