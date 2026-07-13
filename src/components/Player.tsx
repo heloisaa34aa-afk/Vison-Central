@@ -106,9 +106,9 @@ export default function Player() {
           if (data.midias && data.midias.length > 0) {
             // Atualizar mídias dinamicamente
             setPlaylistMedia(prev => {
-              const prevUrls = prev.map(m => m.url).join(',');
-              const newUrls = data.midias.map(m => m.url).join(',');
-              if (prevUrls !== newUrls) {
+              const changed = JSON.stringify(prev) !== JSON.stringify(data.midias);
+              if (changed) {
+                setCurrentIndex(curr => curr >= data.midias.length ? 0 : curr);
                 return data.midias;
               }
               return prev;
