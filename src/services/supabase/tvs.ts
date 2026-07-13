@@ -4,8 +4,8 @@ import { Tv } from '../../types';
 export function mapDbToTv(db: any): Tv {
   const parts = (db.nome || '').split(' | ');
   const baseNome = parts[0] || '';
-  const resolucao = parts[1] || '1920x1080';
-  const orientacao = (parts[2] || 'Horizontal') as 'Horizontal' | 'Vertical';
+  const resolucao = db.resolucao || parts[1] || '1920x1080';
+  const orientacao = (db.orientacao || parts[2] || 'Horizontal') as 'Horizontal' | 'Vertical';
   const modoReproducao = parts[3] || 'Autoplay';
 
   return {
@@ -20,7 +20,9 @@ export function mapDbToTv(db: any): Tv {
     ultimaConexao: db.ultima_conexao || undefined,
     resolucao,
     orientacao,
-    modoReproducao
+    modoReproducao,
+    versaoConfiguracao: db.versao_configuracao !== undefined ? db.versao_configuracao : 1,
+    ultimaAtualizacao: db.ultima_atualizacao || db.ultima_conexao || ''
   };
 }
 
@@ -41,7 +43,11 @@ export function mapTvToDb(tv: Tv): any {
     uptime: tv.uptime,
     ultima_sincronizacao: tv.ultimaSincronizacao || new Date().toISOString(),
     playlist_id: tv.playlistId || null,
-    ultima_conexao: tv.ultimaConexao || new Date().toISOString()
+    ultima_conexao: tv.ultimaConexao || new Date().toISOString(),
+    orientacao: tv.orientacao || 'Horizontal',
+    resolucao: tv.resolucao || '1920x1080',
+    versao_configuracao: tv.versaoConfiguracao !== undefined ? tv.versaoConfiguracao : 1,
+    ultima_atualizacao: tv.ultimaAtualizacao || new Date().toISOString()
   };
 }
 
@@ -62,6 +68,44 @@ export const tvsService = {
 
   async saveTv(tv: Tv): Promise<boolean> {
     try {
+      // 1. Buscar a TV existente para comparar configurações
+      const { data: existing, error: fetchError } = await supabase
+        .from('tvs')
+        .select('*')
+        .eq('id', tv.id)
+        .maybeSingle();
+
+      let nextVersao = tv.versaoConfiguracao !== undefined ? tv.versaoConfiguracao : 1;
+      let nextUltimaAtualizacao = tv.ultimaAtualizacao || new Date().toISOString();
+
+      if (!fetchError && existing) {
+        const currentPlaylistId = existing.playlist_id || undefined;
+        const currentOrientacao = existing.orientacao || undefined;
+        const currentResolucao = existing.resolucao || undefined;
+        const currentNome = (existing.nome || '').split(' | ')[0] || '';
+
+        const hasConfigChanged = 
+          tv.playlistId !== currentPlaylistId ||
+          tv.orientacao !== currentOrientacao ||
+          tv.resolucao !== currentResolucao ||
+          tv.nome !== currentNome;
+
+        if (hasConfigChanged) {
+          nextVersao = (existing.versao_configuracao || 0) + 1;
+          nextUltimaAtualizacao = new Date().toISOString();
+        } else {
+          nextVersao = existing.versao_configuracao !== undefined ? existing.versao_configuracao : 1;
+          nextUltimaAtualizacao = existing.ultima_atualizacao || existing.ultima_conexao || new Date().toISOString();
+        }
+      } else {
+        nextVersao = 1;
+        nextUltimaAtualizacao = new Date().toISOString();
+      }
+
+      // Atualizar as propriedades no objeto que recebemos para manter o estado local consistente
+      tv.versaoConfiguracao = nextVersao;
+      tv.ultimaAtualizacao = nextUltimaAtualizacao;
+
       const dbData = mapTvToDb(tv);
       const { error } = await supabase.from('tvs').upsert(dbData);
       if (error) {

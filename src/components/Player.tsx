@@ -82,14 +82,17 @@ export default function Player() {
   // Handle Realtime synchronization & Status monitoring (Online / Offline)
   useEffect(() => {
     if (step === 'playing' && activeDevice) {
+      const deviceId = activeDevice.id;
+      const deviceToken = activeDevice.token;
+
       // 1. Subscribe to updates on Supabase Realtime
-      const unsubscribe = playerService.subscribeToUpdates(activeDevice.token, async () => {
+      const unsubscribe = playerService.subscribeToUpdates(deviceToken, async () => {
         try {
           // Buscar configurações atualizadas do dispositivo pelo ID
-          const data = await playerService.getPlayerConfigById(activeDevice.id);
+          const data = await playerService.getPlayerConfigById(deviceId);
           
           // Caso o token do dispositivo tenha mudado no banco
-          if (tokensService.normalizeToken(data.tv.token) !== tokensService.normalizeToken(activeDevice.token)) {
+          if (tokensService.normalizeToken(data.tv.token) !== tokensService.normalizeToken(deviceToken)) {
             setError('O token deste dispositivo foi alterado ou renovado. Conecte-se novamente.');
             setStep('input');
             setActiveDevice(null);
@@ -123,11 +126,11 @@ export default function Player() {
           }
         }
       });
- 
+  
       // 2. Periodic heartbeat to keep status Online and fresh (30 seconds)
       const heartbeatInterval = setInterval(async () => {
         try {
-          await playerService.updateTvStatus(activeDevice.id, 'Online');
+          await playerService.updateTvStatus(deviceId, 'Online');
         } catch (err) {
           console.error('Heartbeat update failed:', err);
         }
@@ -135,7 +138,7 @@ export default function Player() {
 
       // 3. Set status to offline on window unload/close
       const handleUnload = () => {
-        playerService.updateTvStatus(activeDevice.id, 'Offline');
+        playerService.updateTvStatus(deviceId, 'Offline');
       };
       
       window.addEventListener('beforeunload', handleUnload);
@@ -149,7 +152,7 @@ export default function Player() {
         window.removeEventListener('unload', handleUnload);
       };
     }
-  }, [step, activeDevice]);
+  }, [step, activeDevice?.id, activeDevice?.token]);
 
   const handleVideoEnded = () => {
     setCurrentIndex((prev) => (prev + 1) % playlistMedia.length);
@@ -227,27 +230,31 @@ export default function Player() {
     );
   }
 
+  const isVertical = activeDevice?.orientacao === 'Vertical';
+
   return (
     <div ref={containerRef} className="w-screen h-screen bg-black overflow-hidden flex items-center justify-center cursor-none">
-      {currentMedia.tipo === 'image' ? (
-        <img 
-          src={currentMedia.url} 
-          alt="Current Media" 
-          onError={handleMediaError}
-          className="w-full h-full object-contain bg-black animate-fade-in"
-          referrerPolicy="no-referrer"
-        />
-      ) : (
-        <video 
-          ref={videoRef}
-          src={currentMedia.url} 
-          autoPlay 
-          muted 
-          onEnded={handleVideoEnded}
-          onError={handleMediaError}
-          className="w-full h-full object-contain bg-black animate-fade-in"
-        />
-      )}
+      <div className={`transition-all duration-500 w-full h-full flex items-center justify-center ${isVertical ? 'max-w-[100vh] aspect-[9/16]' : ''}`}>
+        {currentMedia.tipo === 'image' ? (
+          <img 
+            src={currentMedia.url} 
+            alt="Current Media" 
+            onError={handleMediaError}
+            className="w-full h-full object-contain bg-black animate-fade-in"
+            referrerPolicy="no-referrer"
+          />
+        ) : (
+          <video 
+            ref={videoRef}
+            src={currentMedia.url} 
+            autoPlay 
+            muted 
+            onEnded={handleVideoEnded}
+            onError={handleMediaError}
+            className="w-full h-full object-contain bg-black animate-fade-in"
+          />
+        )}
+      </div>
     </div>
   );
 }

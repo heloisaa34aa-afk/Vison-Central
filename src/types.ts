@@ -29,6 +29,8 @@ export interface Tv {
   resolucao?: string;
   orientacao?: 'Horizontal' | 'Vertical';
   modoReproducao?: string;
+  versaoConfiguracao?: number;
+  ultimaAtualizacao?: string;
 }
 
 export interface Cliente {
