@@ -18,6 +18,7 @@ import {
 import ClientTokens from './client/ClientTokens';
 import ClientLibrary from './client/ClientLibrary';
 import ClientPlaylists from './client/ClientPlaylists';
+import { isTvOnline } from '../utils/tvStatus';
 
 interface ClientPageProps {
   clientId: string;
@@ -78,7 +79,7 @@ export default function ClientPage({
     }
   };
 
-  const isAnyOnline = clientDevices.some(d => d.status === 'Online');
+  const isAnyOnline = clientDevices.some(isTvOnline);
   const generalStatus = isAnyOnline ? 'Online' : 'Offline';
 
   // Client edit form state

@@ -1,7 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Cliente, Tv, Playlist, Midia } from './types';
 import { storageService } from './lib/storage';
 import { supabase } from './lib/supabase';
+import { isTvOnline } from './utils/tvStatus';
 
 // Icons
 import { 
@@ -40,6 +41,12 @@ export default function App() {
   
   const [notification, setNotification] = useState<string | null>(null);
   const [isLoaded, setIsLoaded] = useState(false);
+
+  // Keep a reference to the latest devices to avoid resetting the offline detector interval
+  const devicesRef = useRef<Tv[]>(devices);
+  useEffect(() => {
+    devicesRef.current = devices;
+  }, [devices]);
 
   // Initialize data and subscribe to global real-time updates
   useEffect(() => {
@@ -103,16 +110,19 @@ export default function App() {
 
   // Automatic Offline Detector
   useEffect(() => {
-    if (!isLoaded || devices.length === 0) return;
+    if (!isLoaded) return;
 
     const interval = setInterval(async () => {
+      const currentDevices = devicesRef.current;
+      if (currentDevices.length === 0) return;
+
       const now = new Date();
       let hasUpdates = false;
-      const nextDevices = await Promise.all(devices.map(async (d) => {
+      const nextDevices = await Promise.all(currentDevices.map(async (d) => {
         if (d.status === 'Online' && d.ultimaConexao) {
           const lastConn = new Date(d.ultimaConexao);
           const diffSeconds = (now.getTime() - lastConn.getTime()) / 1000;
-          if (diffSeconds > 25) {
+          if (diffSeconds > 40) {
             const updated = { ...d, status: 'Offline' as const };
             await storageService.saveTv(updated);
             hasUpdates = true;
@@ -125,13 +135,13 @@ export default function App() {
       if (hasUpdates) {
         setDevices(nextDevices);
         setClients(prevClients => prevClients.map(c => {
-          return { ...c, quantidadeTelas: nextDevices.filter(d => d.clienteId === c.id).length || 1 };
+          return { ...c, quantidadeTelas: nextDevices.filter(dev => dev.clienteId === c.id).length };
         }));
       }
-    }, 15000);
+    }, 10000);
 
     return () => clearInterval(interval);
-  }, [isLoaded, devices]);
+  }, [isLoaded]);
 
   // Toast notification helper
   const showToast = (message: string) => {

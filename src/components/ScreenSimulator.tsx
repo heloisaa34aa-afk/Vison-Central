@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Cliente, Playlist, Midia, Tv } from '../types';
 import { storageService } from '../lib/storage';
 import { supabase } from '../lib/supabase';
+import { isTvOnline } from '../utils/tvStatus';
 import { 
   Tv as TvIcon, 
   Play, 
@@ -46,14 +47,12 @@ export default function ScreenSimulator({
   const [tvOrientacao, setTvOrientacao] = useState<'Horizontal' | 'Vertical'>('Horizontal');
   const [tvResolucao, setTvResolucao] = useState('1920x1080');
   const [tvModoReproducao, setTvModoReproducao] = useState('Autoplay');
-  const [tvProporcao, setTvProporcao] = useState('16:9');
-  const [tvModoExibicao, setTvModoExibicao] = useState('contain');
+  const [tvProporcao, setTvProporcao] = useState('contain');
   const [tvBrilho, setTvBrilho] = useState(100);
   const [tvContraste, setTvContraste] = useState(100);
-  const [tvSaturacao, setTvSaturacao] = useState(100);
   const [tvZoom, setTvZoom] = useState(100);
   const [tvVolume, setTvVolume] = useState(50);
-  const [tvTempoTransicao, setTvTempoTransicao] = useState(10);
+  const [tvTempoTransicao, setTvTempoTransicao] = useState(3);
 
   // Playback/Simulation states
   const [isPlaying, setIsPlaying] = useState(true);
@@ -122,14 +121,12 @@ export default function ScreenSimulator({
       setTvOrientacao(activeTv.orientacao || 'Horizontal');
       setTvResolucao(activeTv.resolucao || '1920x1080');
       setTvModoReproducao(activeTv.modoReproducao || 'Autoplay');
-      setTvProporcao(activeTv.proporcao || '16:9');
-      setTvModoExibicao(activeTv.modoExibicao || 'contain');
+      setTvProporcao(activeTv.proporcao || 'contain');
       setTvBrilho(activeTv.brilho !== undefined ? activeTv.brilho : 100);
       setTvContraste(activeTv.contraste !== undefined ? activeTv.contraste : 100);
-      setTvSaturacao(activeTv.saturacao !== undefined ? activeTv.saturacao : 100);
       setTvZoom(activeTv.zoom !== undefined ? activeTv.zoom : 100);
       setTvVolume(activeTv.volume !== undefined ? activeTv.volume : 50);
-      setTvTempoTransicao(activeTv.tempoTransicao !== undefined ? activeTv.tempoTransicao : 10);
+      setTvTempoTransicao(activeTv.tempoTransicao !== undefined ? activeTv.tempoTransicao : 3);
       setCurrentMediaIndex(0);
       setProgress(0);
     } else {
@@ -138,14 +135,12 @@ export default function ScreenSimulator({
       setTvOrientacao('Horizontal');
       setTvResolucao('1920x1080');
       setTvModoReproducao('Autoplay');
-      setTvProporcao('16:9');
-      setTvModoExibicao('contain');
+      setTvProporcao('contain');
       setTvBrilho(100);
       setTvContraste(100);
-      setTvSaturacao(100);
       setTvZoom(100);
       setTvVolume(50);
-      setTvTempoTransicao(10);
+      setTvTempoTransicao(3);
     }
   }, [selectedTvId, activeTv]);
 
@@ -156,14 +151,12 @@ export default function ScreenSimulator({
     tvOrientacao !== (activeTv.orientacao || 'Horizontal') ||
     tvResolucao !== (activeTv.resolucao || '1920x1080') ||
     tvModoReproducao !== (activeTv.modoReproducao || 'Autoplay') ||
-    tvProporcao !== (activeTv.proporcao || '16:9') ||
-    tvModoExibicao !== (activeTv.modoExibicao || 'contain') ||
+    tvProporcao !== (activeTv.proporcao || 'contain') ||
     tvBrilho !== (activeTv.brilho !== undefined ? activeTv.brilho : 100) ||
     tvContraste !== (activeTv.contraste !== undefined ? activeTv.contraste : 100) ||
-    tvSaturacao !== (activeTv.saturacao !== undefined ? activeTv.saturacao : 100) ||
     tvZoom !== (activeTv.zoom !== undefined ? activeTv.zoom : 100) ||
     tvVolume !== (activeTv.volume !== undefined ? activeTv.volume : 50) ||
-    tvTempoTransicao !== (activeTv.tempoTransicao !== undefined ? activeTv.tempoTransicao : 10)
+    tvTempoTransicao !== (activeTv.tempoTransicao !== undefined ? activeTv.tempoTransicao : 3)
   );
 
   // 5. Load playlist and current media list for active TV
@@ -185,7 +178,9 @@ export default function ScreenSimulator({
   const nextMedia: Midia | undefined = mediaList.length > 1 ? mediaList[(currentMediaIndex + 1) % mediaList.length] : undefined;
 
   // Calculate remaining time for current media item
-  const totalDuration = currentMedia ? currentMedia.duracao : 10;
+  const totalDuration = currentMedia 
+    ? (currentMedia.tipo === 'image' && tvTempoTransicao ? tvTempoTransicao : currentMedia.duracao)
+    : 10;
   const timeRemaining = Math.max(0, Math.round(totalDuration * (1 - progress / 100)));
 
   // 6. Media Player Loop simulation
@@ -195,7 +190,9 @@ export default function ScreenSimulator({
       return;
     }
 
-    const currentDuration = currentMedia ? currentMedia.duracao * 1000 : 10000;
+    const currentDuration = currentMedia 
+      ? (currentMedia.tipo === 'image' && tvTempoTransicao ? tvTempoTransicao * 1000 : currentMedia.duracao * 1000)
+      : 10000;
     const intervalTime = 100; // update progress every 100ms
     let elapsed = 0;
 
@@ -213,7 +210,7 @@ export default function ScreenSimulator({
     }, intervalTime);
 
     return () => clearInterval(playerTimer);
-  }, [isPlaying, currentMediaIndex, selectedTvId, mediaList.length, currentMedia]);
+  }, [isPlaying, currentMediaIndex, selectedTvId, mediaList.length, currentMedia, tvTempoTransicao]);
 
   // Helper to trigger toast
   const showLocalToast = (msg: string) => {
@@ -233,10 +230,8 @@ export default function ScreenSimulator({
       resolucao: tvResolucao,
       modoReproducao: tvModoReproducao,
       proporcao: tvProporcao,
-      modoExibicao: tvModoExibicao,
       brilho: tvBrilho,
       contraste: tvContraste,
-      saturacao: tvSaturacao,
       zoom: tvZoom,
       volume: tvVolume,
       tempoTransicao: tvTempoTransicao,
@@ -263,7 +258,7 @@ export default function ScreenSimulator({
     }, 60000);
 
     return () => clearInterval(autoSyncInterval);
-  }, [isDirty, activeTv, tvNome, tvPlaylistId, tvOrientacao, tvResolucao, tvModoReproducao, tvProporcao, tvModoExibicao, tvBrilho, tvContraste, tvSaturacao, tvZoom, tvVolume, tvTempoTransicao]);
+  }, [isDirty, activeTv, tvNome, tvPlaylistId, tvOrientacao, tvResolucao, tvModoReproducao, tvProporcao, tvBrilho, tvContraste, tvZoom, tvVolume, tvTempoTransicao]);
 
   const handleNextMedia = () => {
     if (mediaList.length > 0) {
@@ -451,134 +446,104 @@ export default function ScreenSimulator({
               </select>
             </div>
 
-            {/* Proporção and Modo de exibição */}
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-1.5">
-                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Proporção</label>
-                <select
-                  value={tvProporcao}
-                  onChange={(e) => setTvProporcao(e.target.value)}
-                  className="w-full px-3 py-2 text-xs bg-[#050508]/40 border border-white/10 rounded-lg text-slate-200 focus:outline-none focus:border-blue-500/50"
-                >
-                  <option value="16:9">16:9 (Widescreen)</option>
-                  <option value="9:16">9:16 (Retrato)</option>
-                  <option value="4:3">4:3 (Quadrado)</option>
-                  <option value="1:1">1:1 (Quadrado Perfeito)</option>
-                  <option value="Livre">Livre (Ajustar)</option>
-                </select>
-              </div>
-
-              <div className="space-y-1.5">
-                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Modo de Exibição</label>
-                <select
-                  value={tvModoExibicao}
-                  onChange={(e) => setTvModoExibicao(e.target.value)}
-                  className="w-full px-3 py-2 text-xs bg-[#050508]/40 border border-white/10 rounded-lg text-slate-200 focus:outline-none focus:border-blue-500/50"
-                >
-                  <option value="contain">Contain (Ajustar)</option>
-                  <option value="cover">Cover (Preencher)</option>
-                  <option value="fill">Fill (Esticar)</option>
-                </select>
-              </div>
-            </div>
-
-            {/* Hardware adjustments collapsible block */}
-            <div className="space-y-3.5 border-t border-white/5 pt-4">
-              <span className="text-[10px] font-bold text-cyan-400 uppercase tracking-widest block mb-1">Ajustes de Exibição</span>
+            {/* Novas Configurações Visuais */}
+            <div className="pt-2 border-t border-white/5 space-y-4">
+              <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Ajustes Visuais & Áudio</h4>
               
-              {/* Brilho slider */}
-              <div className="space-y-1">
-                <div className="flex justify-between text-[10px] font-semibold text-slate-400">
-                  <span>Brilho</span>
-                  <span className="text-white">{tvBrilho}%</span>
+              <div className="grid grid-cols-2 gap-4">
+                {/* Proporção Input */}
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Proporção</label>
+                  <select
+                    value={tvProporcao}
+                    onChange={(e) => setTvProporcao(e.target.value)}
+                    className="w-full px-3 py-2 text-xs bg-[#050508]/40 border border-white/10 rounded-lg text-slate-200 focus:outline-none focus:border-blue-500/50"
+                  >
+                    <option value="contain">Original (Contain)</option>
+                    <option value="cover">Preencher (Cover)</option>
+                    <option value="16:9">Widescreen (16:9)</option>
+                    <option value="4:3">Standard (4:3)</option>
+                  </select>
                 </div>
-                <input
-                  type="range"
-                  min="0"
-                  max="200"
-                  value={tvBrilho}
-                  onChange={(e) => setTvBrilho(parseInt(e.target.value, 10))}
-                  className="w-full h-1 bg-[#050508]/60 rounded-lg appearance-none cursor-pointer accent-blue-500"
-                />
-              </div>
 
-              {/* Contraste slider */}
-              <div className="space-y-1">
-                <div className="flex justify-between text-[10px] font-semibold text-slate-400">
-                  <span>Contraste</span>
-                  <span className="text-white">{tvContraste}%</span>
-                </div>
-                <input
-                  type="range"
-                  min="0"
-                  max="200"
-                  value={tvContraste}
-                  onChange={(e) => setTvContraste(parseInt(e.target.value, 10))}
-                  className="w-full h-1 bg-[#050508]/60 rounded-lg appearance-none cursor-pointer accent-blue-500"
-                />
-              </div>
-
-              {/* Saturação slider */}
-              <div className="space-y-1">
-                <div className="flex justify-between text-[10px] font-semibold text-slate-400">
-                  <span>Saturação</span>
-                  <span className="text-white">{tvSaturacao}%</span>
-                </div>
-                <input
-                  type="range"
-                  min="0"
-                  max="200"
-                  value={tvSaturacao}
-                  onChange={(e) => setTvSaturacao(parseInt(e.target.value, 10))}
-                  className="w-full h-1 bg-[#050508]/60 rounded-lg appearance-none cursor-pointer accent-blue-500"
-                />
-              </div>
-
-              {/* Zoom slider */}
-              <div className="space-y-1">
-                <div className="flex justify-between text-[10px] font-semibold text-slate-400">
-                  <span>Zoom</span>
-                  <span className="text-white">{tvZoom}%</span>
-                </div>
-                <input
-                  type="range"
-                  min="100"
-                  max="200"
-                  value={tvZoom}
-                  onChange={(e) => setTvZoom(parseInt(e.target.value, 10))}
-                  className="w-full h-1 bg-[#050508]/60 rounded-lg appearance-none cursor-pointer accent-blue-500"
-                />
-              </div>
-
-              {/* Volume slider */}
-              <div className="space-y-1">
-                <div className="flex justify-between text-[10px] font-semibold text-slate-400">
-                  <span>Volume da TV</span>
-                  <span className="text-white">{tvVolume}%</span>
-                </div>
-                <input
-                  type="range"
-                  min="0"
-                  max="100"
-                  value={tvVolume}
-                  onChange={(e) => setTvVolume(parseInt(e.target.value, 10))}
-                  className="w-full h-1 bg-[#050508]/60 rounded-lg appearance-none cursor-pointer accent-blue-500"
-                />
-              </div>
-
-              {/* Tempo de transição input */}
-              <div className="space-y-1.5 pt-1">
-                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Tempo de Transição (Imagens)</label>
-                <div className="flex items-center gap-2">
+                {/* Tempo de transição Input */}
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Transição (seg)</label>
                   <input
                     type="number"
                     min="1"
-                    max="3600"
+                    max="60"
                     value={tvTempoTransicao}
-                    onChange={(e) => setTvTempoTransicao(Math.max(1, parseInt(e.target.value, 10) || 10))}
-                    className="w-24 px-3 py-1.5 text-xs bg-[#050508]/40 border border-white/10 rounded-lg text-white focus:outline-none focus:border-blue-500/50"
+                    onChange={(e) => setTvTempoTransicao(Number(e.target.value))}
+                    className="w-full px-3 py-1.5 text-xs bg-[#050508]/40 border border-white/10 rounded-lg text-white focus:outline-none focus:border-blue-500/50"
                   />
-                  <span className="text-[10px] text-slate-500 font-medium">segundos</span>
+                </div>
+              </div>
+
+              {/* sliders for Brilho, Contraste, Zoom, Volume */}
+              <div className="grid grid-cols-2 gap-4">
+                {/* Brilho */}
+                <div className="space-y-1.5">
+                  <div className="flex justify-between items-center">
+                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Brilho</label>
+                    <span className="text-[10px] text-slate-300 font-mono">{tvBrilho}%</span>
+                  </div>
+                  <input
+                    type="range"
+                    min="0"
+                    max="100"
+                    value={tvBrilho}
+                    onChange={(e) => setTvBrilho(Number(e.target.value))}
+                    className="w-full h-1.5 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-cyan-400"
+                  />
+                </div>
+
+                {/* Contraste */}
+                <div className="space-y-1.5">
+                  <div className="flex justify-between items-center">
+                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Contraste</label>
+                    <span className="text-[10px] text-slate-300 font-mono">{tvContraste}%</span>
+                  </div>
+                  <input
+                    type="range"
+                    min="0"
+                    max="100"
+                    value={tvContraste}
+                    onChange={(e) => setTvContraste(Number(e.target.value))}
+                    className="w-full h-1.5 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-cyan-400"
+                  />
+                </div>
+
+                {/* Zoom */}
+                <div className="space-y-1.5">
+                  <div className="flex justify-between items-center">
+                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Zoom</label>
+                    <span className="text-[10px] text-slate-300 font-mono">{tvZoom}%</span>
+                  </div>
+                  <input
+                    type="range"
+                    min="50"
+                    max="150"
+                    value={tvZoom}
+                    onChange={(e) => setTvZoom(Number(e.target.value))}
+                    className="w-full h-1.5 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-cyan-400"
+                  />
+                </div>
+
+                {/* Volume */}
+                <div className="space-y-1.5">
+                  <div className="flex justify-between items-center">
+                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Volume</label>
+                    <span className="text-[10px] text-slate-300 font-mono">{tvVolume}%</span>
+                  </div>
+                  <input
+                    type="range"
+                    min="0"
+                    max="100"
+                    value={tvVolume}
+                    onChange={(e) => setTvVolume(Number(e.target.value))}
+                    className="w-full h-1.5 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-cyan-400"
+                  />
                 </div>
               </div>
             </div>
@@ -614,10 +579,15 @@ export default function ScreenSimulator({
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 animate-fade-in">
               <div className="bg-[#0d0d12]/40 border border-white/5 p-4 rounded-xl flex flex-col justify-between">
                 <span className="text-[9px] font-bold uppercase text-slate-500 tracking-wider">Status da Rede</span>
-                <div className="flex items-center gap-1.5 mt-2">
-                  <span className={`w-2 h-2 rounded-full ${activeTv.status === 'Online' ? 'bg-emerald-500 animate-pulse' : 'bg-slate-500'}`} />
-                  <span className="text-xs font-bold text-white">{activeTv.status}</span>
-                </div>
+                {(() => {
+                  const isOnline = isTvOnline(activeTv);
+                  return (
+                    <div className="flex items-center gap-1.5 mt-2">
+                      <span className={`w-2 h-2 rounded-full ${isOnline ? 'bg-emerald-500 animate-pulse' : 'bg-slate-500'}`} />
+                      <span className="text-xs font-bold text-white">{isOnline ? 'Online' : 'Offline'}</span>
+                    </div>
+                  );
+                })()}
               </div>
 
               <div className="bg-[#0d0d12]/40 border border-white/5 p-4 rounded-xl flex flex-col justify-between">
@@ -666,7 +636,14 @@ export default function ScreenSimulator({
                         </div>
                       ) : (
                         currentMedia && (
-                          <div className="w-full h-full relative">
+                          <div 
+                            className="w-full h-full relative" 
+                            style={{
+                              filter: `brightness(${tvBrilho}%) contrast(${tvContraste}%)`,
+                              transform: `scale(${tvZoom / 100})`,
+                              transition: 'all 0.3s ease'
+                            }}
+                          >
                             {currentMedia.tipo === 'video' ? (
                               <video 
                                 key={currentMedia.id}
@@ -675,13 +652,12 @@ export default function ScreenSimulator({
                                 loop 
                                 muted 
                                 playsInline
-                                className="w-full h-full transition-all duration-300"
-                                style={{
-                                  objectFit: tvModoExibicao as any,
-                                  filter: `brightness(${tvBrilho}%) contrast(${tvContraste}%) saturate(${tvSaturacao}%)`,
-                                  transform: `scale(${tvZoom / 100})`,
-                                  aspectRatio: tvProporcao !== 'Livre' ? tvProporcao.replace(':', '/') : undefined,
-                                }}
+                                className={`w-full h-full ${
+                                  tvProporcao === 'cover' ? 'object-cover' : 
+                                  tvProporcao === 'contain' ? 'object-contain' : 
+                                  tvProporcao === '16:9' ? 'object-contain aspect-video' : 
+                                  tvProporcao === '4:3' ? 'object-contain aspect-[4/3]' : 'object-cover'
+                                }`}
                               />
                             ) : (
                               <img 
@@ -689,13 +665,12 @@ export default function ScreenSimulator({
                                 src={currentMedia.url} 
                                 alt={currentMedia.nome} 
                                 referrerPolicy="no-referrer"
-                                className="w-full h-full transition-all duration-300"
-                                style={{
-                                  objectFit: tvModoExibicao as any,
-                                  filter: `brightness(${tvBrilho}%) contrast(${tvContraste}%) saturate(${tvSaturacao}%)`,
-                                  transform: `scale(${tvZoom / 100})`,
-                                  aspectRatio: tvProporcao !== 'Livre' ? tvProporcao.replace(':', '/') : undefined,
-                                }}
+                                className={`w-full h-full ${
+                                  tvProporcao === 'cover' ? 'object-cover' : 
+                                  tvProporcao === 'contain' ? 'object-contain' : 
+                                  tvProporcao === '16:9' ? 'object-contain aspect-video' : 
+                                  tvProporcao === '4:3' ? 'object-contain aspect-[4/3]' : 'object-cover'
+                                }`}
                               />
                             )}
                           </div>

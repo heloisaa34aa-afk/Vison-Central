@@ -30,13 +30,13 @@ export interface Tv {
   orientacao?: 'Horizontal' | 'Vertical';
   modoReproducao?: string;
   proporcao?: string;
-  modoExibicao?: string;
   brilho?: number;
   contraste?: number;
-  saturacao?: number;
   zoom?: number;
   volume?: number;
   tempoTransicao?: number;
+  versaoConfiguracao?: number;
+  ultimaAtualizacao?: string;
 }
 
 export interface Cliente {

@@ -70,13 +70,10 @@ export default function Player() {
       let timer: NodeJS.Timeout;
       
       if (currentMedia && currentMedia.tipo === 'image') {
-        const displayDuration = activeDevice?.tempoTransicao !== undefined 
-          ? activeDevice.tempoTransicao 
-          : (currentMedia.duracao || 10);
-
+        const duration = (activeDevice?.tempoTransicao !== undefined ? activeDevice.tempoTransicao : currentMedia.duracao) * 1000;
         timer = setTimeout(() => {
           setCurrentIndex((prev) => (prev + 1) % playlistMedia.length);
-        }, displayDuration * 1000);
+        }, duration);
       }
 
       return () => clearTimeout(timer);
@@ -86,14 +83,17 @@ export default function Player() {
   // Handle Realtime synchronization & Status monitoring (Online / Offline)
   useEffect(() => {
     if (step === 'playing' && activeDevice) {
+      const deviceId = activeDevice.id;
+      const deviceToken = activeDevice.token;
+
       // 1. Subscribe to updates on Supabase Realtime
-      const unsubscribe = playerService.subscribeToUpdates(activeDevice.token, async () => {
+      const unsubscribe = playerService.subscribeToUpdates(deviceToken, async () => {
         try {
           // Buscar configurações atualizadas do dispositivo pelo ID
-          const data = await playerService.getPlayerConfigById(activeDevice.id);
+          const data = await playerService.getPlayerConfigById(deviceId);
           
           // Caso o token do dispositivo tenha mudado no banco
-          if (tokensService.normalizeToken(data.tv.token) !== tokensService.normalizeToken(activeDevice.token)) {
+          if (tokensService.normalizeToken(data.tv.token) !== tokensService.normalizeToken(deviceToken)) {
             setError('O token deste dispositivo foi alterado ou renovado. Conecte-se novamente.');
             setStep('input');
             setActiveDevice(null);
@@ -104,12 +104,11 @@ export default function Player() {
           setActiveDevice(data.tv);
 
           if (data.midias && data.midias.length > 0) {
-            // Atualizar mídias dinamicamente se houver mudança de ID, URL ou duracao
+            // Atualizar mídias dinamicamente
             setPlaylistMedia(prev => {
-              const serializeMedia = (list: Midia[]) => list.map(m => `${m.id}:${m.url}:${m.duracao}`).join('|');
-              const prevStr = serializeMedia(prev);
-              const newStr = serializeMedia(data.midias);
-              if (prevStr !== newStr) {
+              const prevUrls = prev.map(m => m.url).join(',');
+              const newUrls = data.midias.map(m => m.url).join(',');
+              if (prevUrls !== newUrls) {
                 return data.midias;
               }
               return prev;
@@ -128,19 +127,24 @@ export default function Player() {
           }
         }
       });
- 
-      // 2. Periodic heartbeat to keep status Online and fresh (30 seconds)
+  
+      // Ensure the device is marked Online immediately when the effect is mounted
+      playerService.updateTvStatus(deviceId, 'Online').catch(err => {
+        console.error('Error marking online on start:', err);
+      });
+
+      // 2. Periodic heartbeat to keep status Online and fresh (20 seconds)
       const heartbeatInterval = setInterval(async () => {
         try {
-          await playerService.updateTvStatus(activeDevice.id, 'Online');
+          await playerService.updateTvStatus(deviceId, 'Online');
         } catch (err) {
           console.error('Heartbeat update failed:', err);
         }
-      }, 30000);
+      }, 20000);
 
       // 3. Set status to offline on window unload/close
       const handleUnload = () => {
-        playerService.updateTvStatus(activeDevice.id, 'Offline');
+        playerService.updateTvStatus(deviceId, 'Offline');
       };
       
       window.addEventListener('beforeunload', handleUnload);
@@ -212,13 +216,6 @@ export default function Player() {
     );
   }
 
-  // Auto check currentIndex out of bounds if playlist changed
-  useEffect(() => {
-    if (currentIndex >= playlistMedia.length && playlistMedia.length > 0) {
-      setCurrentIndex(0);
-    }
-  }, [playlistMedia, currentIndex]);
-
   const currentMedia = playlistMedia[currentIndex];
 
   const handleMediaError = () => {
@@ -240,67 +237,40 @@ export default function Player() {
   }
 
   const isVertical = activeDevice?.orientacao === 'Vertical';
-  const displayMode = activeDevice?.modoExibicao || 'contain';
-  const brightness = activeDevice?.brilho !== undefined ? activeDevice.brilho : 100;
-  const contrast = activeDevice?.contraste !== undefined ? activeDevice.contraste : 100;
-  const saturation = activeDevice?.saturacao !== undefined ? activeDevice.saturacao : 100;
+
+  const proporcao = activeDevice?.proporcao || 'contain';
+  const brilho = activeDevice?.brilho !== undefined ? activeDevice.brilho : 100;
+  const contraste = activeDevice?.contraste !== undefined ? activeDevice.contraste : 100;
   const zoom = activeDevice?.zoom !== undefined ? activeDevice.zoom : 100;
   const volume = activeDevice?.volume !== undefined ? activeDevice.volume : 50;
-  const proportion = activeDevice?.proporcao || '16:9';
 
-  // Apply volume dynamically to video tag if playing
   useEffect(() => {
-    if (videoRef.current) {
-      videoRef.current.volume = volume / 100;
-      videoRef.current.muted = volume === 0;
+    if (videoRef.current && activeDevice) {
+      const vol = activeDevice.volume !== undefined ? activeDevice.volume / 100 : 0.5;
+      videoRef.current.volume = vol;
     }
-  }, [volume, currentIndex, currentMedia]);
-
-  // Style objects for transition/scaling/rotation
-  const playerContainerStyle: React.CSSProperties = isVertical ? {
-    transform: 'translate(-50%, -50%) rotate(90deg)',
-    width: '100vh',
-    height: '100vw',
-    position: 'absolute',
-    top: '50%',
-    left: '50%',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    overflow: 'hidden',
-    backgroundColor: 'black',
-  } : {
-    width: '100vw',
-    height: '100vh',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    overflow: 'hidden',
-    backgroundColor: 'black',
-  };
-
-  const mediaStyle: React.CSSProperties = {
-    objectFit: displayMode as any,
-    filter: `brightness(${brightness}%) contrast(${contrast}%) saturate(${saturation}%)`,
-    transform: `scale(${zoom / 100})`,
-    aspectRatio: proportion !== 'Livre' ? proportion.replace(':', '/') : undefined,
-    width: proportion === 'Livre' ? '100%' : undefined,
-    height: proportion === 'Livre' ? '100%' : undefined,
-    maxWidth: '100%',
-    maxHeight: '100%',
-    transition: 'transform 0.3s ease, filter 0.3s ease',
-  };
+  }, [activeDevice, currentIndex, currentMedia]);
 
   return (
-    <div className="relative w-screen h-screen bg-black overflow-hidden flex items-center justify-center">
-      <div ref={containerRef} style={playerContainerStyle} className="cursor-none">
+    <div ref={containerRef} className="w-screen h-screen bg-black overflow-hidden flex items-center justify-center cursor-none">
+      <div 
+        className={`transition-all duration-500 w-full h-full flex items-center justify-center ${isVertical ? 'max-w-[100vh] aspect-[9/16]' : ''}`}
+        style={{
+          filter: `brightness(${brilho}%) contrast(${contraste}%)`,
+          transform: `scale(${zoom / 100})`,
+        }}
+      >
         {currentMedia.tipo === 'image' ? (
           <img 
             src={currentMedia.url} 
             alt="Current Media" 
             onError={handleMediaError}
-            className="bg-black animate-fade-in"
-            style={mediaStyle}
+            className={`w-full h-full bg-black animate-fade-in ${
+              proporcao === 'cover' ? 'object-cover' : 
+              proporcao === 'contain' ? 'object-contain' : 
+              proporcao === '16:9' ? 'object-contain aspect-video' : 
+              proporcao === '4:3' ? 'object-contain aspect-[4/3]' : 'object-contain'
+            }`}
             referrerPolicy="no-referrer"
           />
         ) : (
@@ -311,8 +281,12 @@ export default function Player() {
             muted={volume === 0}
             onEnded={handleVideoEnded}
             onError={handleMediaError}
-            className="bg-black animate-fade-in"
-            style={mediaStyle}
+            className={`w-full h-full bg-black animate-fade-in ${
+              proporcao === 'cover' ? 'object-cover' : 
+              proporcao === 'contain' ? 'object-contain' : 
+              proporcao === '16:9' ? 'object-contain aspect-video' : 
+              proporcao === '4:3' ? 'object-contain aspect-[4/3]' : 'object-contain'
+            }`}
           />
         )}
       </div>
