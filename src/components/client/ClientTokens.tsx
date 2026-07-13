@@ -14,7 +14,6 @@ import {
   PlaySquare
 } from 'lucide-react';
 import { tokensService } from '../../services/supabase/tokens';
-import { isTvOnline } from '../../utils/tvStatus';
 
 interface ClientTokensProps {
   client: Cliente;
@@ -193,19 +192,14 @@ export default function ClientTokens({
                 )}
                 
                 {/* Status indicator */}
-                {(() => {
-                  const isOnline = isTvOnline(device);
-                  return (
-                    <span className={`flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[9px] font-bold ${
-                      isOnline
-                        ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 animate-pulse'
-                        : 'bg-white/5 text-slate-500 border border-white/5'
-                    }`}>
-                      {isOnline ? <Wifi className="w-3 h-3" /> : <WifiOff className="w-3 h-3" />}
-                      {isOnline ? 'Online' : 'Offline'}
-                    </span>
-                  );
-                })()}
+                <span className={`flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[9px] font-bold ${
+                  device.status === 'Online'
+                    ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 animate-pulse'
+                    : 'bg-white/5 text-slate-500 border border-white/5'
+                }`}>
+                  {device.status === 'Online' ? <Wifi className="w-3 h-3" /> : <WifiOff className="w-3 h-3" />}
+                  {device.status}
+                </span>
               </div>
 
               {/* Playlist binding selection */}

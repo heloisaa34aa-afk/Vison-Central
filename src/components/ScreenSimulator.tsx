@@ -2,7 +2,6 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Cliente, Playlist, Midia, Tv } from '../types';
 import { storageService } from '../lib/storage';
 import { supabase } from '../lib/supabase';
-import { isTvOnline } from '../utils/tvStatus';
 import { 
   Tv as TvIcon, 
   Play, 
@@ -443,15 +442,10 @@ export default function ScreenSimulator({
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 animate-fade-in">
               <div className="bg-[#0d0d12]/40 border border-white/5 p-4 rounded-xl flex flex-col justify-between">
                 <span className="text-[9px] font-bold uppercase text-slate-500 tracking-wider">Status da Rede</span>
-                {(() => {
-                  const isOnline = isTvOnline(activeTv);
-                  return (
-                    <div className="flex items-center gap-1.5 mt-2">
-                      <span className={`w-2 h-2 rounded-full ${isOnline ? 'bg-emerald-500 animate-pulse' : 'bg-slate-500'}`} />
-                      <span className="text-xs font-bold text-white">{isOnline ? 'Online' : 'Offline'}</span>
-                    </div>
-                  );
-                })()}
+                <div className="flex items-center gap-1.5 mt-2">
+                  <span className={`w-2 h-2 rounded-full ${activeTv.status === 'Online' ? 'bg-emerald-500 animate-pulse' : 'bg-slate-500'}`} />
+                  <span className="text-xs font-bold text-white">{activeTv.status}</span>
+                </div>
               </div>
 
               <div className="bg-[#0d0d12]/40 border border-white/5 p-4 rounded-xl flex flex-col justify-between">

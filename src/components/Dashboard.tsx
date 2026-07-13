@@ -7,7 +7,6 @@ import {
   ArrowRight
 } from 'lucide-react';
 import { motion } from 'motion/react';
-import { isTvOnline } from '../utils/tvStatus';
 
 interface DashboardProps {
   clientes: Cliente[];
@@ -27,8 +26,8 @@ export default function Dashboard({
   
   // Calcular estatísticas
   const totalTelas = clientes.reduce((acc, c) => acc + c.quantidadeTelas, 0);
-  const tvsOnline = tvs.filter(isTvOnline).length;
-  const tvsOffline = tvs.length - tvsOnline;
+  const tvsOnline = tvs.filter(t => t.status === 'Online').length;
+  const tvsOffline = tvs.filter(t => t.status === 'Offline').length;
 
   return (
     <div className="space-y-8 text-slate-200" id="dashboard-viewport">

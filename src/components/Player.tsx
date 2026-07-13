@@ -127,19 +127,14 @@ export default function Player() {
         }
       });
   
-      // Ensure the device is marked Online immediately when the effect is mounted
-      playerService.updateTvStatus(deviceId, 'Online').catch(err => {
-        console.error('Error marking online on start:', err);
-      });
-
-      // 2. Periodic heartbeat to keep status Online and fresh (20 seconds)
+      // 2. Periodic heartbeat to keep status Online and fresh (30 seconds)
       const heartbeatInterval = setInterval(async () => {
         try {
           await playerService.updateTvStatus(deviceId, 'Online');
         } catch (err) {
           console.error('Heartbeat update failed:', err);
         }
-      }, 20000);
+      }, 30000);
 
       // 3. Set status to offline on window unload/close
       const handleUnload = () => {
