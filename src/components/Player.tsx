@@ -160,6 +160,13 @@ export default function Player() {
     }
   }, [step, activeDevice?.id, activeDevice?.token]);
 
+  useEffect(() => {
+    if (videoRef.current && activeDevice) {
+      const vol = activeDevice.volume !== undefined ? activeDevice.volume / 100 : 0.5;
+      videoRef.current.volume = vol;
+    }
+  }, [activeDevice, currentIndex, playlistMedia]);
+
   const handleVideoEnded = () => {
     setCurrentIndex((prev) => (prev + 1) % playlistMedia.length);
   };
@@ -244,13 +251,6 @@ export default function Player() {
   const saturacao = activeDevice?.saturacao !== undefined ? activeDevice.saturacao : 100;
   const zoom = activeDevice?.zoom !== undefined ? activeDevice.zoom : 100;
   const volume = activeDevice?.volume !== undefined ? activeDevice.volume : 50;
-
-  useEffect(() => {
-    if (videoRef.current && activeDevice) {
-      const vol = activeDevice.volume !== undefined ? activeDevice.volume / 100 : 0.5;
-      videoRef.current.volume = vol;
-    }
-  }, [activeDevice, currentIndex, currentMedia]);
 
   return (
     <div ref={containerRef} className="w-screen h-screen bg-black overflow-hidden flex items-center justify-center cursor-none">
