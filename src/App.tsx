@@ -192,8 +192,14 @@ export default function App() {
         prev.ultimaSincronizacao !== nd.ultimaSincronizacao ||
         prev.playlistId !== nd.playlistId ||
         prev.orientacao !== nd.orientacao ||
-        prev.resolucao !== nd.resolucao ||
-        prev.modoReproducao !== nd.modoReproducao ||
+        prev.modo_exibicao !== nd.modo_exibicao ||
+        prev.proporcao !== nd.proporcao ||
+        prev.brilho !== nd.brilho ||
+        prev.contraste !== nd.contraste ||
+        prev.saturacao !== nd.saturacao ||
+        prev.zoom !== nd.zoom ||
+        prev.volume !== nd.volume ||
+        prev.tempo_transicao !== nd.tempo_transicao ||
         prev.ultimaConexao !== nd.ultimaConexao
       ) {
         await storageService.saveTv(nd);

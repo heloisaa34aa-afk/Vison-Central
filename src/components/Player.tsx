@@ -70,7 +70,7 @@ export default function Player() {
       let timer: NodeJS.Timeout;
       
       if (currentMedia && currentMedia.tipo === 'image') {
-        const duration = (activeDevice?.tempoTransicao !== undefined ? activeDevice.tempoTransicao : currentMedia.duracao) * 1000;
+        const duration = (activeDevice?.tempo_transicao !== undefined ? activeDevice.tempo_transicao : currentMedia.duracao) * 1000;
         timer = setTimeout(() => {
           setCurrentIndex((prev) => (prev + 1) % playlistMedia.length);
         }, duration);
@@ -78,7 +78,7 @@ export default function Player() {
 
       return () => clearTimeout(timer);
     }
-  }, [step, currentIndex, playlistMedia, activeDevice?.tempoTransicao]);
+  }, [step, currentIndex, playlistMedia, activeDevice?.tempo_transicao]);
 
   // Handle Realtime synchronization & Status monitoring (Online / Offline)
   useEffect(() => {
@@ -241,6 +241,7 @@ export default function Player() {
   const proporcao = activeDevice?.proporcao || 'contain';
   const brilho = activeDevice?.brilho !== undefined ? activeDevice.brilho : 100;
   const contraste = activeDevice?.contraste !== undefined ? activeDevice.contraste : 100;
+  const saturacao = activeDevice?.saturacao !== undefined ? activeDevice.saturacao : 100;
   const zoom = activeDevice?.zoom !== undefined ? activeDevice.zoom : 100;
   const volume = activeDevice?.volume !== undefined ? activeDevice.volume : 50;
 
@@ -256,7 +257,7 @@ export default function Player() {
       <div 
         className={`transition-all duration-500 w-full h-full flex items-center justify-center ${isVertical ? 'max-w-[100vh] aspect-[9/16]' : ''}`}
         style={{
-          filter: `brightness(${brilho}%) contrast(${contraste}%)`,
+          filter: `brightness(${brilho}%) contrast(${contraste}%) saturate(${saturacao}%)`,
           transform: `scale(${zoom / 100})`,
         }}
       >

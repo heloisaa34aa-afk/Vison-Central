@@ -26,17 +26,15 @@ export interface Tv {
   ultimaSincronizacao: string;
   playlistId?: string;
   ultimaConexao?: string;
-  resolucao?: string;
   orientacao?: 'Horizontal' | 'Vertical';
-  modoReproducao?: string;
+  modo_exibicao?: string;
   proporcao?: string;
   brilho?: number;
   contraste?: number;
+  saturacao?: number;
   zoom?: number;
   volume?: number;
-  tempoTransicao?: number;
-  versaoConfiguracao?: number;
-  ultimaAtualizacao?: string;
+  tempo_transicao?: number;
 }
 
 export interface Cliente {

@@ -45,11 +45,11 @@ export default function ScreenSimulator({
   const [tvNome, setTvNome] = useState('');
   const [tvPlaylistId, setTvPlaylistId] = useState('');
   const [tvOrientacao, setTvOrientacao] = useState<'Horizontal' | 'Vertical'>('Horizontal');
-  const [tvResolucao, setTvResolucao] = useState('1920x1080');
   const [tvModoReproducao, setTvModoReproducao] = useState('Autoplay');
   const [tvProporcao, setTvProporcao] = useState('contain');
   const [tvBrilho, setTvBrilho] = useState(100);
   const [tvContraste, setTvContraste] = useState(100);
+  const [tvSaturacao, setTvSaturacao] = useState(100);
   const [tvZoom, setTvZoom] = useState(100);
   const [tvVolume, setTvVolume] = useState(50);
   const [tvTempoTransicao, setTvTempoTransicao] = useState(3);
@@ -119,25 +119,25 @@ export default function ScreenSimulator({
       setTvNome(activeTv.nome);
       setTvPlaylistId(activeTv.playlistId || '');
       setTvOrientacao(activeTv.orientacao || 'Horizontal');
-      setTvResolucao(activeTv.resolucao || '1920x1080');
-      setTvModoReproducao(activeTv.modoReproducao || 'Autoplay');
+      setTvModoReproducao(activeTv.modo_exibicao || 'Autoplay');
       setTvProporcao(activeTv.proporcao || 'contain');
       setTvBrilho(activeTv.brilho !== undefined ? activeTv.brilho : 100);
       setTvContraste(activeTv.contraste !== undefined ? activeTv.contraste : 100);
+      setTvSaturacao(activeTv.saturacao !== undefined ? activeTv.saturacao : 100);
       setTvZoom(activeTv.zoom !== undefined ? activeTv.zoom : 100);
       setTvVolume(activeTv.volume !== undefined ? activeTv.volume : 50);
-      setTvTempoTransicao(activeTv.tempoTransicao !== undefined ? activeTv.tempoTransicao : 3);
+      setTvTempoTransicao(activeTv.tempo_transicao !== undefined ? activeTv.tempo_transicao : 3);
       setCurrentMediaIndex(0);
       setProgress(0);
     } else {
       setTvNome('');
       setTvPlaylistId('');
       setTvOrientacao('Horizontal');
-      setTvResolucao('1920x1080');
       setTvModoReproducao('Autoplay');
       setTvProporcao('contain');
       setTvBrilho(100);
       setTvContraste(100);
+      setTvSaturacao(100);
       setTvZoom(100);
       setTvVolume(50);
       setTvTempoTransicao(3);
@@ -149,14 +149,14 @@ export default function ScreenSimulator({
     tvNome !== activeTv.nome ||
     tvPlaylistId !== (activeTv.playlistId || '') ||
     tvOrientacao !== (activeTv.orientacao || 'Horizontal') ||
-    tvResolucao !== (activeTv.resolucao || '1920x1080') ||
-    tvModoReproducao !== (activeTv.modoReproducao || 'Autoplay') ||
+    tvModoReproducao !== (activeTv.modo_exibicao || 'Autoplay') ||
     tvProporcao !== (activeTv.proporcao || 'contain') ||
     tvBrilho !== (activeTv.brilho !== undefined ? activeTv.brilho : 100) ||
     tvContraste !== (activeTv.contraste !== undefined ? activeTv.contraste : 100) ||
+    tvSaturacao !== (activeTv.saturacao !== undefined ? activeTv.saturacao : 100) ||
     tvZoom !== (activeTv.zoom !== undefined ? activeTv.zoom : 100) ||
     tvVolume !== (activeTv.volume !== undefined ? activeTv.volume : 50) ||
-    tvTempoTransicao !== (activeTv.tempoTransicao !== undefined ? activeTv.tempoTransicao : 3)
+    tvTempoTransicao !== (activeTv.tempo_transicao !== undefined ? activeTv.tempo_transicao : 3)
   );
 
   // 5. Load playlist and current media list for active TV
@@ -227,14 +227,14 @@ export default function ScreenSimulator({
       nome: tvNome,
       playlistId: tvPlaylistId || undefined,
       orientacao: tvOrientacao,
-      resolucao: tvResolucao,
-      modoReproducao: tvModoReproducao,
+      modo_exibicao: tvModoReproducao,
       proporcao: tvProporcao,
       brilho: tvBrilho,
       contraste: tvContraste,
+      saturacao: tvSaturacao,
       zoom: tvZoom,
       volume: tvVolume,
-      tempoTransicao: tvTempoTransicao,
+      tempo_transicao: tvTempoTransicao,
       ultimaSincronizacao: new Date().toISOString()
     };
 
@@ -258,7 +258,7 @@ export default function ScreenSimulator({
     }, 60000);
 
     return () => clearInterval(autoSyncInterval);
-  }, [isDirty, activeTv, tvNome, tvPlaylistId, tvOrientacao, tvResolucao, tvModoReproducao, tvProporcao, tvBrilho, tvContraste, tvZoom, tvVolume, tvTempoTransicao]);
+  }, [isDirty, activeTv, tvNome, tvPlaylistId, tvOrientacao, tvModoReproducao, tvProporcao, tvBrilho, tvContraste, tvSaturacao, tvZoom, tvVolume, tvTempoTransicao]);
 
   const handleNextMedia = () => {
     if (mediaList.length > 0) {
@@ -403,33 +403,17 @@ export default function ScreenSimulator({
               </select>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
-              {/* Orientation Input */}
-              <div className="space-y-1.5">
-                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Orientação</label>
-                <select
-                  value={tvOrientacao}
-                  onChange={(e) => setTvOrientacao(e.target.value as any)}
-                  className="w-full px-3 py-2 text-xs bg-[#050508]/40 border border-white/10 rounded-lg text-slate-200 focus:outline-none focus:border-blue-500/50"
-                >
-                  <option value="Horizontal">Horizontal (16:9)</option>
-                  <option value="Vertical">Vertical (9:16)</option>
-                </select>
-              </div>
-
-              {/* Resolution Input */}
-              <div className="space-y-1.5">
-                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Resolução</label>
-                <select
-                  value={tvResolucao}
-                  onChange={(e) => setTvResolucao(e.target.value)}
-                  className="w-full px-3 py-2 text-xs bg-[#050508]/40 border border-white/10 rounded-lg text-slate-200 focus:outline-none focus:border-blue-500/50"
-                >
-                  <option value="1920x1080">Full HD (1080p)</option>
-                  <option value="1280x720">HD (720p)</option>
-                  <option value="3840x2160">Ultra HD (4K)</option>
-                </select>
-              </div>
+            {/* Orientation Input */}
+            <div className="space-y-1.5">
+              <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Orientação</label>
+              <select
+                value={tvOrientacao}
+                onChange={(e) => setTvOrientacao(e.target.value as any)}
+                className="w-full px-3 py-2 text-xs bg-[#050508]/40 border border-white/10 rounded-lg text-slate-200 focus:outline-none focus:border-blue-500/50"
+              >
+                <option value="Horizontal">Horizontal (16:9)</option>
+                <option value="Vertical">Vertical (9:16)</option>
+              </select>
             </div>
 
             {/* Play Mode input */}
@@ -510,6 +494,22 @@ export default function ScreenSimulator({
                     max="100"
                     value={tvContraste}
                     onChange={(e) => setTvContraste(Number(e.target.value))}
+                    className="w-full h-1.5 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-cyan-400"
+                  />
+                </div>
+
+                {/* Saturação */}
+                <div className="space-y-1.5">
+                  <div className="flex justify-between items-center">
+                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Saturação</label>
+                    <span className="text-[10px] text-slate-300 font-mono">{tvSaturacao}%</span>
+                  </div>
+                  <input
+                    type="range"
+                    min="0"
+                    max="100"
+                    value={tvSaturacao}
+                    onChange={(e) => setTvSaturacao(Number(e.target.value))}
                     className="w-full h-1.5 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-cyan-400"
                   />
                 </div>
@@ -639,7 +639,7 @@ export default function ScreenSimulator({
                           <div 
                             className="w-full h-full relative" 
                             style={{
-                              filter: `brightness(${tvBrilho}%) contrast(${tvContraste}%)`,
+                              filter: `brightness(${tvBrilho}%) contrast(${tvContraste}%) saturate(${tvSaturacao}%)`,
                               transform: `scale(${tvZoom / 100})`,
                               transition: 'all 0.3s ease'
                             }}
