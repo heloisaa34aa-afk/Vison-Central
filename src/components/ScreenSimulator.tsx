@@ -527,8 +527,11 @@ export default function ScreenSimulator({
               <div className="space-y-1.5">
                 <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Posição da Tela</label>
                 <select
-                  value={tvOrientacao}
-                  onChange={(e) => handleUpdateTvProperty('orientacao', e.target.value, setTvOrientacao)}
+                  key={`orientacao-${activeTv.id}`}
+                  defaultValue={tvOrientacao}
+                  onChange={(e) => {
+                    if (e.target.value !== tvOrientacao) handleUpdateTvProperty('orientacao', e.target.value, setTvOrientacao);
+                  }}
                   className="w-full px-3 py-2 text-xs bg-[#050508]/40 border border-white/10 rounded-lg text-slate-200 focus:outline-none focus:border-blue-500/50"
                 >
                   <option value="Horizontal">Horizontal</option>
@@ -540,8 +543,12 @@ export default function ScreenSimulator({
               <div className="space-y-1.5">
                 <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Girar Tela</label>
                 <select
-                  value={tvRotacao}
-                  onChange={(e) => handleUpdateTvProperty('rotacao', Number(e.target.value), setTvRotacao)}
+                  key={`rotacao-${activeTv.id}`}
+                  defaultValue={tvRotacao.toString()}
+                  onChange={(e) => {
+                    const val = Number(e.target.value);
+                    if (val !== tvRotacao) handleUpdateTvProperty('rotacao', val, setTvRotacao);
+                  }}
                   className="w-full px-3 py-2 text-xs bg-[#050508]/40 border border-white/10 rounded-lg text-slate-200 focus:outline-none focus:border-blue-500/50"
                 >
                   <option value="0">0° (Paisagem)</option>
@@ -557,8 +564,11 @@ export default function ScreenSimulator({
               <div className="space-y-1.5">
                 <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Imagem</label>
                 <select
-                  value={tvModoReproducao}
-                  onChange={(e) => handleUpdateTvProperty('modo_exibicao', e.target.value, setTvModoReproducao)}
+                  key={`modo_exibicao-${activeTv.id}`}
+                  defaultValue={tvModoReproducao}
+                  onChange={(e) => {
+                    if (e.target.value !== tvModoReproducao) handleUpdateTvProperty('modo_exibicao', e.target.value, setTvModoReproducao);
+                  }}
                   className="w-full px-3 py-2 text-xs bg-[#050508]/40 border border-white/10 rounded-lg text-slate-200 focus:outline-none focus:border-blue-500/50"
                 >
                   <option value="Autoplay">Autoplay Contínuo</option>
@@ -569,11 +579,15 @@ export default function ScreenSimulator({
               <div className="space-y-1.5">
                 <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Transição Imagens (s)</label>
                 <input
+                  key={`tempo_transicao-${activeTv.id}`}
                   type="number"
                   min="1"
                   max="60"
-                  value={tvTempoTransicao}
-                  onChange={(e) => handleUpdateTvProperty('tempo_transicao', Number(e.target.value), setTvTempoTransicao)}
+                  defaultValue={tvTempoTransicao}
+                  onBlur={(e) => {
+                    const val = Number(e.target.value);
+                    if (val !== tvTempoTransicao) handleUpdateTvProperty('tempo_transicao', val, setTvTempoTransicao);
+                  }}
                   className="w-full px-3 py-2 text-xs bg-[#050508]/40 border border-white/10 rounded-lg text-slate-200 focus:outline-none focus:border-blue-500/50"
                 />
               </div>
@@ -588,8 +602,11 @@ export default function ScreenSimulator({
                 <div className="space-y-1.5">
                   <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Tela</label>
                   <select
-                    value={tvProporcao}
-                    onChange={(e) => handleUpdateTvProperty('proporcao', e.target.value, setTvProporcao)}
+                    key={`proporcao-${activeTv.id}`}
+                    defaultValue={tvProporcao}
+                    onChange={(e) => {
+                      if (e.target.value !== tvProporcao) handleUpdateTvProperty('proporcao', e.target.value, setTvProporcao);
+                    }}
                     className="w-full px-3 py-2 text-xs bg-[#050508]/40 border border-white/10 rounded-lg text-slate-200 focus:outline-none focus:border-blue-500/50"
                   >
                     <option value="contain">Original (Contain)</option>
@@ -616,8 +633,14 @@ export default function ScreenSimulator({
                     min="0"
                     max="100"
                     defaultValue={tvBrilho}
-                    onMouseUp={(e) => handleUpdateTvProperty('brilho', Number((e.target as HTMLInputElement).value), setTvBrilho)}
-                    onTouchEnd={(e) => handleUpdateTvProperty('brilho', Number((e.target as HTMLInputElement).value), setTvBrilho)}
+                    onMouseUp={(e) => {
+                      const val = Number((e.target as HTMLInputElement).value);
+                      if (val !== tvBrilho) handleUpdateTvProperty('brilho', val, setTvBrilho);
+                    }}
+                    onTouchEnd={(e) => {
+                      const val = Number((e.target as HTMLInputElement).value);
+                      if (val !== tvBrilho) handleUpdateTvProperty('brilho', val, setTvBrilho);
+                    }}
                     className="w-full h-1.5 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-cyan-400"
                   />
                 </div>
@@ -634,8 +657,14 @@ export default function ScreenSimulator({
                     min="0"
                     max="100"
                     defaultValue={tvContraste}
-                    onMouseUp={(e) => handleUpdateTvProperty('contraste', Number((e.target as HTMLInputElement).value), setTvContraste)}
-                    onTouchEnd={(e) => handleUpdateTvProperty('contraste', Number((e.target as HTMLInputElement).value), setTvContraste)}
+                    onMouseUp={(e) => {
+                      const val = Number((e.target as HTMLInputElement).value);
+                      if (val !== tvContraste) handleUpdateTvProperty('contraste', val, setTvContraste);
+                    }}
+                    onTouchEnd={(e) => {
+                      const val = Number((e.target as HTMLInputElement).value);
+                      if (val !== tvContraste) handleUpdateTvProperty('contraste', val, setTvContraste);
+                    }}
                     className="w-full h-1.5 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-cyan-400"
                   />
                 </div>
@@ -652,8 +681,14 @@ export default function ScreenSimulator({
                     min="0"
                     max="100"
                     defaultValue={tvSaturacao}
-                    onMouseUp={(e) => handleUpdateTvProperty('saturacao', Number((e.target as HTMLInputElement).value), setTvSaturacao)}
-                    onTouchEnd={(e) => handleUpdateTvProperty('saturacao', Number((e.target as HTMLInputElement).value), setTvSaturacao)}
+                    onMouseUp={(e) => {
+                      const val = Number((e.target as HTMLInputElement).value);
+                      if (val !== tvSaturacao) handleUpdateTvProperty('saturacao', val, setTvSaturacao);
+                    }}
+                    onTouchEnd={(e) => {
+                      const val = Number((e.target as HTMLInputElement).value);
+                      if (val !== tvSaturacao) handleUpdateTvProperty('saturacao', val, setTvSaturacao);
+                    }}
                     className="w-full h-1.5 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-cyan-400"
                   />
                 </div>
@@ -670,8 +705,14 @@ export default function ScreenSimulator({
                     min="50"
                     max="150"
                     defaultValue={tvZoom}
-                    onMouseUp={(e) => handleUpdateTvProperty('zoom', Number((e.target as HTMLInputElement).value), setTvZoom)}
-                    onTouchEnd={(e) => handleUpdateTvProperty('zoom', Number((e.target as HTMLInputElement).value), setTvZoom)}
+                    onMouseUp={(e) => {
+                      const val = Number((e.target as HTMLInputElement).value);
+                      if (val !== tvZoom) handleUpdateTvProperty('zoom', val, setTvZoom);
+                    }}
+                    onTouchEnd={(e) => {
+                      const val = Number((e.target as HTMLInputElement).value);
+                      if (val !== tvZoom) handleUpdateTvProperty('zoom', val, setTvZoom);
+                    }}
                     className="w-full h-1.5 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-cyan-400"
                   />
                 </div>
@@ -688,8 +729,14 @@ export default function ScreenSimulator({
                     min="0"
                     max="100"
                     defaultValue={tvVolume}
-                    onMouseUp={(e) => handleUpdateTvProperty('volume', Number((e.target as HTMLInputElement).value), setTvVolume)}
-                    onTouchEnd={(e) => handleUpdateTvProperty('volume', Number((e.target as HTMLInputElement).value), setTvVolume)}
+                    onMouseUp={(e) => {
+                      const val = Number((e.target as HTMLInputElement).value);
+                      if (val !== tvVolume) handleUpdateTvProperty('volume', val, setTvVolume);
+                    }}
+                    onTouchEnd={(e) => {
+                      const val = Number((e.target as HTMLInputElement).value);
+                      if (val !== tvVolume) handleUpdateTvProperty('volume', val, setTvVolume);
+                    }}
                     className="w-full h-1.5 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-cyan-400"
                   />
                 </div>
@@ -797,9 +844,12 @@ export default function ScreenSimulator({
                   <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Texto Superior</label>
                   <label className="flex items-center gap-1.5 cursor-pointer">
                     <input 
+                      key={`visSup-${activeTv.id}`}
                       type="checkbox" 
-                      checked={tvTextoSuperiorVisivel} 
-                      onChange={(e) => handleUpdateTvProperty('texto_superior_visivel', e.target.checked, setTvTextoSuperiorVisivel)}
+                      defaultChecked={tvTextoSuperiorVisivel} 
+                      onChange={(e) => {
+                        handleUpdateTvProperty('texto_superior_visivel', e.target.checked, setTvTextoSuperiorVisivel);
+                      }}
                       className="accent-cyan-400"
                     />
                     <span className="text-[10px] text-slate-400">Mostrar</span>
@@ -817,14 +867,20 @@ export default function ScreenSimulator({
                 />
                 <div className="flex gap-2">
                   <input 
+                    key={`corSup-${activeTv.id}`}
                     type="color" 
-                    value={tvTextoSuperiorCor} 
-                    onChange={(e) => handleUpdateTvProperty('texto_superior_cor', e.target.value, setTvTextoSuperiorCor)}
+                    defaultValue={tvTextoSuperiorCor} 
+                    onBlur={(e) => {
+                      if (e.target.value !== tvTextoSuperiorCor) handleUpdateTvProperty('texto_superior_cor', e.target.value, setTvTextoSuperiorCor);
+                    }}
                     className="w-8 h-8 rounded cursor-pointer bg-transparent border-0 p-0"
                   />
                   <select
-                    value={tvTextoSuperiorTamanho}
-                    onChange={(e) => handleUpdateTvProperty('texto_superior_tamanho', e.target.value, setTvTextoSuperiorTamanho)}
+                    key={`tamSup-${activeTv.id}`}
+                    defaultValue={tvTextoSuperiorTamanho}
+                    onChange={(e) => {
+                      if (e.target.value !== tvTextoSuperiorTamanho) handleUpdateTvProperty('texto_superior_tamanho', e.target.value, setTvTextoSuperiorTamanho);
+                    }}
                     className="flex-1 px-2 py-1 text-xs bg-[#050508]/40 border border-white/10 rounded text-slate-200 focus:outline-none"
                   >
                     <option value="sm">Pequeno</option>
@@ -833,8 +889,11 @@ export default function ScreenSimulator({
                     <option value="xl">Extra Grande</option>
                   </select>
                   <select
-                    value={tvTextoSuperiorAlinhamento}
-                    onChange={(e) => handleUpdateTvProperty('texto_superior_alinhamento', e.target.value as any, setTvTextoSuperiorAlinhamento)}
+                    key={`alignSup-${activeTv.id}`}
+                    defaultValue={tvTextoSuperiorAlinhamento}
+                    onChange={(e) => {
+                      if (e.target.value !== tvTextoSuperiorAlinhamento) handleUpdateTvProperty('texto_superior_alinhamento', e.target.value as any, setTvTextoSuperiorAlinhamento);
+                    }}
                     className="flex-1 px-2 py-1 text-xs bg-[#050508]/40 border border-white/10 rounded text-slate-200 focus:outline-none"
                   >
                     <option value="left">Esquerda</option>
@@ -850,9 +909,12 @@ export default function ScreenSimulator({
                   <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Texto Inferior</label>
                   <label className="flex items-center gap-1.5 cursor-pointer">
                     <input 
+                      key={`visInf-${activeTv.id}`}
                       type="checkbox" 
-                      checked={tvTextoInferiorVisivel} 
-                      onChange={(e) => handleUpdateTvProperty('texto_inferior_visivel', e.target.checked, setTvTextoInferiorVisivel)}
+                      defaultChecked={tvTextoInferiorVisivel} 
+                      onChange={(e) => {
+                        handleUpdateTvProperty('texto_inferior_visivel', e.target.checked, setTvTextoInferiorVisivel);
+                      }}
                       className="accent-cyan-400"
                     />
                     <span className="text-[10px] text-slate-400">Mostrar</span>
@@ -870,14 +932,20 @@ export default function ScreenSimulator({
                 />
                 <div className="flex gap-2">
                   <input 
+                    key={`corInf-${activeTv.id}`}
                     type="color" 
-                    value={tvTextoInferiorCor} 
-                    onChange={(e) => handleUpdateTvProperty('texto_inferior_cor', e.target.value, setTvTextoInferiorCor)}
+                    defaultValue={tvTextoInferiorCor} 
+                    onBlur={(e) => {
+                      if (e.target.value !== tvTextoInferiorCor) handleUpdateTvProperty('texto_inferior_cor', e.target.value, setTvTextoInferiorCor);
+                    }}
                     className="w-8 h-8 rounded cursor-pointer bg-transparent border-0 p-0"
                   />
                   <select
-                    value={tvTextoInferiorTamanho}
-                    onChange={(e) => handleUpdateTvProperty('texto_inferior_tamanho', e.target.value, setTvTextoInferiorTamanho)}
+                    key={`tamInf-${activeTv.id}`}
+                    defaultValue={tvTextoInferiorTamanho}
+                    onChange={(e) => {
+                      if (e.target.value !== tvTextoInferiorTamanho) handleUpdateTvProperty('texto_inferior_tamanho', e.target.value, setTvTextoInferiorTamanho);
+                    }}
                     className="flex-1 px-2 py-1 text-xs bg-[#050508]/40 border border-white/10 rounded text-slate-200 focus:outline-none"
                   >
                     <option value="sm">Pequeno</option>
@@ -886,8 +954,11 @@ export default function ScreenSimulator({
                     <option value="xl">Extra Grande</option>
                   </select>
                   <select
-                    value={tvTextoInferiorAlinhamento}
-                    onChange={(e) => handleUpdateTvProperty('texto_inferior_alinhamento', e.target.value as any, setTvTextoInferiorAlinhamento)}
+                    key={`alignInf-${activeTv.id}`}
+                    defaultValue={tvTextoInferiorAlinhamento}
+                    onChange={(e) => {
+                      if (e.target.value !== tvTextoInferiorAlinhamento) handleUpdateTvProperty('texto_inferior_alinhamento', e.target.value as any, setTvTextoInferiorAlinhamento);
+                    }}
                     className="flex-1 px-2 py-1 text-xs bg-[#050508]/40 border border-white/10 rounded text-slate-200 focus:outline-none"
                   >
                     <option value="left">Esquerda</option>
