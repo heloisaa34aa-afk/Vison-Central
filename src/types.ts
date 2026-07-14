@@ -36,6 +36,21 @@ export interface Tv {
   volume?: number;
   tempo_transicao?: number;
   rotacao?: number;
+
+  // Novos recursos
+  conteudos_online?: { id: string, nome: string, url: string, active: boolean }[];
+  
+  texto_superior?: string;
+  texto_superior_cor?: string;
+  texto_superior_tamanho?: string;
+  texto_superior_alinhamento?: 'left' | 'center' | 'right';
+  texto_superior_visivel?: boolean;
+
+  texto_inferior?: string;
+  texto_inferior_cor?: string;
+  texto_inferior_tamanho?: string;
+  texto_inferior_alinhamento?: 'left' | 'center' | 'right';
+  texto_inferior_visivel?: boolean;
 }
 
 export interface Cliente {

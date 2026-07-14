@@ -163,9 +163,54 @@ export default function Player() {
         console.error('Error marking online on start:', err);
       });
 
-      // Heartbeat a cada 10 segundos para manter a TV Online
-      const heartbeatInterval = setInterval(() => {
-        playerService.sendHeartbeat(deviceId).catch(err => console.error('Heartbeat falhou:', err));
+      // Sincronização automática e Heartbeat a cada 10 segundos
+      const heartbeatInterval = setInterval(async () => {
+        try {
+          // 1. Enviar heartbeat para manter status Online
+          await playerService.sendHeartbeat(deviceId);
+          
+          // 2. Buscar configurações atualizadas do Supabase
+          const data = await playerService.getPlayerConfigById(deviceId);
+          
+          // 3. Verificar validade do token
+          if (tokensService.normalizeToken(data.tv.token) !== tokensService.normalizeToken(deviceToken)) {
+            setError('O token deste dispositivo foi alterado ou renovado. Conecte-se novamente.');
+            setStep('input');
+            setActiveDevice(null);
+            return;
+          }
+
+          // 4. Atualizar TV Config se houve mudança
+          setActiveDevice(prev => {
+            if (!prev) return data.tv;
+            if (JSON.stringify(prev) !== JSON.stringify(data.tv)) {
+              return data.tv;
+            }
+            return prev;
+          });
+
+          // 5. Atualizar Mídias da Playlist se houve mudança
+          if (data.midias) {
+            setPlaylistMedia(prev => {
+              const changed = JSON.stringify(prev) !== JSON.stringify(data.midias);
+              if (changed) {
+                setCurrentIndex(curr => curr >= data.midias.length ? 0 : curr);
+                return data.midias;
+              }
+              return prev;
+            });
+          } else {
+            setPlaylistMedia([]);
+          }
+
+        } catch (err: any) {
+          console.error('Falha na sincronização periódica/heartbeat:', err);
+          if (err.message && (err.message.includes('não encontrado') || err.message.includes('Token inválido'))) {
+            setError('Este dispositivo foi removido do painel.');
+            setStep('input');
+            setActiveDevice(null);
+          }
+        }
       }, 10000);
 
       // 3. Set status to offline on window unload/close
@@ -243,6 +288,7 @@ export default function Player() {
   }
 
   const currentMedia = playlistMedia[currentIndex];
+  const activeOnlineContent = activeDevice?.conteudos_online?.find(c => c.active);
 
   const handleMediaError = () => {
     console.warn('Erro de carregamento na mídia:', currentMedia?.nome || currentIndex);
@@ -254,7 +300,7 @@ export default function Player() {
     }, 2000);
   };
 
-  if (!currentMedia) {
+  if (!currentMedia && !activeOnlineContent) {
     return (
       <div className="min-h-screen bg-black flex items-center justify-center text-white">
         <p className="text-sm font-medium animate-pulse">Carregando mídias da playlist...</p>
@@ -276,7 +322,28 @@ export default function Player() {
   const verticalMaxWidth = isRotated90 ? 'max-w-[100vw]' : 'max-w-[100vh]';
 
   return (
-    <div ref={containerRef} className="w-screen h-screen bg-black overflow-hidden flex items-center justify-center cursor-none">
+    <div ref={containerRef} className="w-screen h-screen bg-black overflow-hidden flex items-center justify-center cursor-none relative">
+      
+      {activeDevice?.texto_superior_visivel && activeDevice?.texto_superior && (
+        <div className="absolute top-8 left-0 right-0 z-50 pointer-events-none" style={{ textAlign: activeDevice.texto_superior_alinhamento as any }}>
+          <span style={{ 
+            color: activeDevice.texto_superior_cor, 
+            fontSize: activeDevice.texto_superior_tamanho === 'sm' ? '2vh' : activeDevice.texto_superior_tamanho === 'lg' ? '6vh' : activeDevice.texto_superior_tamanho === 'xl' ? '8vh' : '4vh',
+            textShadow: '0px 4px 8px rgba(0,0,0,0.8)'
+          }} className="font-bold px-8 py-4 bg-black/40 rounded-xl backdrop-blur-md mx-8 inline-block">{activeDevice.texto_superior}</span>
+        </div>
+      )}
+
+      {activeDevice?.texto_inferior_visivel && activeDevice?.texto_inferior && (
+        <div className="absolute bottom-8 left-0 right-0 z-50 pointer-events-none" style={{ textAlign: activeDevice.texto_inferior_alinhamento as any }}>
+          <span style={{ 
+            color: activeDevice.texto_inferior_cor, 
+            fontSize: activeDevice.texto_inferior_tamanho === 'sm' ? '2vh' : activeDevice.texto_inferior_tamanho === 'lg' ? '6vh' : activeDevice.texto_inferior_tamanho === 'xl' ? '8vh' : '4vh',
+            textShadow: '0px 4px 8px rgba(0,0,0,0.8)'
+          }} className="font-bold px-8 py-4 bg-black/40 rounded-xl backdrop-blur-md mx-8 inline-block">{activeDevice.texto_inferior}</span>
+        </div>
+      )}
+
       <div 
         className="flex items-center justify-center transition-all duration-500"
         style={{
@@ -291,37 +358,61 @@ export default function Player() {
             filter: `brightness(${brilho}%) contrast(${contraste}%) saturate(${saturacao}%)`,
           }}
         >
-          {currentMedia.tipo === 'image' ? (
-            <img 
-              src={currentMedia.url} 
-              alt="Current Media" 
-              onError={handleMediaError}
-              className={`w-full h-full bg-black animate-fade-in ${
-                proporcao === 'cover' ? 'object-cover' : 
-                proporcao === 'contain' ? 'object-contain' : 
-                proporcao === '16:9' ? 'object-contain aspect-video' : 
-                proporcao === '4:3' ? 'object-contain aspect-[4/3]' : 'object-contain'
-              }`}
-              referrerPolicy="no-referrer"
-            />
-          ) : (
-            <video 
-              ref={(el) => {
-                if (el) el.volume = volume / 100;
-              }}
-              src={currentMedia.url} 
-              autoPlay 
-              muted={volume === 0}
-              onEnded={handleVideoEnded}
-              onError={handleMediaError}
-              className={`w-full h-full bg-black animate-fade-in ${
-                proporcao === 'cover' ? 'object-cover' : 
-                proporcao === 'contain' ? 'object-contain' : 
-                proporcao === '16:9' ? 'object-contain aspect-video' : 
-                proporcao === '4:3' ? 'object-contain aspect-[4/3]' : 'object-contain'
-              }`}
-            />
-          )}
+          {(() => {
+            if (activeOnlineContent) {
+              let embedUrl = activeOnlineContent.url;
+              if (embedUrl.includes('instagram.com')) {
+                const match = embedUrl.match(/\/p\/([^\/?#&]+)/) || embedUrl.match(/\/reel\/([^\/?#&]+)/) || embedUrl.match(/\/reels\/([^\/?#&]+)/) || embedUrl.match(/\/stories\/[^\/]+\/([^\/?#&]+)/);
+                if (match && match[1]) embedUrl = `https://www.instagram.com/p/${match[1]}/embed/captioned`;
+              } else if (embedUrl.includes('youtube.com/watch')) {
+                const match = embedUrl.match(/v=([^&]+)/);
+                if (match && match[1]) embedUrl = `https://www.youtube.com/embed/${match[1]}?autoplay=1&mute=1`;
+              } else if (embedUrl.includes('youtu.be/')) {
+                const match = embedUrl.match(/youtu\.be\/([^?]+)/);
+                if (match && match[1]) embedUrl = `https://www.youtube.com/embed/${match[1]}?autoplay=1&mute=1`;
+              }
+
+              return <iframe src={embedUrl} className="w-full h-full border-none pointer-events-none bg-white" title={activeOnlineContent.nome} />;
+            }
+            
+            if (currentMedia) {
+              if (currentMedia.tipo === 'image') {
+                return (
+                  <img 
+                    src={currentMedia.url} 
+                    alt="Current Media" 
+                    onError={handleMediaError}
+                    className={`w-full h-full bg-black animate-fade-in ${
+                      proporcao === 'cover' ? 'object-cover' : 
+                      proporcao === 'contain' ? 'object-contain' : 
+                      proporcao === '16:9' ? 'object-contain aspect-video' : 
+                      proporcao === '4:3' ? 'object-contain aspect-[4/3]' : 'object-contain'
+                    }`}
+                    referrerPolicy="no-referrer"
+                  />
+                );
+              }
+              return (
+                <video 
+                  ref={(el) => {
+                    if (el) el.volume = volume / 100;
+                  }}
+                  src={currentMedia.url} 
+                  autoPlay 
+                  muted={volume === 0}
+                  onEnded={handleVideoEnded}
+                  onError={handleMediaError}
+                  className={`w-full h-full bg-black animate-fade-in ${
+                    proporcao === 'cover' ? 'object-cover' : 
+                    proporcao === 'contain' ? 'object-contain' : 
+                    proporcao === '16:9' ? 'object-contain aspect-video' : 
+                    proporcao === '4:3' ? 'object-contain aspect-[4/3]' : 'object-contain'
+                  }`}
+                />
+              );
+            }
+            return null;
+          })()}
         </div>
       </div>
     </div>

@@ -130,10 +130,29 @@ export const playerService = {
   async broadcastConfigUpdate(tvId: string, config: Partial<Tv>) {
     if (!supabase) return;
     const channel = supabase.channel(`player-changes-${tvId}`);
-    channel.send({
-      type: 'broadcast',
-      event: 'config_update',
-      payload: config
+    channel.subscribe((status) => {
+      if (status === 'SUBSCRIBED') {
+        channel.send({
+          type: 'broadcast',
+          event: 'config_update',
+          payload: config
+        });
+        setTimeout(() => { supabase.removeChannel(channel); }, 1000);
+      }
+    });
+  },
+
+  async broadcastPlaylistUpdate(tvId: string) {
+    if (!supabase) return;
+    const channel = supabase.channel(`player-changes-${tvId}`);
+    channel.subscribe((status) => {
+      if (status === 'SUBSCRIBED') {
+        channel.send({
+          type: 'broadcast',
+          event: 'playlist_update'
+        });
+        setTimeout(() => { supabase.removeChannel(channel); }, 1000);
+      }
     });
   },
 
@@ -170,33 +189,38 @@ export const playerService = {
       }
     );
 
-    // Update na playlist
     channel.on(
-      'postgres_changes',
-      { event: 'UPDATE', schema: 'public', table: 'playlists' },
-      (payload: any) => {
-        if (payload.new && payload.new.id === getPlaylistId()) {
-          callbacks.onPlaylistUpdate();
-        }
+      'broadcast',
+      { event: 'playlist_update' },
+      () => {
+        callbacks.onPlaylistUpdate();
       }
     );
-    // INSERT ou DELETE em playlist_midias
+
+    // Eventos na playlist
     channel.on(
       'postgres_changes',
-      { event: 'INSERT', schema: 'public', table: 'playlist_midias' },
+      { event: '*', schema: 'public', table: 'playlists' },
       (payload: any) => {
-        if (payload.new && payload.new.playlist_id === getPlaylistId()) {
-          callbacks.onPlaylistUpdate();
-        }
+        callbacks.onPlaylistUpdate();
       }
     );
+
+    // Eventos em playlist_midias
     channel.on(
       'postgres_changes',
-      { event: 'DELETE', schema: 'public', table: 'playlist_midias' },
+      { event: '*', schema: 'public', table: 'playlist_midias' },
       (payload: any) => {
-        if (payload.old && payload.old.playlist_id === getPlaylistId()) {
-          callbacks.onPlaylistUpdate();
-        }
+        callbacks.onPlaylistUpdate();
+      }
+    );
+
+    // Eventos em midias
+    channel.on(
+      'postgres_changes',
+      { event: '*', schema: 'public', table: 'midias' },
+      (payload: any) => {
+        callbacks.onPlaylistUpdate();
       }
     );
 
