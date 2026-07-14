@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Tv, Playlist, Midia } from '../types';
+import MediaRenderer from './MediaRenderer';
 import { playerService } from '../services/supabase/player';
 import { tokensService } from '../services/supabase/tokens';
 
@@ -340,76 +341,15 @@ export default function Player() {
         </div>
       )}
 
-      <div 
-        className="flex items-center justify-center transition-all duration-500"
-        style={{
-           width: isRotated90 ? '100vh' : '100vw',
-           height: isRotated90 ? '100vw' : '100vh',
-           transform: `rotate(${rotacao}deg) scale(${zoom / 100})`,
-        }}
-      >
-        <div 
-          className={`w-full h-full flex items-center justify-center ${isVertical ? `${verticalMaxWidth} aspect-[9/16]` : ''}`}
-          style={{
-            filter: `brightness(${brilho}%) contrast(${contraste}%) saturate(${saturacao}%)`,
-          }}
-        >
-          {(() => {
-            if (activeOnlineContent) {
-              let embedUrl = activeOnlineContent.url;
-              if (embedUrl.includes('instagram.com')) {
-                const match = embedUrl.match(/\/p\/([^\/?#&]+)/) || embedUrl.match(/\/reel\/([^\/?#&]+)/) || embedUrl.match(/\/reels\/([^\/?#&]+)/) || embedUrl.match(/\/stories\/[^\/]+\/([^\/?#&]+)/);
-                if (match && match[1]) embedUrl = `https://www.instagram.com/p/${match[1]}/embed/captioned`;
-              } else if (embedUrl.includes('youtube.com/watch')) {
-                const match = embedUrl.match(/v=([^&]+)/);
-                if (match && match[1]) embedUrl = `https://www.youtube.com/embed/${match[1]}?autoplay=1&mute=1`;
-              } else if (embedUrl.includes('youtu.be/')) {
-                const match = embedUrl.match(/youtu\.be\/([^?]+)/);
-                if (match && match[1]) embedUrl = `https://www.youtube.com/embed/${match[1]}?autoplay=1&mute=1`;
-              }
-
-              return <iframe src={embedUrl} className="w-full h-full border-none pointer-events-none bg-white" title={activeOnlineContent.nome} />;
-            }
-            
-            if (currentMedia) {
-              if (currentMedia.tipo === 'image') {
-                return (
-                  <img 
-                    src={currentMedia.url} 
-                    alt="Current Media" 
-                    onError={handleMediaError}
-                    className={`w-full h-full bg-black animate-fade-in ${
-                      proporcao === 'cover' ? 'object-cover' : 
-                      proporcao === 'contain' ? 'object-contain' : 
-                      proporcao === '16:9' ? 'object-contain aspect-video' : 
-                      proporcao === '4:3' ? 'object-contain aspect-[4/3]' : 'object-contain'
-                    }`}
-                    referrerPolicy="no-referrer"
-                  />
-                );
-              }
-              return (
-                <video 
-                  ref={(el) => {
-                    if (el) el.volume = volume / 100;
-                  }}
-                  src={currentMedia.url} 
-                  autoPlay 
-                  muted={volume === 0}
-                  onEnded={handleVideoEnded}
-                  onError={handleMediaError}
-                  className={`w-full h-full bg-black animate-fade-in ${
-                    proporcao === 'cover' ? 'object-cover' : 
-                    proporcao === 'contain' ? 'object-contain' : 
-                    proporcao === '16:9' ? 'object-contain aspect-video' : 
-                    proporcao === '4:3' ? 'object-contain aspect-[4/3]' : 'object-contain'
-                  }`}
-                />
-              );
-            }
-            return null;
-          })()}
-        </div>
+      <div className="absolute inset-0 overflow-hidden" style={{ containerType: 'size' }}>
+        <MediaRenderer 
+          tv={activeDevice}
+          media={currentMedia}
+          onlineContent={activeOnlineContent}
+          onMediaError={handleMediaError}
+          onVideoEnded={handleVideoEnded}
+          isWebPlayer={true}
+        />
       </div>
     </div>
   );

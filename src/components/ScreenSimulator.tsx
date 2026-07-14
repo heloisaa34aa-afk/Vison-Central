@@ -3,6 +3,7 @@ import { Cliente, Playlist, Midia, Tv } from '../types';
 import { storageService } from '../lib/storage';
 import { supabase } from '../lib/supabase';
 import { isTvOnline } from '../utils/tvStatus';
+import MediaRenderer from './MediaRenderer';
 import { 
   Tv as TvIcon, 
   Play, 
@@ -993,99 +994,40 @@ export default function ScreenSimulator({
                     )}
 
                     {/* Display Media Container */}
-                    <div className="absolute inset-0 z-10 bg-slate-950 flex items-center justify-center">
+                    <div className="absolute inset-0 z-10 bg-slate-950 overflow-hidden" style={{ containerType: 'size' }}>
                       {(() => {
                         const activeOnlineContent = tvConteudoOnline.find(c => c.active);
-                        if (activeOnlineContent) {
-                          let embedUrl = activeOnlineContent.url;
-                          if (embedUrl.includes('instagram.com')) {
-                            const match = embedUrl.match(/\/p\/([^\/?#&]+)/) || embedUrl.match(/\/reel\/([^\/?#&]+)/) || embedUrl.match(/\/reels\/([^\/?#&]+)/) || embedUrl.match(/\/stories\/[^\/]+\/([^\/?#&]+)/);
-                            if (match && match[1]) {
-                              embedUrl = `https://www.instagram.com/p/${match[1]}/embed/captioned`;
-                            }
-                          } else if (embedUrl.includes('youtube.com/watch')) {
-                            const match = embedUrl.match(/v=([^&]+)/);
-                            if (match && match[1]) embedUrl = `https://www.youtube.com/embed/${match[1]}?autoplay=1&mute=1`;
-                          } else if (embedUrl.includes('youtu.be/')) {
-                            const match = embedUrl.match(/youtu\.be\/([^?]+)/);
-                            if (match && match[1]) embedUrl = `https://www.youtube.com/embed/${match[1]}?autoplay=1&mute=1`;
-                          }
-
+                        if (!activeOnlineContent && mediaList.length === 0) {
                           return (
-                            <div 
-                              className="w-full h-full relative" 
-                              style={{ 
-                                width: (tvRotacao === 90 || tvRotacao === 270) ? '200%' : '100%',
-                                height: (tvRotacao === 90 || tvRotacao === 270) ? '200%' : '100%',
-                                filter: `brightness(${tvBrilho}%) contrast(${tvContraste}%) saturate(${tvSaturacao}%)`,
-                                transform: `rotate(${tvRotacao}deg) scale(${tvZoom / 100})`,
-                                transition: 'all 0.3s ease' 
-                              }}
-                            >
-                              <iframe src={embedUrl} className="w-full h-full border-none pointer-events-none bg-white" title={activeOnlineContent.nome} />
+                            <div className="flex h-full items-center justify-center">
+                              <div className="text-center text-gray-500 p-4 space-y-2">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-tv w-10 h-10 mx-auto text-gray-700 animate-pulse"><rect width="20" height="15" x="2" y="7" rx="2" ry="2"/><polyline points="17 2 12 7 7 2"/></svg>
+                                <p className="text-[10px] font-bold text-slate-400">Sem Programação Ativa</p>
+                                <p className="text-[8px] text-gray-600">Vincule uma playlist para iniciar a transmissão.</p>
+                              </div>
                             </div>
                           );
                         }
 
-                        if (mediaList.length === 0) {
-                          return (
-                            <div className="text-center text-gray-500 p-4 space-y-2">
-                              <TvIcon className="w-10 h-10 mx-auto text-gray-700 animate-pulse" />
-                              <p className="text-[10px] font-bold text-slate-400">Sem Programação Ativa</p>
-                              <p className="text-[8px] text-gray-600">Vincule uma playlist para iniciar a transmissão.</p>
-                            </div>
-                          );
-                        }
+                        const previewTv = {
+                          ...activeTv,
+                          orientacao: tvOrientacao,
+                          proporcao: tvProporcao,
+                          brilho: tvBrilho,
+                          contraste: tvContraste,
+                          saturacao: tvSaturacao,
+                          zoom: tvZoom,
+                          volume: tvVolume,
+                          rotacao: tvRotacao,
+                        };
 
-                        return currentMedia && (
-                          <div 
-                            className="flex items-center justify-center relative" 
-                            style={{
-                              width: (tvRotacao === 90 || tvRotacao === 270) ? '200%' : '100%',
-                              height: (tvRotacao === 90 || tvRotacao === 270) ? '200%' : '100%',
-                              filter: `brightness(${tvBrilho}%) contrast(${tvContraste}%) saturate(${tvSaturacao}%)`,
-                              transform: `rotate(${tvRotacao}deg) scale(${tvZoom / 100})`,
-                              transition: 'all 0.3s ease'
-                            }}
-                          >
-                            {currentMedia.tipo === 'video' ? (
-                              <video 
-                                key={currentMedia.id}
-                                src={currentMedia.url} 
-                                autoPlay 
-                                loop 
-                                muted 
-                                playsInline
-                                className={`w-full h-full ${
-                                  tvProporcao === 'cover' ? 'object-cover' : 
-                                  tvProporcao === 'contain' ? 'object-contain' : 
-                                  tvProporcao === '16:9' ? 'object-contain aspect-video' : 
-                                  tvProporcao === '4:3' ? 'object-contain aspect-[4/3]' : 'object-cover'
-                                }`}
-                                style={{
-                                  width: (tvRotacao === 90 || tvRotacao === 270) ? (tvOrientacao === 'vertical' ? '56.25%' : '177.77%') : '100%',
-                                  height: (tvRotacao === 90 || tvRotacao === 270) ? (tvOrientacao === 'vertical' ? '177.77%' : '56.25%') : '100%',
-                                }}
-                              />
-                            ) : (
-                              <img 
-                                key={currentMedia.id}
-                                src={currentMedia.url} 
-                                alt={currentMedia.nome} 
-                                referrerPolicy="no-referrer"
-                                className={`w-full h-full ${
-                                  tvProporcao === 'cover' ? 'object-cover' : 
-                                  tvProporcao === 'contain' ? 'object-contain' : 
-                                  tvProporcao === '16:9' ? 'object-contain aspect-video' : 
-                                  tvProporcao === '4:3' ? 'object-contain aspect-[4/3]' : 'object-cover'
-                                }`}
-                                style={{
-                                  width: (tvRotacao === 90 || tvRotacao === 270) ? (tvOrientacao === 'vertical' ? '56.25%' : '177.77%') : '100%',
-                                  height: (tvRotacao === 90 || tvRotacao === 270) ? (tvOrientacao === 'vertical' ? '177.77%' : '56.25%') : '100%',
-                                }}
-                              />
-                            )}
-                          </div>
+                        return (
+                          <MediaRenderer 
+                            tv={previewTv} 
+                            media={currentMedia} 
+                            onlineContent={activeOnlineContent} 
+                            isWebPlayer={false}
+                          />
                         );
                       })()}
                     </div>
