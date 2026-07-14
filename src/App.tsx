@@ -120,33 +120,12 @@ export default function App() {
     };
   }, []);
 
-  // Automatic Offline Detector (Local State Only)
+  // Local timer to force re-renders so isTvOnline is re-evaluated dynamically
   useEffect(() => {
     if (!isLoaded) return;
-
     const interval = setInterval(() => {
-      const currentDevices = devicesRef.current;
-      if (currentDevices.length === 0) return;
-
-      const now = new Date();
-      let hasUpdates = false;
-      const nextDevices = currentDevices.map((d) => {
-        if (d.status === 'Online' && d.ultimaConexao) {
-          const lastConn = new Date(d.ultimaConexao);
-          const diffSeconds = (now.getTime() - lastConn.getTime()) / 1000;
-          if (diffSeconds > 30) {
-            hasUpdates = true;
-            return { ...d, status: 'Offline' as const };
-          }
-        }
-        return d;
-      });
-
-      if (hasUpdates) {
-        setDevices(nextDevices);
-      }
+      setDevices(prev => [...prev]);
     }, 5000);
-
     return () => clearInterval(interval);
   }, [isLoaded]);
 
@@ -426,7 +405,8 @@ export default function App() {
 
               {activeTab === 'simulator' && (
                 <ScreenSimulator 
-                  clients={clients} 
+                  clients={clients}
+                  devices={devices}
                   playlists={playlists} 
                   media={media}
                   selectedClientIdFromOutside={selectedClientIdForSim}

@@ -7,7 +7,6 @@ import { Tv } from '../types';
  * 2. Its last heartbeat (ultimaConexao) was received within the last 30 seconds.
  */
 export function isTvOnline(tv: Tv): boolean {
-  if (tv.status !== 'Online') return false;
   if (!tv.ultimaConexao) return false;
   
   try {

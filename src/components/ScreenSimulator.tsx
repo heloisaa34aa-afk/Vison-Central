@@ -24,6 +24,7 @@ import {
 
 interface ScreenSimulatorProps {
   clients: Cliente[];
+  devices: Tv[];
   playlists: Playlist[];
   media: Midia[];
   selectedClientIdFromOutside: string | null;
@@ -31,6 +32,7 @@ interface ScreenSimulatorProps {
 
 export default function ScreenSimulator({
   clients,
+  devices,
   playlists,
   media,
   selectedClientIdFromOutside
@@ -38,9 +40,10 @@ export default function ScreenSimulator({
   
   // Selection states
   const [selectedClientId, setSelectedClientId] = useState<string>('');
-  const [tvs, setTvs] = useState<Tv[]>([]);
   const [selectedTvId, setSelectedTvId] = useState<string>('');
   
+  const tvs = devices.filter(t => t.clienteId === selectedClientId);
+
   // Form/Editable states
   const [tvNome, setTvNome] = useState('');
   const [tvPlaylistId, setTvPlaylistId] = useState('');
@@ -86,54 +89,17 @@ export default function ScreenSimulator({
     }
   }, [selectedClientIdFromOutside, clients]);
 
-  // 2. Fetch TVs when client changes and subscribe to real-time updates
-  const fetchTvsForClient = async () => {
-    if (!selectedClientId) return;
-    try {
-      const allTvs = await storageService.getTvs();
-      const filtered = allTvs.filter(t => t.clienteId === selectedClientId);
-      setTvs(filtered);
-      
-      // Auto-select first TV of the client if none or invalid is selected
-      if (filtered.length > 0) {
-        const found = filtered.find(t => t.id === selectedTvId);
-        if (!found) {
-          setSelectedTvId(filtered[0].id);
-        }
-      } else {
-        setSelectedTvId('');
-      }
-    } catch (e) {
-      console.error('Error fetching TVs:', e);
-    }
-  };
-
+  // 2. Auto-select first TV of the client if none or invalid is selected
   useEffect(() => {
-    fetchTvsForClient();
-
-    // Subscribe to TV changes on Supabase Realtime
-    if (supabase) {
-      const channel = supabase
-        .channel('tvs-simulator-updates')
-        .on('postgres_changes', { event: '*', schema: 'public', table: 'tvs' }, (payload) => {
-          if (payload.eventType === 'UPDATE' && payload.new) {
-            import('../services/supabase/tvs').then(({ mapDbToTv }) => {
-              const updatedTv = mapDbToTv(payload.new);
-              if (updatedTv.clienteId === selectedClientId) {
-                setTvs(prev => prev.map(tv => tv.id === updatedTv.id ? updatedTv : tv));
-              }
-            });
-          } else {
-             fetchTvsForClient();
-          }
-        })
-        .subscribe();
-
-      return () => {
-        supabase.removeChannel(channel);
-      };
+    if (tvs.length > 0) {
+      const found = tvs.find(t => t.id === selectedTvId);
+      if (!found) {
+        setSelectedTvId(tvs[0].id);
+      }
+    } else {
+      setSelectedTvId('');
     }
-  }, [selectedClientId]);
+  }, [tvs, selectedTvId]);
 
   // 3. Load active TV data and fill form fields
   const activeTv = tvs.find(t => t.id === selectedTvId);
@@ -194,31 +160,7 @@ export default function ScreenSimulator({
   }, [selectedTvId, activeTv]);
 
   // 4. Check if there are unsaved pending changes (Sincronização)
-  const isDirty = activeTv && (
-    tvNome !== activeTv.nome ||
-    tvPlaylistId !== (activeTv.playlistId || '') ||
-    tvOrientacao !== (activeTv.orientacao || 'horizontal') ||
-    tvModoReproducao !== (activeTv.modo_exibicao || 'Autoplay') ||
-    tvProporcao !== (activeTv.proporcao || 'contain') ||
-    tvBrilho !== (activeTv.brilho !== undefined ? activeTv.brilho : 100) ||
-    tvContraste !== (activeTv.contraste !== undefined ? activeTv.contraste : 100) ||
-    tvSaturacao !== (activeTv.saturacao !== undefined ? activeTv.saturacao : 100) ||
-    tvZoom !== (activeTv.zoom !== undefined ? activeTv.zoom : 100) ||
-    tvVolume !== (activeTv.volume !== undefined ? activeTv.volume : 50) ||
-    tvTempoTransicao !== (activeTv.tempo_transicao !== undefined ? activeTv.tempo_transicao : 3) ||
-    tvRotacao !== (activeTv.rotacao !== undefined ? activeTv.rotacao : 0) ||
-    JSON.stringify(tvConteudoOnline) !== JSON.stringify(activeTv.conteudos_online || []) ||
-    tvTextoSuperior !== (activeTv.texto_superior || '') ||
-    tvTextoSuperiorCor !== (activeTv.texto_superior_cor || '#ffffff') ||
-    tvTextoSuperiorTamanho !== (activeTv.texto_superior_tamanho || 'base') ||
-    tvTextoSuperiorAlinhamento !== (activeTv.texto_superior_alinhamento || 'center') ||
-    tvTextoSuperiorVisivel !== (activeTv.texto_superior_visivel || false) ||
-    tvTextoInferior !== (activeTv.texto_inferior || '') ||
-    tvTextoInferiorCor !== (activeTv.texto_inferior_cor || '#ffffff') ||
-    tvTextoInferiorTamanho !== (activeTv.texto_inferior_tamanho || 'base') ||
-    tvTextoInferiorAlinhamento !== (activeTv.texto_inferior_alinhamento || 'center') ||
-    tvTextoInferiorVisivel !== (activeTv.texto_inferior_visivel || false)
-  );
+  const isDirty = false;
 
   // 5. Load playlist and current media list for active TV
   const activePlaylistId = tvPlaylistId || (clients.find(c => c.id === selectedClientId)?.playlistId) || '';
@@ -299,7 +241,6 @@ export default function ScreenSimulator({
     // Aguardar a confirmação do banco; somente então atualizar o estado local
     if (success) {
       setter(value);
-      setTvs(prev => prev.map(t => t.id === updatedTv.id ? updatedTv : t));
 
       import('../services/supabase/player').then(({ playerService }) => {
         playerService.broadcastConfigUpdate(updatedTv.id, updatedTv);
@@ -352,30 +293,13 @@ export default function ScreenSimulator({
       });
       
       // Update local state immediately
-      setTvs(prev => prev.map(t => t.id === updatedTv.id ? updatedTv : t));
       showLocalToast('Configurações sincronizadas com sucesso!');
     } else {
       showLocalToast('Erro ao sincronizar as configurações.');
     }
   };
 
-  // 8. Auto-synchronization every 60 seconds if changes are pending
-  useEffect(() => {
-    const autoSyncInterval = setInterval(() => {
-      if (isDirty && activeTv) {
-        console.log('Iniciando sincronização automática de segurança (60s)...');
-        handleSincronizar();
-      }
-    }, 60000);
-
-    return () => clearInterval(autoSyncInterval);
-  }, [
-    isDirty, activeTv, tvNome, tvPlaylistId, tvOrientacao, tvModoReproducao, 
-    tvProporcao, tvBrilho, tvContraste, tvSaturacao, tvZoom, tvVolume, 
-    tvTempoTransicao, tvRotacao,
-    tvConteudoOnline, tvTextoSuperior, tvTextoSuperiorCor, tvTextoSuperiorTamanho, tvTextoSuperiorAlinhamento, tvTextoSuperiorVisivel,
-    tvTextoInferior, tvTextoInferiorCor, tvTextoInferiorTamanho, tvTextoInferiorAlinhamento, tvTextoInferiorVisivel
-  ]);
+  
 
   const handleNextMedia = () => {
     if (mediaList.length > 0) {
