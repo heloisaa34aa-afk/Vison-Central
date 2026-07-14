@@ -118,7 +118,8 @@ export const playerService = {
     const updatePayload = {
       status: 'Online',
       uptime: '24h 0m',
-      ultima_conexao: new Date().toISOString()
+      ultima_conexao: new Date().toISOString(),
+      ultima_sincronizacao: new Date().toISOString()
     };
     
     await supabase
