@@ -25,7 +25,7 @@ export function mapDbToTv(db: any): Tv {
     zoom: db.zoom !== undefined ? db.zoom : 100,
     volume: db.volume !== undefined ? db.volume : 50,
     tempo_transicao: db.tempo_transicao !== undefined ? db.tempo_transicao : 3,
-    rotacao: db.rotacao !== undefined ? db.rotacao : 0,
+    rotacao: db.rotacao !== undefined ? Number(db.rotacao) : 0,
     conteudos_online: typeof db.conteudos_online === 'string' ? JSON.parse(db.conteudos_online) : (db.conteudos_online || []),
     texto_superior: db.texto_superior || '',
     texto_superior_cor: db.texto_superior_cor || '#ffffff',
@@ -60,6 +60,7 @@ export function mapTvToDb(tv: Tv): any {
     zoom: tv.zoom,
     volume: tv.volume,
     tempo_transicao: tv.tempo_transicao,
+    rotacao: tv.rotacao !== undefined ? String(tv.rotacao) : '0',
   };
 }
 
@@ -80,11 +81,13 @@ export const tvsService = {
 
   async saveTv(tv: Tv): Promise<boolean> {
     try {
+      console.log("VisionCentral: salvando rotacao", tv.rotacao);
       tv.ultimaSincronizacao = new Date().toISOString();
       const dbData = mapTvToDb(tv);
-      const { error } = await supabase.from('tvs').upsert(dbData);
-      if (error) {
-        console.warn('Erro ao salvar TV:', error);
+      const response = await supabase.from('tvs').upsert(dbData);
+      console.log("VisionCentral: rotacao salva", response);
+      if (response.error) {
+        console.warn('Erro ao salvar TV:', response.error);
         return false;
       }
       return true;

@@ -140,6 +140,7 @@ export default function ScreenSimulator({
 
   useEffect(() => {
     if (activeTv) {
+      console.log("VisionCentral: rotacao carregada", activeTv.rotacao !== undefined ? activeTv.rotacao : 0);
       setTvNome(activeTv.nome);
       setTvPlaylistId(activeTv.playlistId || '');
       setTvOrientacao(activeTv.orientacao || 'horizontal');
