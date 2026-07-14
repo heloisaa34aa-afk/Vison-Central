@@ -44,7 +44,7 @@ export default function ScreenSimulator({
   // Form/Editable states
   const [tvNome, setTvNome] = useState('');
   const [tvPlaylistId, setTvPlaylistId] = useState('');
-  const [tvOrientacao, setTvOrientacao] = useState<'Horizontal' | 'Vertical'>('Horizontal');
+  const [tvOrientacao, setTvOrientacao] = useState<'horizontal' | 'vertical'>('horizontal');
   const [tvModoReproducao, setTvModoReproducao] = useState('Autoplay');
   const [tvProporcao, setTvProporcao] = useState('contain');
   const [tvBrilho, setTvBrilho] = useState(100);
@@ -142,7 +142,7 @@ export default function ScreenSimulator({
     if (activeTv) {
       setTvNome(activeTv.nome);
       setTvPlaylistId(activeTv.playlistId || '');
-      setTvOrientacao(activeTv.orientacao || 'Horizontal');
+      setTvOrientacao(activeTv.orientacao || 'horizontal');
       setTvModoReproducao(activeTv.modo_exibicao || 'Autoplay');
       setTvProporcao(activeTv.proporcao || 'contain');
       setTvBrilho(activeTv.brilho !== undefined ? activeTv.brilho : 100);
@@ -168,7 +168,7 @@ export default function ScreenSimulator({
     } else {
       setTvNome('');
       setTvPlaylistId('');
-      setTvOrientacao('Horizontal');
+      setTvOrientacao('horizontal');
       setTvModoReproducao('Autoplay');
       setTvProporcao('contain');
       setTvBrilho(100);
@@ -196,7 +196,7 @@ export default function ScreenSimulator({
   const isDirty = activeTv && (
     tvNome !== activeTv.nome ||
     tvPlaylistId !== (activeTv.playlistId || '') ||
-    tvOrientacao !== (activeTv.orientacao || 'Horizontal') ||
+    tvOrientacao !== (activeTv.orientacao || 'horizontal') ||
     tvModoReproducao !== (activeTv.modo_exibicao || 'Autoplay') ||
     tvProporcao !== (activeTv.proporcao || 'contain') ||
     tvBrilho !== (activeTv.brilho !== undefined ? activeTv.brilho : 100) ||
@@ -534,8 +534,8 @@ export default function ScreenSimulator({
                   }}
                   className="w-full px-3 py-2 text-xs bg-[#050508]/40 border border-white/10 rounded-lg text-slate-200 focus:outline-none focus:border-blue-500/50"
                 >
-                  <option value="Horizontal">Horizontal</option>
-                  <option value="Vertical">Vertical</option>
+                  <option value="horizontal">Horizontal</option>
+                  <option value="vertical">Vertical</option>
                 </select>
               </div>
 
@@ -1039,7 +1039,7 @@ export default function ScreenSimulator({
 
               {/* TV Bezel Frame */}
               <div ref={containerRef} className={`transition-all duration-500 relative flex justify-center items-center ${
-                tvOrientacao === 'Vertical' 
+                tvOrientacao === 'vertical' 
                   ? 'w-full max-w-[210px] aspect-[9/16]' 
                   : 'w-full max-w-[540px] aspect-video'
               }`}>
@@ -1138,8 +1138,8 @@ export default function ScreenSimulator({
                                   tvProporcao === '4:3' ? 'object-contain aspect-[4/3]' : 'object-cover'
                                 }`}
                                 style={{
-                                  width: (tvRotacao === 90 || tvRotacao === 270) ? (tvOrientacao === 'Vertical' ? '56.25%' : '177.77%') : '100%',
-                                  height: (tvRotacao === 90 || tvRotacao === 270) ? (tvOrientacao === 'Vertical' ? '177.77%' : '56.25%') : '100%',
+                                  width: (tvRotacao === 90 || tvRotacao === 270) ? (tvOrientacao === 'vertical' ? '56.25%' : '177.77%') : '100%',
+                                  height: (tvRotacao === 90 || tvRotacao === 270) ? (tvOrientacao === 'vertical' ? '177.77%' : '56.25%') : '100%',
                                 }}
                               />
                             ) : (
@@ -1155,8 +1155,8 @@ export default function ScreenSimulator({
                                   tvProporcao === '4:3' ? 'object-contain aspect-[4/3]' : 'object-cover'
                                 }`}
                                 style={{
-                                  width: (tvRotacao === 90 || tvRotacao === 270) ? (tvOrientacao === 'Vertical' ? '56.25%' : '177.77%') : '100%',
-                                  height: (tvRotacao === 90 || tvRotacao === 270) ? (tvOrientacao === 'Vertical' ? '177.77%' : '56.25%') : '100%',
+                                  width: (tvRotacao === 90 || tvRotacao === 270) ? (tvOrientacao === 'vertical' ? '56.25%' : '177.77%') : '100%',
+                                  height: (tvRotacao === 90 || tvRotacao === 270) ? (tvOrientacao === 'vertical' ? '177.77%' : '56.25%') : '100%',
                                 }}
                               />
                             )}

@@ -26,7 +26,7 @@ export interface Tv {
   ultimaSincronizacao: string;
   playlistId?: string;
   ultimaConexao?: string;
-  orientacao?: 'Horizontal' | 'Vertical';
+  orientacao?: 'horizontal' | 'vertical';
   modo_exibicao?: string;
   proporcao?: string;
   brilho?: number;
@@ -62,7 +62,7 @@ export interface Cliente {
   cidade: string;
   bairro: string;
   tipoIcone: 'store' | 'dumbbell' | 'hospital' | 'shopping' | 'briefcase';
-  orientacao: 'Vertical' | 'Horizontal';
+  orientacao: 'vertical' | 'horizontal';
   fusoHorario: string;
   playlistId?: string;
   textoTicker?: string;

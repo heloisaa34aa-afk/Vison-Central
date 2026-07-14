@@ -149,7 +149,7 @@ export default function ClientsManager({
       cidade: newClientCity,
       bairro: newClientNeighborhood,
       tipoIcone: iconMapping[newClientCategory] || 'store',
-      orientacao: 'Horizontal', // Removido da UI, fixo por padrão na criação
+      orientacao: 'horizontal', // Removido da UI, fixo por padrão na criação
       fusoHorario: 'America/Sao_Paulo',
       playlistId: newClientPlaylist || undefined,
       textoTicker: newClientTicker

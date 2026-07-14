@@ -11,7 +11,7 @@ export function mapDbToCliente(db: any): Cliente {
     cidade: db.cidade || '',
     bairro: db.bairro || '',
     tipoIcone: (db.icon_type || 'store') as any,
-    orientacao: (db.orientation || 'Horizontal') as any,
+    orientacao: (db.orientation || 'horizontal') as any,
     fusoHorario: db.timezone || 'America/Sao_Paulo',
     playlistId: db.playlist_id || undefined,
     textoTicker: db.ticker_text || undefined

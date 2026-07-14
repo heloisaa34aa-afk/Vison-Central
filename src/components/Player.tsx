@@ -304,7 +304,7 @@ export default function Player() {
     );
   }
 
-  const isVertical = activeDevice?.orientacao === 'Vertical';
+  const isVertical = activeDevice?.orientacao === 'vertical';
 
   const proporcao = activeDevice?.proporcao || 'contain';
   const brilho = activeDevice?.brilho !== undefined ? activeDevice.brilho : 100;

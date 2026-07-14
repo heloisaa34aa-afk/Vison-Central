@@ -4,7 +4,7 @@ import { Tv } from '../../types';
 export function mapDbToTv(db: any): Tv {
   const parts = (db.nome || '').split(' | ');
   const baseNome = parts[0] || '';
-  const orientacao = (db.orientacao || 'Horizontal') as 'Horizontal' | 'Vertical';
+  const orientacao = (db.orientacao || 'horizontal') as 'horizontal' | 'vertical';
   
   return {
     id: db.id,
@@ -60,18 +60,6 @@ export function mapTvToDb(tv: Tv): any {
     zoom: tv.zoom,
     volume: tv.volume,
     tempo_transicao: tv.tempo_transicao,
-    rotacao: tv.rotacao,
-    conteudos_online: tv.conteudos_online,
-    texto_superior: tv.texto_superior,
-    texto_superior_cor: tv.texto_superior_cor,
-    texto_superior_tamanho: tv.texto_superior_tamanho,
-    texto_superior_alinhamento: tv.texto_superior_alinhamento,
-    texto_superior_visivel: tv.texto_superior_visivel,
-    texto_inferior: tv.texto_inferior,
-    texto_inferior_cor: tv.texto_inferior_cor,
-    texto_inferior_tamanho: tv.texto_inferior_tamanho,
-    texto_inferior_alinhamento: tv.texto_inferior_alinhamento,
-    texto_inferior_visivel: tv.texto_inferior_visivel,
   };
 }
 
