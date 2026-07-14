@@ -89,3 +89,17 @@ CREATE TABLE IF NOT EXISTS logs (
 
 -- Add foreign key constraint to clientes table for playlist_id if table exists
 -- ALTER TABLE clientes ADD CONSTRAINT fk_playlist FOREIGN KEY (playlist_id) REFERENCES playlists(id) ON DELETE SET NULL;
+
+-- NOVAS COLUNAS PARA A TABELA tvs (adicionadas para remover configuração em memória)
+ALTER TABLE tvs ADD COLUMN IF NOT EXISTS rotacao INTEGER DEFAULT 0;
+ALTER TABLE tvs ADD COLUMN IF NOT EXISTS conteudos_online JSONB DEFAULT '[]'::jsonb;
+ALTER TABLE tvs ADD COLUMN IF NOT EXISTS texto_superior TEXT;
+ALTER TABLE tvs ADD COLUMN IF NOT EXISTS texto_superior_cor TEXT DEFAULT '#ffffff';
+ALTER TABLE tvs ADD COLUMN IF NOT EXISTS texto_superior_tamanho TEXT DEFAULT 'base';
+ALTER TABLE tvs ADD COLUMN IF NOT EXISTS texto_superior_alinhamento TEXT DEFAULT 'center';
+ALTER TABLE tvs ADD COLUMN IF NOT EXISTS texto_superior_visivel BOOLEAN DEFAULT false;
+ALTER TABLE tvs ADD COLUMN IF NOT EXISTS texto_inferior TEXT;
+ALTER TABLE tvs ADD COLUMN IF NOT EXISTS texto_inferior_cor TEXT DEFAULT '#ffffff';
+ALTER TABLE tvs ADD COLUMN IF NOT EXISTS texto_inferior_tamanho TEXT DEFAULT 'base';
+ALTER TABLE tvs ADD COLUMN IF NOT EXISTS texto_inferior_alinhamento TEXT DEFAULT 'center';
+ALTER TABLE tvs ADD COLUMN IF NOT EXISTS texto_inferior_visivel BOOLEAN DEFAULT false;

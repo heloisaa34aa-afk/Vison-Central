@@ -129,10 +129,6 @@ export default function Player() {
             }
           },
           onConfigUpdate: (config: Partial<Tv>) => {
-            // Save locally
-            import('../services/local/tvConfigs').then(({ tvConfigsService }) => {
-              tvConfigsService.saveConfig(deviceId, config);
-            });
             // Update state
             setActiveDevice(prev => prev ? { ...prev, ...config } : null);
           },

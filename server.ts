@@ -142,3 +142,18 @@ async function setupVite() {
 setupVite().catch((err) => {
   console.error("Failed to start Vite middleware server:", err);
 });
+
+// APK Android API Integration
+app.post("/api/apk/heartbeat", async (req, res) => {
+  const { deviceId, token } = req.body;
+  if (!deviceId) return res.status(400).json({ error: "Missing deviceId" });
+  
+  try {
+    // In a real scenario we'd use the Supabase admin client here
+    // or the client would update directly via Supabase SDK.
+    // For now we just acknowledge to document the API contract.
+    res.json({ success: true, timestamp: new Date().toISOString() });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});

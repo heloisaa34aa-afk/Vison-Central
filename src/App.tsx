@@ -225,6 +225,7 @@ export default function App() {
     }
 
     // 2. Additions or Updates
+    let hasPlaylistUpdates = false;
     for (const np of nextPlaylists) {
       const prev = playlists.find(p => p.id === np.id);
       if (
@@ -234,6 +235,13 @@ export default function App() {
         JSON.stringify(prev.midiasDurations) !== JSON.stringify(np.midiasDurations)
       ) {
         await storageService.savePlaylist(np);
+        hasPlaylistUpdates = true;
+        // Broadcast playlist update to all TVs using this playlist
+        import('./services/supabase/player').then(({ playerService }) => {
+          devices.filter(d => d.playlistId === np.id).forEach(d => {
+            playerService.broadcastPlaylistUpdate(d.id);
+          });
+        });
       }
     }
   };
@@ -249,11 +257,23 @@ export default function App() {
     }
 
     // 2. Additions or Updates
+    let hasMediaUpdates = false;
     for (const nm of nextMedia) {
       const prev = media.find(m => m.id === nm.id);
       if (!prev || prev.nome !== nm.nome || prev.duracao !== nm.duracao || prev.url !== nm.url) {
         await storageService.saveMidia(nm);
+        hasMediaUpdates = true;
       }
+    }
+    
+    // Broadcast playlist updates to all TVs
+    // Media changes could affect playing media if it was updated or deleted
+    if (hasMediaUpdates || deleted.length > 0) {
+      import('./services/supabase/player').then(({ playerService }) => {
+        devices.filter(d => d.playlistId).forEach(d => {
+          playerService.broadcastPlaylistUpdate(d.id);
+        });
+      });
     }
   };
 

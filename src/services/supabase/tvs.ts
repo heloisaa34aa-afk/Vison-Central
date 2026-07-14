@@ -1,13 +1,12 @@
 import { supabase } from '../../lib/supabase';
 import { Tv } from '../../types';
-import { tvConfigsService } from '../local/tvConfigs';
 
 export function mapDbToTv(db: any): Tv {
   const parts = (db.nome || '').split(' | ');
   const baseNome = parts[0] || '';
   const orientacao = (db.orientacao || 'Horizontal') as 'Horizontal' | 'Vertical';
   
-  const baseTv: Tv = {
+  return {
     id: db.id,
     clienteId: db.cliente_id || '',
     nome: baseNome,
@@ -26,10 +25,19 @@ export function mapDbToTv(db: any): Tv {
     zoom: db.zoom !== undefined ? db.zoom : 100,
     volume: db.volume !== undefined ? db.volume : 50,
     tempo_transicao: db.tempo_transicao !== undefined ? db.tempo_transicao : 3,
-    rotacao: db.rotacao !== undefined ? db.rotacao : 0
+    rotacao: db.rotacao !== undefined ? db.rotacao : 0,
+    conteudos_online: typeof db.conteudos_online === 'string' ? JSON.parse(db.conteudos_online) : (db.conteudos_online || []),
+    texto_superior: db.texto_superior || '',
+    texto_superior_cor: db.texto_superior_cor || '#ffffff',
+    texto_superior_tamanho: db.texto_superior_tamanho || 'base',
+    texto_superior_alinhamento: db.texto_superior_alinhamento || 'center',
+    texto_superior_visivel: db.texto_superior_visivel || false,
+    texto_inferior: db.texto_inferior || '',
+    texto_inferior_cor: db.texto_inferior_cor || '#ffffff',
+    texto_inferior_tamanho: db.texto_inferior_tamanho || 'base',
+    texto_inferior_alinhamento: db.texto_inferior_alinhamento || 'center',
+    texto_inferior_visivel: db.texto_inferior_visivel || false,
   };
-  
-  return tvConfigsService.mergeTvWithConfig(baseTv);
 }
 
 export function mapTvToDb(tv: Tv): any {
@@ -42,7 +50,28 @@ export function mapTvToDb(tv: Tv): any {
     uptime: tv.uptime,
     ultima_sincronizacao: tv.ultimaSincronizacao || new Date().toISOString(),
     playlist_id: tv.playlistId || null,
-    ultima_conexao: tv.ultimaConexao || new Date().toISOString()
+    ultima_conexao: tv.ultimaConexao || new Date().toISOString(),
+    orientacao: tv.orientacao,
+    modo_exibicao: tv.modo_exibicao,
+    proporcao: tv.proporcao,
+    brilho: tv.brilho,
+    contraste: tv.contraste,
+    saturacao: tv.saturacao,
+    zoom: tv.zoom,
+    volume: tv.volume,
+    tempo_transicao: tv.tempo_transicao,
+    rotacao: tv.rotacao,
+    conteudos_online: tv.conteudos_online,
+    texto_superior: tv.texto_superior,
+    texto_superior_cor: tv.texto_superior_cor,
+    texto_superior_tamanho: tv.texto_superior_tamanho,
+    texto_superior_alinhamento: tv.texto_superior_alinhamento,
+    texto_superior_visivel: tv.texto_superior_visivel,
+    texto_inferior: tv.texto_inferior,
+    texto_inferior_cor: tv.texto_inferior_cor,
+    texto_inferior_tamanho: tv.texto_inferior_tamanho,
+    texto_inferior_alinhamento: tv.texto_inferior_alinhamento,
+    texto_inferior_visivel: tv.texto_inferior_visivel,
   };
 }
 
