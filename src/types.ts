@@ -5,7 +5,7 @@ export interface Midia {
   origem?: 'storage' | 'url';
   url_storage?: string | null;
   url_externa?: string | null;
-  tipo: 'image' | 'video' | 'website' | 'instagram' | 'youtube' | 'google_maps' | 'canva' | 'pdf' | 'powerbi' | 'looker' | 'rss' | 'weather';
+  tipo: 'image' | 'video' | 'website' | 'instagram' | 'pdf';
   metadata?: any;
   duracao: number; // segundos
   tamanho?: string;

@@ -37,16 +37,9 @@ export default function LibraryManager({
   const getIconForType = (tipo: string, sizeClass = "w-4 h-4") => {
     switch (tipo) {
       case 'instagram': return <Instagram className={`${sizeClass} text-pink-500`} />;
-      case 'youtube': return <Youtube className={`${sizeClass} text-red-500`} />;
-      case 'google_maps': return <Map className={`${sizeClass} text-green-500`} />;
-      case 'canva': return <Palette className={`${sizeClass} text-blue-400`} />;
       case 'image': return <ImageIcon className={`${sizeClass} text-emerald-500 shrink-0`} />;
       case 'video': return <FileVideo className={`${sizeClass} text-blue-500 shrink-0`} />;
       case 'pdf': return <FileText className={`${sizeClass} text-red-400`} />;
-      case 'powerbi': return <BarChart className={`${sizeClass} text-yellow-500`} />;
-      case 'looker': return <PieChart className={`${sizeClass} text-blue-500`} />;
-      case 'rss': return <Rss className={`${sizeClass} text-orange-500`} />;
-      case 'weather': return <CloudSun className={`${sizeClass} text-cyan-400`} />;
       case 'website':
       default: return <Globe className={`${sizeClass} text-blue-500`} />;
     }

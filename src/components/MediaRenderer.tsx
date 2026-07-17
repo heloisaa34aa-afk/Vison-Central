@@ -1,7 +1,7 @@
 import React from 'react';
 import { Tv, Midia } from '../types';
 import { rendererRegistry } from './renderers/RendererRegistry';
-import WebsiteRenderer from './renderers/WebsiteRenderer';
+import OnlineRenderer from './renderers/OnlineRenderer';
 
 interface MediaRendererProps {
   tv: Tv;
@@ -81,12 +81,12 @@ export default function MediaRenderer({
          tipo: 'website',
          duracao: 10
        };
-       return <WebsiteRenderer media={dummyMedia} tv={tv} aspectClass={aspectClass} fitClass={fitClass} onMediaError={onMediaError} onVideoEnded={onVideoEnded} isWebPlayer={isWebPlayer} />;
+       return <OnlineRenderer media={dummyMedia} tv={tv} aspectClass={aspectClass} fitClass={fitClass} onMediaError={onMediaError} onVideoEnded={onVideoEnded} isWebPlayer={isWebPlayer} />;
     }
 
     if (!media) return null;
 
-    const Renderer = rendererRegistry[media.tipo] || WebsiteRenderer;
+    const Renderer = rendererRegistry[media.tipo] || OnlineRenderer;
     
     return <Renderer 
       media={media} 

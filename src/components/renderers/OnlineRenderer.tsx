@@ -1,10 +1,9 @@
 import React from 'react';
 import { RendererProps } from './types';
 
-export default function IframeRenderer({ media, aspectClass }: RendererProps) {
+export default function OnlineRenderer({ media, aspectClass }: RendererProps) {
   let url = media.url;
   
-  // Try to parse metadata if it exists and is a JSON string
   try {
     if (media.metadata?.url) {
       url = media.metadata.url;
@@ -13,6 +12,13 @@ export default function IframeRenderer({ media, aspectClass }: RendererProps) {
       if (parsed.url) url = parsed.url;
     }
   } catch (e) {}
+
+  if (media.tipo === 'instagram') {
+    const match = url.match(/\/p\/([^\/?#&]+)/) || url.match(/\/reel\/([^\/?#&]+)/) || url.match(/\/reels\/([^\/?#&]+)/) || url.match(/\/stories\/[^\/]+\/([^\/?#&]+)/);
+    if (match && match[1]) {
+      url = `https://www.instagram.com/p/${match[1]}/embed/captioned`;
+    }
+  }
 
   return (
     <iframe 

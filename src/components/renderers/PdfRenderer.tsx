@@ -1,7 +1,7 @@
 import React from 'react';
-import IframeRenderer from './IframeRenderer';
 import { RendererProps } from './types';
+import OnlineRenderer from './OnlineRenderer';
 
 export default function PdfRenderer(props: RendererProps) {
-  return <IframeRenderer {...props} />;
+  return <OnlineRenderer {...props} />;
 }

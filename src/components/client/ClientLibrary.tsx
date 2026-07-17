@@ -1,6 +1,6 @@
 import React, { useState, useRef } from 'react';
 import { Cliente, Midia } from '../../types';
-import { UploadCloud, File, Image as ImageIcon, Video, Trash2, Edit2, Check , X, Link, Globe, Instagram, Youtube, Map, Palette, Plus} from 'lucide-react';
+import { UploadCloud, File, Image as ImageIcon, Video, Trash2, Edit2, Check , X, Link, Globe, Instagram, Youtube, Map, Palette, Plus, FileText} from 'lucide-react';
 import AddMediaModal from '../AddMediaModal';
 import { storageServiceSupabase } from '../../services/supabase/storage';
 import { storageService } from '../../lib/storage';
@@ -189,9 +189,7 @@ const processFiles = async (files: FileList | null) => {
   const getIconForType = (tipo: string) => {
     switch (tipo) {
       case 'instagram': return <Instagram className="w-8 h-8 text-pink-500" />;
-      case 'youtube': return <Youtube className="w-8 h-8 text-red-500" />;
-      case 'google_maps': return <Map className="w-8 h-8 text-green-500" />;
-      case 'canva': return <Palette className="w-8 h-8 text-blue-400" />;
+      case 'pdf': return <FileText className="w-8 h-8 text-rose-500" />;
       case 'website':
       default: return <Globe className="w-8 h-8 text-blue-500" />;
     }
@@ -344,6 +342,12 @@ const renderMediaGrid = (items: Midia[], icon: React.ReactNode, title: string) =
         {renderMediaGrid(videoMedia, <Video className="w-4 h-4 text-purple-400" />, 'Vídeos')}
         {renderMediaGrid(onlineMedia, <Globe className="w-4 h-4 text-blue-400" />, 'Conteúdos Online')}
       </div>
+      {showAddMediaModal && (
+        <AddMediaModal 
+          onClose={() => setShowAddMediaModal(false)}
+          onSave={handleSaveModal}
+        />
+      )}
     </div>
   );
 }
