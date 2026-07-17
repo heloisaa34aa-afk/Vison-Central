@@ -37,7 +37,7 @@ export default function MediaRenderer({
   const isRotated = rotacao === 90 || rotacao === 270;
 
   let fitClass = 'object-contain';
-  let aspectClass = '';
+  let aspectStyle: React.CSSProperties = {};
   
   if (proporcao === 'cover') {
     fitClass = 'object-cover';
@@ -45,12 +45,20 @@ export default function MediaRenderer({
     fitClass = 'object-contain';
   } else if (proporcao === '16:9') {
     fitClass = 'object-contain';
-    aspectClass = 'aspect-video';
+    aspectStyle = { aspectRatio: '16/9' };
   } else if (proporcao === '4:3') {
     fitClass = 'object-contain';
-    aspectClass = 'aspect-[4/3]';
+    aspectStyle = { aspectRatio: '4/3' };
   } else if (proporcao === 'fill' || proporcao === 'stretch') {
     fitClass = 'object-fill';
+  }
+
+  // Fallback aspect ratio from resolution if none specified
+  if (!aspectStyle.aspectRatio && tv.resolucao && tv.resolucao.includes('x')) {
+    const [w, h] = tv.resolucao.split('x').map(Number);
+    if (!isNaN(w) && !isNaN(h) && w > 0 && h > 0) {
+      aspectStyle = { aspectRatio: `${w}/${h}` };
+    }
   }
 
   // To simulate Android rotation perfectly:
@@ -70,8 +78,11 @@ export default function MediaRenderer({
 
   const mediaStyle: React.CSSProperties = {
     filter: `brightness(${brilho}%) contrast(${contraste}%) saturate(${saturacao}%)`,
-    width: '100%',
-    height: '100%',
+    width: aspectStyle.aspectRatio ? 'auto' : '100%',
+    height: aspectStyle.aspectRatio ? 'auto' : '100%',
+    maxWidth: '100%',
+    maxHeight: '100%',
+    ...aspectStyle
   };
 
   // If we are in the web fullscreen player and the OS didn't rotate the screen,
@@ -101,7 +112,7 @@ export default function MediaRenderer({
         <div className={wrapperClass} style={mediaStyle}>
            <iframe 
             src={embedUrl} 
-            className={`w-full h-full border-none bg-white ${aspectClass}`} 
+            className="w-full h-full border-none bg-white" 
             title={onlineContent.nome} 
           />
         </div>
@@ -122,7 +133,7 @@ export default function MediaRenderer({
                   src={media.url} 
                   alt={media.nome} 
                   onError={onMediaError}
-                  className={`w-full h-full bg-black animate-fade-in ${fitClass} ${aspectClass}`}
+                  className={`w-full h-full bg-black animate-fade-in ${fitClass}`}
                   referrerPolicy="no-referrer"
                 />
               );
@@ -138,7 +149,7 @@ export default function MediaRenderer({
                   onEnded={onVideoEnded}
                   onError={onMediaError}
                   playsInline
-                  className={`w-full h-full bg-black animate-fade-in ${fitClass} ${aspectClass}`}
+                  className={`w-full h-full bg-black animate-fade-in ${fitClass}`}
                 />
               );
             }
@@ -164,7 +175,7 @@ export default function MediaRenderer({
             return (
               <iframe 
                 src={embedUrl} 
-                className={`w-full h-full border-none bg-white animate-fade-in ${aspectClass}`} 
+                className="w-full h-full border-none bg-white animate-fade-in" 
                 title={media.nome}
               />
             );

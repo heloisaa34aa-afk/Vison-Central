@@ -39,6 +39,7 @@ export interface Tv {
   volume?: number;
   tempo_transicao?: number;
   rotacao?: number;
+  resolucao?: string;
 
   // Novos recursos
   conteudos_online?: { id: string, nome: string, url: string, active: boolean }[];

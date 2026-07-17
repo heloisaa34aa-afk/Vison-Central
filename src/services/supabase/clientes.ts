@@ -213,16 +213,6 @@ export const clientesService = {
         }
       }
 
-      // 12. Deletar as configurações deste cliente
-      try {
-        await supabase
-          .from('configuracoes')
-          .delete()
-          .eq('cliente_id', id);
-      } catch (e) {
-        console.warn('Aviso ao deletar configurações do cliente:', e);
-      }
-
       // 13. Finalmente, deletar o cliente do banco de dados
       const { error } = await supabase.from('clientes').delete().eq('id', id);
       if (error) {

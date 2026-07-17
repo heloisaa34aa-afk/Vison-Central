@@ -15,6 +15,8 @@ export default function Player() {
   const containerRef = useRef<HTMLDivElement>(null);
   const playlistIdRef = useRef<string | undefined>(undefined);
   playlistIdRef.current = activeDevice?.playlistId;
+  const activeDeviceRef = useRef<Tv | null>(null);
+  activeDeviceRef.current = activeDevice;
 
   const handleStart = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -64,6 +66,55 @@ export default function Player() {
     }
   };
 
+  // Top level helper to calculate the next media index based on playback mode (Shuffle, Sequential, Autoplay)
+  const getNextIndex = (current: number, length: number, mode: string): number => {
+    if (length <= 1) return 0;
+    if (mode === 'Shuffle') {
+      let nextIdx = current;
+      while (nextIdx === current) {
+        nextIdx = Math.floor(Math.random() * length);
+      }
+      return nextIdx;
+    }
+    return (current + 1) % length;
+  };
+
+  // Top level helper to compare and detect configuration changes
+  const areTvsDifferent = (prev: Tv | null, next: Tv | null): boolean => {
+    if (!prev && !next) return false;
+    if (!prev || !next) return true;
+    return (
+      prev.clienteId !== next.clienteId ||
+      prev.nome !== next.nome ||
+      prev.status !== next.status ||
+      prev.uptime !== next.uptime ||
+      prev.token !== next.token ||
+      prev.playlistId !== next.playlistId ||
+      prev.orientacao !== next.orientacao ||
+      prev.modo_exibicao !== next.modo_exibicao ||
+      prev.proporcao !== next.proporcao ||
+      prev.brilho !== next.brilho ||
+      prev.contraste !== next.contraste ||
+      prev.saturacao !== next.saturacao ||
+      prev.zoom !== next.zoom ||
+      prev.volume !== next.volume ||
+      prev.tempo_transicao !== next.tempo_transicao ||
+      prev.rotacao !== next.rotacao ||
+      prev.resolucao !== next.resolucao ||
+      JSON.stringify(prev.conteudos_online) !== JSON.stringify(next.conteudos_online) ||
+      prev.texto_superior !== next.texto_superior ||
+      prev.texto_superior_cor !== next.texto_superior_cor ||
+      prev.texto_superior_tamanho !== next.texto_superior_tamanho ||
+      prev.texto_superior_alinhamento !== next.texto_superior_alinhamento ||
+      prev.texto_superior_visivel !== next.texto_superior_visivel ||
+      prev.texto_inferior !== next.texto_inferior ||
+      prev.texto_inferior_cor !== next.texto_inferior_cor ||
+      prev.texto_inferior_tamanho !== next.texto_inferior_tamanho ||
+      prev.texto_inferior_alinhamento !== next.texto_inferior_alinhamento ||
+      prev.texto_inferior_visivel !== next.texto_inferior_visivel
+    );
+  };
+
   // Keep player media looping
   useEffect(() => {
     if (step === 'playing' && playlistMedia.length > 0) {
@@ -74,19 +125,68 @@ export default function Player() {
       if (currentMedia && currentMedia.tipo !== 'video') {
         const duration = (activeDevice?.tempo_transicao !== undefined ? activeDevice.tempo_transicao : currentMedia.duracao) * 1000;
         timer = setTimeout(() => {
-          setCurrentIndex((prev) => (prev + 1) % playlistMedia.length);
+          const mode = activeDevice?.modo_exibicao || 'Autoplay';
+          setCurrentIndex((prev) => getNextIndex(prev, playlistMedia.length, mode));
         }, duration);
       }
 
       return () => clearTimeout(timer);
     }
-  }, [step, currentIndex, playlistMedia, activeDevice?.tempo_transicao]);
+  }, [step, currentIndex, playlistMedia, activeDevice?.tempo_transicao, activeDevice?.modo_exibicao]);
 
   // Handle Realtime synchronization & Status monitoring (Online / Offline)
   useEffect(() => {
     if (step === 'playing' && activeDevice) {
       const deviceId = activeDevice.id;
       const deviceToken = activeDevice.token;
+
+      // Single entry-point helper to compare and sync TV Settings (DeviceConfig)
+      const syncTvSettings = (newTv: Tv) => {
+        setActiveDevice(prev => {
+          if (areTvsDifferent(prev, newTv)) {
+            console.log("[PLAYER] Configurações da TV atualizadas.");
+            return newTv;
+          }
+          return prev;
+        });
+      };
+
+      // Single entry-point helper to compare and sync Playlist
+      const syncPlaylist = (newMidias: Midia[]) => {
+        setPlaylistMedia(prev => {
+          const changed = JSON.stringify(prev) !== JSON.stringify(newMidias);
+          if (changed) {
+            console.log("[PLAYER] Playlist de mídias atualizada.");
+            setCurrentIndex(curr => curr >= newMidias.length ? 0 : curr);
+            return newMidias;
+          }
+          return prev;
+        });
+      };
+
+      // Comprehensive full state sync helper, called once per cycle or event
+      const syncFullPlayerState = async () => {
+        try {
+          const data = await playerService.getPlayerConfigById(deviceId);
+          
+          if (tokensService.normalizeToken(data.tv.token) !== tokensService.normalizeToken(deviceToken)) {
+            setError('O token deste dispositivo foi alterado ou renovado. Conecte-se novamente.');
+            setStep('input');
+            setActiveDevice(null);
+            return;
+          }
+
+          syncTvSettings(data.tv);
+          syncPlaylist(data.midias);
+        } catch (err: any) {
+          console.error('Falha na sincronização completa do Player:', err);
+          if (err.message && (err.message.includes('não encontrado') || err.message.includes('Token inválido'))) {
+            setError('Este dispositivo foi removido do painel.');
+            setStep('input');
+            setActiveDevice(null);
+          }
+        }
+      };
 
       // 1. Subscribe to updates on Supabase Realtime
       const unsubscribe = playerService.subscribeToUpdates(
@@ -96,8 +196,6 @@ export default function Player() {
           onTvUpdate: async (newTvData?: any) => {
             try {
               if (newTvData) {
-                // If it's a heartbeat, it won't have token changes.
-                // But just in case, verify token
                 if (newTvData.token && tokensService.normalizeToken(newTvData.token) !== tokensService.normalizeToken(deviceToken)) {
                   setError('O token deste dispositivo foi alterado ou renovado. Conecte-se novamente.');
                   setStep('input');
@@ -105,108 +203,48 @@ export default function Player() {
                   return;
                 }
                 
-                // Convert to Tv object
-                import('../services/supabase/tvs').then(({ mapDbToTv }) => {
-                   const tvMapped = mapDbToTv(newTvData);
-                   setActiveDevice(tvMapped);
-                });
-              } else {
-                const data = await playerService.getPlayerConfigById(deviceId);
-                if (tokensService.normalizeToken(data.tv.token) !== tokensService.normalizeToken(deviceToken)) {
-                  setError('O token deste dispositivo foi alterado ou renovado. Conecte-se novamente.');
-                  setStep('input');
-                  setActiveDevice(null);
-                  return;
+                const { mapDbToTv } = await import('../services/supabase/tvs');
+                const tvMapped = mapDbToTv(newTvData);
+                
+                // Avoid redundant sync if this was just a heartbeat update
+                if (areTvsDifferent(activeDeviceRef.current, tvMapped)) {
+                  syncTvSettings(tvMapped);
                 }
-                setActiveDevice(data.tv);
+              } else {
+                await syncFullPlayerState();
               }
             } catch (e: any) {
-              console.error('Realtime update failed (TV):', e);
-              if (e.message && (e.message.includes('não encontrado') || e.message.includes('Token inválido'))) {
-                setError('Este dispositivo foi removido do painel.');
-                setStep('input');
-                setActiveDevice(null);
-              }
+              console.error('Falha no Realtime update (TV):', e);
             }
           },
           onConfigUpdate: (config: Partial<Tv>) => {
-            // Update state
-            setActiveDevice(prev => prev ? { ...prev, ...config } : null);
+            setActiveDevice(prev => {
+              if (!prev) return null;
+              const merged = { ...prev, ...config };
+              if (areTvsDifferent(prev, merged)) {
+                console.log("[PLAYER] Configurações via Broadcast recebidas.");
+                return merged;
+              }
+              return prev;
+            });
           },
           onPlaylistUpdate: async () => {
-            try {
-              const data = await playerService.getPlayerConfigById(deviceId);
-              if (data.midias && data.midias.length > 0) {
-                setPlaylistMedia(prev => {
-                  const changed = JSON.stringify(prev) !== JSON.stringify(data.midias);
-                  if (changed) {
-                    setCurrentIndex(curr => curr >= data.midias.length ? 0 : curr);
-                    return data.midias;
-                  }
-                  return prev;
-                });
-              } else {
-                setPlaylistMedia([]);
-              }
-            } catch (e: any) {
-              console.error('Realtime update failed (Playlist):', e);
-            }
+            await syncFullPlayerState();
           }
         }
       );
 
       // Ensure the device is marked Online immediately when the effect is mounted
       playerService.updateTvStatus(deviceId, 'Online').catch(err => {
-        console.error('Error marking online on start:', err);
+        console.error('Erro ao marcar online na inicialização:', err);
       });
 
-      // Sincronização automática e Heartbeat a cada 10 segundos
+      // Periodic check-in / heartbeat every 10 seconds (ONLY updates Online status, avoids heavy duplicate fetch)
       const heartbeatInterval = setInterval(async () => {
         try {
-          // 1. Enviar heartbeat para manter status Online
           await playerService.sendHeartbeat(deviceId);
-          
-          // 2. Buscar configurações atualizadas do Supabase
-          const data = await playerService.getPlayerConfigById(deviceId);
-          
-          // 3. Verificar validade do token
-          if (tokensService.normalizeToken(data.tv.token) !== tokensService.normalizeToken(deviceToken)) {
-            setError('O token deste dispositivo foi alterado ou renovado. Conecte-se novamente.');
-            setStep('input');
-            setActiveDevice(null);
-            return;
-          }
-
-          // 4. Atualizar TV Config se houve mudança
-          setActiveDevice(prev => {
-            if (!prev) return data.tv;
-            if (JSON.stringify(prev) !== JSON.stringify(data.tv)) {
-              return data.tv;
-            }
-            return prev;
-          });
-
-          // 5. Atualizar Mídias da Playlist se houve mudança
-          if (data.midias) {
-            setPlaylistMedia(prev => {
-              const changed = JSON.stringify(prev) !== JSON.stringify(data.midias);
-              if (changed) {
-                setCurrentIndex(curr => curr >= data.midias.length ? 0 : curr);
-                return data.midias;
-              }
-              return prev;
-            });
-          } else {
-            setPlaylistMedia([]);
-          }
-
         } catch (err: any) {
-          console.error('Falha na sincronização periódica/heartbeat:', err);
-          if (err.message && (err.message.includes('não encontrado') || err.message.includes('Token inválido'))) {
-            setError('Este dispositivo foi removido do painel.');
-            setStep('input');
-            setActiveDevice(null);
-          }
+          console.error('Falha no heartbeat periódico:', err);
         }
       }, 10000);
 
@@ -229,7 +267,8 @@ export default function Player() {
   }, [step, activeDevice?.id, activeDevice?.token]);
 
   const handleVideoEnded = () => {
-    setCurrentIndex((prev) => (prev + 1) % playlistMedia.length);
+    const mode = activeDevice?.modo_exibicao || 'Autoplay';
+    setCurrentIndex((prev) => getNextIndex(prev, playlistMedia.length, mode));
   };
 
   if (step === 'input' || step === 'validating' || step === 'downloading') {

@@ -111,9 +111,6 @@ export default function App() {
       .on('postgres_changes', { event: '*', schema: 'public', table: 'playlist_midias' }, () => {
         loadData();
       })
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'configuracoes' }, () => {
-        loadData();
-      })
       .subscribe((status) => {
         if (status === 'SUBSCRIBED') {
           console.log('Realtime conectado.');

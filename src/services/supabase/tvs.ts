@@ -33,6 +33,7 @@ export function mapDbToTv(db: any): Tv {
     volume: db.volume !== undefined ? db.volume : 50,
     tempo_transicao: db.tempo_transicao !== undefined ? db.tempo_transicao : 3,
     rotacao: db.rotacao !== undefined ? Number(db.rotacao) : 0,
+    resolucao: db.resolucao || '1920x1080',
     conteudos_online: typeof db.conteudos_online === 'string' ? JSON.parse(db.conteudos_online) : (db.conteudos_online || []),
     texto_superior: db.texto_superior || '',
     texto_superior_cor: db.texto_superior_cor || '#ffffff',
@@ -68,6 +69,7 @@ export function mapTvToDb(tv: Tv): any {
     volume: tv.volume,
     tempo_transicao: tv.tempo_transicao,
     rotacao: tv.rotacao !== undefined ? String(tv.rotacao) : '0',
+    resolucao: tv.resolucao || '1920x1080',
   };
 }
 
