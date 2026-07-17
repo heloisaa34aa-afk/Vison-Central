@@ -14,7 +14,7 @@ import {
   Square, 
   CheckSquare, 
   Clock 
-} from 'lucide-react';
+, Globe, Instagram, Youtube, Map, Palette, FileVideo} from 'lucide-react';
 
 interface ClientPlaylistsProps {
   client: Cliente;
@@ -33,7 +33,20 @@ export default function ClientPlaylists({ client, playlists, media, onUpdatePlay
   const clientMedia = media.filter(m => m.clienteId === client.id);
   const clientPlaylists = playlists.filter(p => p.clienteId === client.id);
 
-  const handleCreatePlaylist = () => {
+  
+  const getIconForType = (tipo: string, sizeClass = "w-4 h-4") => {
+    switch (tipo) {
+      case 'instagram': return <Instagram className={`${sizeClass} text-pink-500`} />;
+      case 'youtube': return <Youtube className={`${sizeClass} text-red-500`} />;
+      case 'google_maps': return <Map className={`${sizeClass} text-green-500`} />;
+      case 'canva': return <Palette className={`${sizeClass} text-blue-400`} />;
+      case 'image': return <ImageIcon className={`${sizeClass} text-emerald-500 shrink-0`} />;
+      case 'video': return <FileVideo className={`${sizeClass} text-blue-500 shrink-0`} />;
+      case 'website':
+      default: return <Globe className={`${sizeClass} text-blue-500`} />;
+    }
+  };
+const handleCreatePlaylist = () => {
     const newPlaylist: Playlist = {
       id: `p-${Date.now()}`,
       nome: `Nova Playlist ${clientPlaylists.length + 1}`,
@@ -385,8 +398,12 @@ export default function ClientPlaylists({ client, playlists, media, onUpdatePlay
                       <div className="w-12 h-12 bg-black rounded-lg flex-shrink-0 overflow-hidden relative border border-white/10">
                          {m.tipo === 'image' ? (
                             <img src={m.url} alt={m.nome} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
-                          ) : (
+                          ) : m.tipo === 'video' ? (
                             <video src={m.url} className="w-full h-full object-cover" />
+                          ) : (
+                            <div className="w-full h-full flex flex-col items-center justify-center bg-black/40">
+                              {getIconForType(m.tipo, "w-4 h-4")}
+                            </div>
                           )}
                       </div>
                       
@@ -485,8 +502,12 @@ export default function ClientPlaylists({ client, playlists, media, onUpdatePlay
                          <div className="absolute inset-0 opacity-70 group-hover:opacity-85 transition-opacity">
                            {m.tipo === 'image' ? (
                               <img src={m.url} alt={m.nome} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
-                            ) : (
+                            ) : m.tipo === 'video' ? (
                               <video src={m.url} className="w-full h-full object-cover" />
+                            ) : (
+                              <div className="w-full h-full flex items-center justify-center bg-black/40">
+                                {getIconForType(m.tipo, "w-6 h-6")}
+                              </div>
                             )}
                          </div>
                          <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent"></div>

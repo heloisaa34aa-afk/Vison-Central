@@ -10,7 +10,7 @@ import {
   Check, 
   FolderPlus,
   X
-} from 'lucide-react';
+, Globe, Instagram, Youtube, Map, Palette} from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
 interface LibraryManagerProps {
@@ -52,7 +52,20 @@ export default function LibraryManager({
     m.nome.toLowerCase().includes(mediaSearch.toLowerCase())
   );
 
-  const handleCreateMedia = (e: React.FormEvent) => {
+  
+  const getIconForType = (tipo: string) => {
+    switch (tipo) {
+      case 'instagram': return <Instagram className="w-5 h-5 text-pink-500" />;
+      case 'youtube': return <Youtube className="w-5 h-5 text-red-500" />;
+      case 'google_maps': return <Map className="w-5 h-5 text-green-500" />;
+      case 'canva': return <Palette className="w-5 h-5 text-blue-400" />;
+      case 'image': return <ImageIcon className="w-5 h-5 text-emerald-500 shrink-0" />;
+      case 'video': return <FileVideo className="w-5 h-5 text-blue-500 shrink-0" />;
+      case 'website':
+      default: return <Globe className="w-5 h-5 text-blue-500" />;
+    }
+  };
+const handleCreateMedia = (e: React.FormEvent) => {
     e.preventDefault();
     if (!mediaName.trim() || !mediaUrl.trim()) return;
 
@@ -258,12 +271,17 @@ export default function LibraryManager({
                       className="w-full h-full object-cover opacity-85 group-hover:opacity-100 transition-opacity" 
                       referrerPolicy="no-referrer"
                     />
-                  ) : (
+                  ) : m.tipo === 'video' ? (
                     <video 
                       src={m.url} 
                       className="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-opacity" 
                       muted 
                     />
+                  ) : (
+                    <div className="w-full h-full flex flex-col items-center justify-center bg-[#050508] gap-1 opacity-80 group-hover:opacity-100 transition-opacity">
+                      {getIconForType(m.tipo)}
+                      <span className="text-[10px] font-bold text-slate-400 uppercase">{m.tipo}</span>
+                    </div>
                   )}
                   {m.tipo === 'video' && (
                     <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
@@ -365,7 +383,9 @@ export default function LibraryManager({
                               {m.tipo === 'image' ? (
                                 <img src={m.url} alt={m.nome} className="w-full h-full object-cover" />
                               ) : (
-                                <FileVideo className="w-4 h-4 text-slate-500" />
+                                <div className="flex items-center justify-center w-full h-full">
+                                  {getIconForType(m.tipo)}
+                                </div>
                               )}
                             </div>
                             <span className="text-[10px] font-semibold truncate text-slate-300 flex-1">{m.nome}</span>
@@ -453,7 +473,7 @@ export default function LibraryManager({
                             <div key={`${m.id}-${idx}`} className="flex items-center justify-between text-xs text-slate-300 gap-4">
                               <div className="flex items-center gap-1.5 truncate">
                                 <span className="text-[10px] font-bold text-blue-400 w-3 font-mono">{idx + 1}.</span>
-                                {m.tipo === 'video' ? <FileVideo className="w-3.5 h-3.5 text-blue-500 shrink-0" /> : <ImageIcon className="w-3.5 h-3.5 text-emerald-500 shrink-0" />}
+                                {getIconForType(m.tipo)}
                                 <span className="truncate max-w-[150px]" title={m.nome}>{m.nome}</span>
                               </div>
                               <span className="font-mono text-[10px] text-slate-500 shrink-0">{m.duracao}s</span>

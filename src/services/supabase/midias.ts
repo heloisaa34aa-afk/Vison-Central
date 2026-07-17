@@ -6,7 +6,10 @@ export function mapDbToMidia(db: any): Midia {
   return {
     id: db.id,
     nome: db.nome || '',
-    url: db.url_storage || '',
+    url: db.origem === 'url' ? (db.url_externa || '') : (db.url_storage || ''),
+    origem: db.origem || 'storage',
+    url_storage: db.url_storage || null,
+    url_externa: db.url_externa || null,
     tipo: (db.tipo || 'image') as any,
     duracao: db.duracao !== undefined ? Number(db.duracao) : 10,
     tamanho: db.tamanho || undefined,
@@ -19,7 +22,9 @@ export function mapMidiaToDb(midia: Midia): any {
     id: midia.id,
     nome: midia.nome,
     tipo: midia.tipo,
-    url_storage: midia.url,
+    origem: midia.origem || 'storage',
+    url_storage: midia.origem === 'url' ? null : (midia.url_storage || midia.url),
+    url_externa: midia.origem === 'url' ? (midia.url_externa || midia.url) : null,
     duracao: midia.duracao,
     tamanho: midia.tamanho || null,
     cliente_id: midia.clienteId || null

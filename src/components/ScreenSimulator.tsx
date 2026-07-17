@@ -183,7 +183,7 @@ export default function ScreenSimulator({
 
   // Calculate remaining time for current media item
   const totalDuration = currentMedia 
-    ? (currentMedia.tipo === 'image' && tvTempoTransicao ? tvTempoTransicao : currentMedia.duracao)
+    ? (currentMedia.tipo !== 'video' && tvTempoTransicao ? tvTempoTransicao : currentMedia.duracao)
     : 10;
   const timeRemaining = Math.max(0, Math.round(totalDuration * (1 - progress / 100)));
 
@@ -195,7 +195,7 @@ export default function ScreenSimulator({
     }
 
     const currentDuration = currentMedia 
-      ? (currentMedia.tipo === 'image' && tvTempoTransicao ? tvTempoTransicao * 1000 : currentMedia.duracao * 1000)
+      ? (currentMedia.tipo !== 'video' && tvTempoTransicao ? tvTempoTransicao * 1000 : currentMedia.duracao * 1000)
       : 10000;
     const intervalTime = 100; // update progress every 100ms
     let elapsed = 0;

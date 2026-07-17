@@ -2,7 +2,10 @@ export interface Midia {
   id: string;
   nome: string;
   url: string;
-  tipo: 'image' | 'video';
+  origem?: 'storage' | 'url';
+  url_storage?: string | null;
+  url_externa?: string | null;
+  tipo: 'image' | 'video' | 'website' | 'instagram' | 'youtube' | 'google_maps' | 'canva';
   duracao: number; // segundos
   tamanho?: string;
   clienteId?: string;

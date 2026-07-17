@@ -71,7 +71,7 @@ export default function Player() {
       
       let timer: NodeJS.Timeout;
       
-      if (currentMedia && currentMedia.tipo === 'image') {
+      if (currentMedia && currentMedia.tipo !== 'video') {
         const duration = (activeDevice?.tempo_transicao !== undefined ? activeDevice.tempo_transicao : currentMedia.duracao) * 1000;
         timer = setTimeout(() => {
           setCurrentIndex((prev) => (prev + 1) % playlistMedia.length);
