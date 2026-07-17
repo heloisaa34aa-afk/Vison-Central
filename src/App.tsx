@@ -56,6 +56,9 @@ export default function App() {
       try {
         const loadedClients = await storageService.getClientes();
         const loadedDevices = await storageService.getTvs();
+        
+        console.log("[INITIAL LOAD]", loadedDevices);
+        
         const loadedPlaylists = await storageService.getPlaylists();
         const loadedMedia = await storageService.getMidias();
 
@@ -97,8 +100,6 @@ export default function App() {
           setDevices(prev => [...prev, newTv]);
         } else if (payload.eventType === 'DELETE' && payload.old) {
           setDevices(prev => prev.filter(tv => tv.id !== payload.old.id));
-        } else {
-          loadData();
         }
       })
       .on('postgres_changes', { event: '*', schema: 'public', table: 'playlists' }, () => {
@@ -113,7 +114,11 @@ export default function App() {
       .on('postgres_changes', { event: '*', schema: 'public', table: 'configuracoes' }, () => {
         loadData();
       })
-      .subscribe();
+      .subscribe((status) => {
+        if (status === 'SUBSCRIBED') {
+          console.log('Realtime conectado.');
+        }
+      });
 
     return () => {
       supabase.removeChannel(channel);

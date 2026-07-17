@@ -6,6 +6,13 @@ export function mapDbToTv(db: any): Tv {
   const baseNome = parts[0] || '';
   const orientacao = (db.orientacao || 'horizontal') as 'horizontal' | 'vertical';
   
+  console.log(
+    "[TV REALTIME]",
+    db.id,
+    db.status,
+    db.ultima_conexao
+  );
+
   return {
     id: db.id,
     clienteId: db.cliente_id || '',
@@ -67,17 +74,30 @@ export function mapTvToDb(tv: Tv): any {
 export const tvsService = {
   async getTvs(): Promise<Tv[]> {
     try {
-      const { data, error } = await supabase.from('tvs').select('*');
-      if (error) {
-        console.warn('Erro ao buscar TVs:', error);
-        return [];
-      }
-      return data ? data.map(mapDbToTv) : [];
-    } catch (e) {
-      console.error(e);
+    const { data, error } = await supabase
+      .from('tvs')
+      .select('*');
+
+    console.log("========== TVS ==========");
+    console.log(data);
+
+    if (error) {
+      console.warn("Erro ao buscar TVs:", error);
       return [];
     }
-  },
+
+    const tvs = data ? data.map(mapDbToTv) : [];
+
+    console.log("========== TVS MAPEADAS ==========");
+    console.log(tvs);
+
+    return tvs;
+
+  } catch (e) {
+    console.error("Erro em getTvs:", e);
+    return [];
+  }
+},
 
   async saveTv(tv: Tv): Promise<boolean> {
     try {

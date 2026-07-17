@@ -1,21 +1,36 @@
 import { Tv } from '../types';
 
 /**
- * Determines if a TV/Device is currently online.
- * A TV is considered Online if and only if:
- * 1. Its status in the database is explicitly 'Online'
- * 2. Its last heartbeat (ultimaConexao) was received within the last 30 seconds.
+ * Uma TV é considerada Online somente quando:
+ * 1. status === 'Online'
+ * 2. ultimaConexao foi atualizada há menos de 30 segundos.
  */
 export function isTvOnline(tv: Tv): boolean {
-  if (!tv.ultimaConexao) return false;
-  
+  if (!tv) return false;
+
+  // Primeiro verifica o status vindo do Supabase
+  if (tv.status !== 'Online') {
+    return false;
+  }
+
+  // Depois verifica se existe data
+  if (!tv.ultimaConexao) {
+    return false;
+  }
+
   try {
-    const lastConn = new Date(tv.ultimaConexao);
-    const now = new Date();
-    const diffSeconds = (now.getTime() - lastConn.getTime()) / 1000;
-    return diffSeconds <= 30;
-  } catch (err) {
-    console.error('Error parsing ultimaConexao date:', err);
+    const ultima = new Date(tv.ultimaConexao).getTime();
+
+    if (isNaN(ultima)) {
+      return false;
+    }
+
+    const agora = Date.now();
+    const diff = (agora - ultima) / 1000;
+
+    return diff <= 30;
+  } catch (e) {
+    console.error('Erro ao verificar status da TV:', e);
     return false;
   }
 }
