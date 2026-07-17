@@ -1,4 +1,6 @@
-import React from 'react';
+const fs = require('fs');
+
+let code = `import React from 'react';
 import { Tv, Midia } from '../types';
 import { rendererRegistry } from './renderers/RendererRegistry';
 import WebsiteRenderer from './renderers/WebsiteRenderer';
@@ -56,12 +58,12 @@ export default function MediaRenderer({
     position: 'absolute',
     top: '50%',
     left: '50%',
-    transform: `translate(-50%, -50%) rotate(${rotacao}deg) scale(${zoom / 100})`,
+    transform: \`translate(-50%, -50%) rotate(\${rotacao}deg) scale(\${zoom / 100})\`,
     transition: 'transform 0.3s ease',
   };
 
   const mediaStyle: React.CSSProperties = {
-    filter: `brightness(${brilho}%) contrast(${contraste}%) saturate(${saturacao}%)`,
+    filter: \`brightness(\${brilho}%) contrast(\${contraste}%) saturate(\${saturacao}%)\`,
     width: '100%',
     height: '100%',
   };
@@ -69,7 +71,7 @@ export default function MediaRenderer({
   let wrapperClass = "w-full h-full flex items-center justify-center";
   if (isWebPlayer && isVertical) {
     const verticalMaxWidth = isRotated ? 'max-w-[100vw]' : 'max-w-[100vh]';
-    wrapperClass = `${wrapperClass} ${verticalMaxWidth} aspect-[9/16]`;
+    wrapperClass = \`\${wrapperClass} \${verticalMaxWidth} aspect-[9/16]\`;
   }
 
   const renderContent = () => {
@@ -107,3 +109,6 @@ export default function MediaRenderer({
     </div>
   );
 }
+`;
+
+fs.writeFileSync('src/components/MediaRenderer.tsx', code);

@@ -14,7 +14,7 @@ import {
   Square, 
   CheckSquare, 
   Clock 
-, Globe, Instagram, Youtube, Map, Palette, FileVideo} from 'lucide-react';
+, Globe, Instagram, Youtube, Map, Palette, FileVideo, FileText, BarChart, PieChart, Rss, CloudSun} from 'lucide-react';
 
 interface ClientPlaylistsProps {
   client: Cliente;
@@ -42,6 +42,11 @@ export default function ClientPlaylists({ client, playlists, media, onUpdatePlay
       case 'canva': return <Palette className={`${sizeClass} text-blue-400`} />;
       case 'image': return <ImageIcon className={`${sizeClass} text-emerald-500 shrink-0`} />;
       case 'video': return <FileVideo className={`${sizeClass} text-blue-500 shrink-0`} />;
+      case 'pdf': return <FileText className={`${sizeClass} text-red-400`} />;
+      case 'powerbi': return <BarChart className={`${sizeClass} text-yellow-500`} />;
+      case 'looker': return <PieChart className={`${sizeClass} text-blue-500`} />;
+      case 'rss': return <Rss className={`${sizeClass} text-orange-500`} />;
+      case 'weather': return <CloudSun className={`${sizeClass} text-cyan-400`} />;
       case 'website':
       default: return <Globe className={`${sizeClass} text-blue-500`} />;
     }

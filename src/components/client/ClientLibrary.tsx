@@ -1,6 +1,7 @@
 import React, { useState, useRef } from 'react';
 import { Cliente, Midia } from '../../types';
-import { UploadCloud, File, Image as ImageIcon, Video, Trash2, Edit2, Check , X, Link, Globe, Instagram, Youtube, Map, Palette} from 'lucide-react';
+import { UploadCloud, File, Image as ImageIcon, Video, Trash2, Edit2, Check , X, Link, Globe, Instagram, Youtube, Map, Palette, Plus} from 'lucide-react';
+import AddMediaModal from '../AddMediaModal';
 import { storageServiceSupabase } from '../../services/supabase/storage';
 import { storageService } from '../../lib/storage';
 
@@ -30,11 +31,11 @@ const getVideoDuration = (file: File): Promise<number> => {
 
 export default function ClientLibrary({ client, media, onUpdateMedia, showToast }: ClientLibraryProps) {
   
-  const [showAddLink, setShowAddLink] = useState(false);
-  const [linkName, setLinkName] = useState('');
-  const [linkUrl, setLinkUrl] = useState('');
-  const [linkDuration, setLinkDuration] = useState(15);
-  const [linkError, setLinkError] = useState('');
+  const [showAddMediaModal, setShowAddMediaModal] = useState(false);
+  const [modalName, setLinkName] = useState('');
+  const [modalUrl, setLinkUrl] = useState('');
+  const [modalDuration, setLinkDuration] = useState(15);
+  const [modalError, setLinkError] = useState('');
 const [isDragging, setIsDragging] = useState(false);
   const [uploadingFiles, setUploadingFiles] = useState<{name: string, progress: number}[]>([]);
   const [editingMediaId, setEditingMediaId] = useState<string | null>(null);
@@ -51,58 +52,26 @@ const [isDragging, setIsDragging] = useState(false);
   };
 
   
-  const handleSaveLink = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setLinkError('');
-    let finalUrl = linkUrl.trim();
-    
-    try {
-      new URL(finalUrl);
-    } catch {
-      setLinkError('Por favor, informe uma URL válida. (ex: https://site.com)');
-      return;
-    }
-
-    let tipo: Midia['tipo'] = 'website';
-    const lowerUrl = finalUrl.toLowerCase();
-    
-    if (lowerUrl.includes('instagram.com')) {
-      tipo = 'instagram';
-    } else if (lowerUrl.includes('youtube.com') || lowerUrl.includes('youtu.be')) {
-      tipo = 'youtube';
-    } else if (lowerUrl.includes('maps.google') || lowerUrl.includes('google.com/maps')) {
-      tipo = 'google_maps';
-    } else if (lowerUrl.includes('canva.com')) {
-      tipo = 'canva';
-    }
-
+  const handleSaveModal = async (mediaData: Omit<Midia, 'id' | 'clienteId'>) => {
     const newMedia: Midia = {
+      ...mediaData,
       id: `m-${Date.now()}`,
-      nome: linkName.trim(),
-      url: finalUrl,
-      tipo,
-      origem: 'url',
-      url_externa: finalUrl,
-      duracao: Number(linkDuration),
       clienteId: client.id
     };
-
     try {
       const saved = await storageService.saveMidia(newMedia);
       if (saved) {
         onUpdateMedia(prev => [newMedia, ...prev]);
-        setShowAddLink(false);
-        setLinkName('');
-        setLinkUrl('');
-        setLinkDuration(15);
-        showToast('Link cadastrado com sucesso!');
+        setShowAddMediaModal(false);
+        showToast('Conteúdo cadastrado com sucesso!');
       } else {
-        setLinkError('Erro ao salvar no banco de dados.');
+        showToast('Erro ao salvar no banco de dados.');
       }
     } catch (err: any) {
-      setLinkError(err.message || 'Erro ao salvar');
+      showToast(err.message || 'Erro ao salvar');
     }
   };
+
 const processFiles = async (files: FileList | null) => {
     if (!files || files.length === 0) return;
     
@@ -213,7 +182,7 @@ const processFiles = async (files: FileList | null) => {
   const clientMedia = media.filter(m => m.clienteId === client.id);
   const imageMedia = clientMedia.filter(m => m.tipo === 'image');
   const videoMedia = clientMedia.filter(m => m.tipo === 'video');
-  const onlineMedia = clientMedia.filter(m => ['website', 'instagram', 'youtube', 'google_maps', 'canva'].includes(m.tipo));
+  const onlineMedia = clientMedia.filter(m => !['image', 'video'].includes(m.tipo));
 
 
   
@@ -338,85 +307,16 @@ const renderMediaGrid = (items: Midia[], icon: React.ReactNode, title: string) =
         >
           Selecionar Arquivos
         </button>
-        <button 
-          onClick={() => setShowAddLink(true)}
+        <button
+          onClick={() => setShowAddMediaModal(true)}
           className="px-4 py-2 bg-blue-600/20 hover:bg-blue-600/40 text-blue-400 border border-blue-500/50 rounded-lg text-sm font-medium transition-colors flex items-center gap-2"
         >
-          <Link className="w-4 h-4" /> Adicionar Link
+          <Plus className="w-4 h-4" /> Adicionar Mídia / Online
         </button>
       </div>
       </div>
 
       
-      {showAddLink && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-          <div className="bg-[#0d0d12] border border-white/10 rounded-2xl w-full max-w-md overflow-hidden shadow-2xl">
-            <div className="flex justify-between items-center p-4 border-b border-white/10">
-              <h3 className="text-sm font-bold text-white uppercase tracking-wider flex items-center gap-2">
-                <Link className="w-4 h-4 text-blue-400" /> Adicionar Conteúdo Online
-              </h3>
-              <button onClick={() => setShowAddLink(false)} className="text-slate-500 hover:text-white">
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-            <form onSubmit={handleSaveLink} className="p-4 space-y-4">
-              {linkError && (
-                <div className="bg-rose-500/10 border border-rose-500/50 text-rose-400 text-xs p-3 rounded-lg">
-                  {linkError}
-                </div>
-              )}
-              <div className="space-y-1">
-                <label className="text-[10px] font-bold text-slate-400 uppercase">Nome / Título</label>
-                <input 
-                  type="text" 
-                  required
-                  value={linkName}
-                  onChange={e => setLinkName(e.target.value)}
-                  placeholder="Ex: Dashboard de Vendas"
-                  className="w-full bg-[#050508]/40 border border-white/10 rounded-lg px-3 py-2 text-xs text-slate-200 focus:ring-1 focus:ring-blue-500 focus:outline-none"
-                />
-              </div>
-              <div className="space-y-1">
-                <label className="text-[10px] font-bold text-slate-400 uppercase">URL do Conteúdo</label>
-                <input 
-                  type="url" 
-                  required
-                  value={linkUrl}
-                  onChange={e => setLinkUrl(e.target.value)}
-                  placeholder="https://..."
-                  className="w-full bg-[#050508]/40 border border-white/10 rounded-lg px-3 py-2 text-xs text-slate-200 focus:ring-1 focus:ring-blue-500 focus:outline-none"
-                />
-              </div>
-              <div className="space-y-1">
-                <label className="text-[10px] font-bold text-slate-400 uppercase">Tempo de Exibição (Segundos)</label>
-                <input 
-                  type="number" 
-                  min={1}
-                  required
-                  value={linkDuration}
-                  onChange={e => setLinkDuration(Number(e.target.value))}
-                  className="w-full bg-[#050508]/40 border border-white/10 rounded-lg px-3 py-2 text-xs text-slate-200 focus:ring-1 focus:ring-blue-500 focus:outline-none"
-                />
-              </div>
-              <div className="flex justify-end gap-2 pt-2 border-t border-white/5">
-                <button 
-                  type="button" 
-                  onClick={() => setShowAddLink(false)}
-                  className="px-4 py-2 text-xs font-bold text-slate-400 hover:text-white bg-white/5 hover:bg-white/10 border border-white/10 rounded-lg transition-colors"
-                >
-                  Cancelar
-                </button>
-                <button 
-                  type="submit" 
-                  className="px-5 py-2 text-xs font-bold text-white bg-blue-600 hover:bg-blue-500 rounded-lg transition-colors"
-                >
-                  Salvar
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
 {/* Barras de Progresso */}
       {uploadingFiles.length > 0 && (
         <div className="space-y-3 bg-[#0d0d12]/80 p-4 rounded-xl border border-white/10">

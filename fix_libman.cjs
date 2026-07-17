@@ -1,6 +1,8 @@
-import React, { useState } from 'react';
+const fs = require('fs');
+
+let code = `import React, { useState } from 'react';
 import { Midia, Playlist } from '../types';
-import { Search, Plus, Trash2, Globe, FileVideo, Image as ImageIcon, FileText, BarChart, PieChart, Rss, CloudSun, Palette, Map, Youtube, Instagram, Clock, X , Check} from 'lucide-react';
+import { Search, Plus, Trash2, Globe, FileVideo, Image as ImageIcon, FileText, BarChart, PieChart, Rss, CloudSun, Palette, Map, Youtube, Instagram, Clock, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import AddMediaModal from './AddMediaModal';
 
@@ -36,26 +38,26 @@ export default function LibraryManager({
 
   const getIconForType = (tipo: string, sizeClass = "w-4 h-4") => {
     switch (tipo) {
-      case 'instagram': return <Instagram className={`${sizeClass} text-pink-500`} />;
-      case 'youtube': return <Youtube className={`${sizeClass} text-red-500`} />;
-      case 'google_maps': return <Map className={`${sizeClass} text-green-500`} />;
-      case 'canva': return <Palette className={`${sizeClass} text-blue-400`} />;
-      case 'image': return <ImageIcon className={`${sizeClass} text-emerald-500 shrink-0`} />;
-      case 'video': return <FileVideo className={`${sizeClass} text-blue-500 shrink-0`} />;
-      case 'pdf': return <FileText className={`${sizeClass} text-red-400`} />;
-      case 'powerbi': return <BarChart className={`${sizeClass} text-yellow-500`} />;
-      case 'looker': return <PieChart className={`${sizeClass} text-blue-500`} />;
-      case 'rss': return <Rss className={`${sizeClass} text-orange-500`} />;
-      case 'weather': return <CloudSun className={`${sizeClass} text-cyan-400`} />;
+      case 'instagram': return <Instagram className={\`\${sizeClass} text-pink-500\`} />;
+      case 'youtube': return <Youtube className={\`\${sizeClass} text-red-500\`} />;
+      case 'google_maps': return <Map className={\`\${sizeClass} text-green-500\`} />;
+      case 'canva': return <Palette className={\`\${sizeClass} text-blue-400\`} />;
+      case 'image': return <ImageIcon className={\`\${sizeClass} text-emerald-500 shrink-0\`} />;
+      case 'video': return <FileVideo className={\`\${sizeClass} text-blue-500 shrink-0\`} />;
+      case 'pdf': return <FileText className={\`\${sizeClass} text-red-400\`} />;
+      case 'powerbi': return <BarChart className={\`\${sizeClass} text-yellow-500\`} />;
+      case 'looker': return <PieChart className={\`\${sizeClass} text-blue-500\`} />;
+      case 'rss': return <Rss className={\`\${sizeClass} text-orange-500\`} />;
+      case 'weather': return <CloudSun className={\`\${sizeClass} text-cyan-400\`} />;
       case 'website':
-      default: return <Globe className={`${sizeClass} text-blue-500`} />;
+      default: return <Globe className={\`\${sizeClass} text-blue-500\`} />;
     }
   };
 
   const handleSaveModal = (mediaData: Omit<Midia, 'id' | 'clienteId'>) => {
     const newMedia = {
       ...mediaData,
-      id: `m-${Date.now()}`,
+      id: \`m-\${Date.now()}\`,
     };
     onAddMedia(newMedia as Midia);
     setShowAddMedia(false);
@@ -66,7 +68,7 @@ export default function LibraryManager({
     if (!playlistName.trim()) return;
     
     const newPlaylist: Playlist = {
-      id: `p-${Date.now()}`,
+      id: \`p-\${Date.now()}\`,
       nome: playlistName,
       midiasIds: selectedMediaIds
     };
@@ -91,21 +93,21 @@ export default function LibraryManager({
       <div className="flex border-b border-white/10">
         <button
           onClick={() => setActiveSubTab('media')}
-          className={`px-4 py-2.5 text-xs font-bold uppercase tracking-wider border-b-2 transition-all ${
+          className={\`px-4 py-2.5 text-xs font-bold uppercase tracking-wider border-b-2 transition-all \${
             activeSubTab === 'media'
               ? 'border-blue-500 text-white'
               : 'border-transparent text-slate-400 hover:text-white'
-          }`}
+          }\`}
         >
           Mídias ({media.length})
         </button>
         <button
           onClick={() => setActiveSubTab('playlists')}
-          className={`px-4 py-2.5 text-xs font-bold uppercase tracking-wider border-b-2 transition-all ${
+          className={\`px-4 py-2.5 text-xs font-bold uppercase tracking-wider border-b-2 transition-all \${
             activeSubTab === 'playlists'
               ? 'border-blue-500 text-white'
               : 'border-transparent text-slate-400 hover:text-white'
-          }`}
+          }\`}
         >
           Playlists ({playlists.length})
         </button>
@@ -231,13 +233,13 @@ export default function LibraryManager({
                           <div 
                             key={m.id}
                             onClick={() => toggleMediaInPlaylistSelection(m.id)}
-                            className={`flex items-center gap-3 p-2 rounded-lg cursor-pointer transition-colors ${
+                            className={\`flex items-center gap-3 p-2 rounded-lg cursor-pointer transition-colors \${
                               isSelected ? 'bg-blue-600/20 border border-blue-500/30' : 'hover:bg-white/5 border border-transparent'
-                            }`}
+                            }\`}
                           >
-                            <div className={`w-5 h-5 rounded-md flex items-center justify-center shrink-0 border ${
+                            <div className={\`w-5 h-5 rounded-md flex items-center justify-center shrink-0 border \${
                               isSelected ? 'bg-blue-600 border-blue-600 text-white' : 'border-slate-600 text-transparent'
-                            }`}>
+                            }\`}>
                               <Check className="w-3 h-3" />
                             </div>
                             
@@ -326,7 +328,7 @@ export default function LibraryManager({
                           <p className="text-xs text-slate-500 italic">Nenhuma mídia inserida nesta playlist.</p>
                         ) : (
                           playlistMedia.map((m, idx) => (
-                            <div key={`${m.id}-${idx}`} className="flex items-center justify-between text-xs text-slate-300 gap-4">
+                            <div key={\`\${m.id}-\${idx}\`} className="flex items-center justify-between text-xs text-slate-300 gap-4">
                               <div className="flex items-center gap-1.5 truncate">
                                 <span className="text-[10px] font-bold text-blue-400 w-3 font-mono">{idx + 1}.</span>
                                 {getIconForType(m.tipo)}
@@ -354,3 +356,6 @@ export default function LibraryManager({
     </div>
   );
 }
+`;
+
+fs.writeFileSync('src/components/LibraryManager.tsx', code);
