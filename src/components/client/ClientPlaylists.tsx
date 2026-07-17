@@ -14,7 +14,7 @@ import {
   Square, 
   CheckSquare, 
   Clock 
-, Globe, Instagram, Youtube, Map, Palette, FileVideo, FileText, BarChart, PieChart, Rss, CloudSun} from 'lucide-react';
+, Globe, Instagram, Youtube, Map, Palette, FileVideo} from 'lucide-react';
 
 interface ClientPlaylistsProps {
   client: Cliente;
@@ -37,9 +37,11 @@ export default function ClientPlaylists({ client, playlists, media, onUpdatePlay
   const getIconForType = (tipo: string, sizeClass = "w-4 h-4") => {
     switch (tipo) {
       case 'instagram': return <Instagram className={`${sizeClass} text-pink-500`} />;
+      case 'youtube': return <Youtube className={`${sizeClass} text-red-500`} />;
+      case 'google_maps': return <Map className={`${sizeClass} text-green-500`} />;
+      case 'canva': return <Palette className={`${sizeClass} text-blue-400`} />;
       case 'image': return <ImageIcon className={`${sizeClass} text-emerald-500 shrink-0`} />;
       case 'video': return <FileVideo className={`${sizeClass} text-blue-500 shrink-0`} />;
-      case 'pdf': return <FileText className={`${sizeClass} text-red-400`} />;
       case 'website':
       default: return <Globe className={`${sizeClass} text-blue-500`} />;
     }
