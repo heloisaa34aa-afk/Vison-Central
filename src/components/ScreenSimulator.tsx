@@ -425,9 +425,10 @@ export default function ScreenSimulator({
               <input
                 key={`nome-${activeTv.id}`}
                 type="text"
-                defaultValue={tvNome}
+                value={tvNome}
+                onChange={(e) => setTvNome(e.target.value)}
                 onBlur={(e) => {
-                  if (e.target.value !== tvNome) handleUpdateTvProperty('nome', e.target.value, setTvNome);
+                  if (e.target.value !== activeTv.nome) handleUpdateTvProperty('nome', e.target.value, setTvNome);
                 }}
                 className="w-full px-3 py-2 text-xs bg-[#050508]/40 border border-white/10 rounded-lg text-white focus:outline-none focus:border-blue-500/50"
               />
@@ -454,9 +455,11 @@ export default function ScreenSimulator({
                 <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Posição da Tela</label>
                 <select
                   key={`orientacao-${activeTv.id}`}
-                  defaultValue={tvOrientacao}
+                  value={tvOrientacao}
                   onChange={(e) => {
-                    if (e.target.value !== tvOrientacao) handleUpdateTvProperty('orientacao', e.target.value, setTvOrientacao);
+                    const val = e.target.value as 'horizontal' | 'vertical';
+                    setTvOrientacao(val);
+                    handleUpdateTvProperty('orientacao', val, setTvOrientacao);
                   }}
                   className="w-full px-3 py-2 text-xs bg-[#050508]/40 border border-white/10 rounded-lg text-slate-200 focus:outline-none focus:border-blue-500/50"
                 >
@@ -470,10 +473,11 @@ export default function ScreenSimulator({
                 <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Girar Tela</label>
                 <select
                   key={`rotacao-${activeTv.id}`}
-                  defaultValue={tvRotacao.toString()}
+                  value={tvRotacao.toString()}
                   onChange={(e) => {
                     const val = Number(e.target.value);
-                    if (val !== tvRotacao) handleUpdateTvProperty('rotacao', val, setTvRotacao);
+                    setTvRotacao(val);
+                    handleUpdateTvProperty('rotacao', val, setTvRotacao);
                   }}
                   className="w-full px-3 py-2 text-xs bg-[#050508]/40 border border-white/10 rounded-lg text-slate-200 focus:outline-none focus:border-blue-500/50"
                 >
@@ -491,9 +495,11 @@ export default function ScreenSimulator({
                 <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Imagem</label>
                 <select
                   key={`modo_exibicao-${activeTv.id}`}
-                  defaultValue={tvModoReproducao}
+                  value={tvModoReproducao}
                   onChange={(e) => {
-                    if (e.target.value !== tvModoReproducao) handleUpdateTvProperty('modo_exibicao', e.target.value, setTvModoReproducao);
+                    const val = e.target.value;
+                    setTvModoReproducao(val);
+                    handleUpdateTvProperty('modo_exibicao', val, setTvModoReproducao);
                   }}
                   className="w-full px-3 py-2 text-xs bg-[#050508]/40 border border-white/10 rounded-lg text-slate-200 focus:outline-none focus:border-blue-500/50"
                 >
@@ -509,10 +515,11 @@ export default function ScreenSimulator({
                   type="number"
                   min="1"
                   max="60"
-                  defaultValue={tvTempoTransicao}
+                  value={tvTempoTransicao}
+                  onChange={(e) => setTvTempoTransicao(Number(e.target.value))}
                   onBlur={(e) => {
                     const val = Number(e.target.value);
-                    if (val !== tvTempoTransicao) handleUpdateTvProperty('tempo_transicao', val, setTvTempoTransicao);
+                    if (val !== activeTv.tempo_transicao) handleUpdateTvProperty('tempo_transicao', val, setTvTempoTransicao);
                   }}
                   className="w-full px-3 py-2 text-xs bg-[#050508]/40 border border-white/10 rounded-lg text-slate-200 focus:outline-none focus:border-blue-500/50"
                 />
@@ -529,9 +536,11 @@ export default function ScreenSimulator({
                   <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Tela</label>
                   <select
                     key={`proporcao-${activeTv.id}`}
-                    defaultValue={tvProporcao}
+                    value={tvProporcao}
                     onChange={(e) => {
-                      if (e.target.value !== tvProporcao) handleUpdateTvProperty('proporcao', e.target.value, setTvProporcao);
+                      const val = e.target.value;
+                      setTvProporcao(val);
+                      handleUpdateTvProperty('proporcao', val, setTvProporcao);
                     }}
                     className="w-full px-3 py-2 text-xs bg-[#050508]/40 border border-white/10 rounded-lg text-slate-200 focus:outline-none focus:border-blue-500/50"
                   >
@@ -541,8 +550,6 @@ export default function ScreenSimulator({
                     <option value="4:3">Standard (4:3)</option>
                   </select>
                 </div>
-
-                {/* Tempo de transição Input (REMOVED FROM UI) */}
               </div>
 
               {/* sliders for Brilho, Contraste, Zoom, Volume */}
@@ -558,14 +565,17 @@ export default function ScreenSimulator({
                     type="range"
                     min="0"
                     max="100"
-                    defaultValue={tvBrilho}
+                    value={tvBrilho}
+                    onChange={(e) => {
+                      setTvBrilho(Number(e.target.value));
+                    }}
                     onMouseUp={(e) => {
                       const val = Number((e.target as HTMLInputElement).value);
-                      if (val !== tvBrilho) handleUpdateTvProperty('brilho', val, setTvBrilho);
+                      handleUpdateTvProperty('brilho', val, setTvBrilho);
                     }}
                     onTouchEnd={(e) => {
                       const val = Number((e.target as HTMLInputElement).value);
-                      if (val !== tvBrilho) handleUpdateTvProperty('brilho', val, setTvBrilho);
+                      handleUpdateTvProperty('brilho', val, setTvBrilho);
                     }}
                     className="w-full h-1.5 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-cyan-400"
                   />
@@ -582,14 +592,17 @@ export default function ScreenSimulator({
                     type="range"
                     min="0"
                     max="100"
-                    defaultValue={tvContraste}
+                    value={tvContraste}
+                    onChange={(e) => {
+                      setTvContraste(Number(e.target.value));
+                    }}
                     onMouseUp={(e) => {
                       const val = Number((e.target as HTMLInputElement).value);
-                      if (val !== tvContraste) handleUpdateTvProperty('contraste', val, setTvContraste);
+                      handleUpdateTvProperty('contraste', val, setTvContraste);
                     }}
                     onTouchEnd={(e) => {
                       const val = Number((e.target as HTMLInputElement).value);
-                      if (val !== tvContraste) handleUpdateTvProperty('contraste', val, setTvContraste);
+                      handleUpdateTvProperty('contraste', val, setTvContraste);
                     }}
                     className="w-full h-1.5 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-cyan-400"
                   />
@@ -606,14 +619,17 @@ export default function ScreenSimulator({
                     type="range"
                     min="0"
                     max="100"
-                    defaultValue={tvSaturacao}
+                    value={tvSaturacao}
+                    onChange={(e) => {
+                      setTvSaturacao(Number(e.target.value));
+                    }}
                     onMouseUp={(e) => {
                       const val = Number((e.target as HTMLInputElement).value);
-                      if (val !== tvSaturacao) handleUpdateTvProperty('saturacao', val, setTvSaturacao);
+                      handleUpdateTvProperty('saturacao', val, setTvSaturacao);
                     }}
                     onTouchEnd={(e) => {
                       const val = Number((e.target as HTMLInputElement).value);
-                      if (val !== tvSaturacao) handleUpdateTvProperty('saturacao', val, setTvSaturacao);
+                      handleUpdateTvProperty('saturacao', val, setTvSaturacao);
                     }}
                     className="w-full h-1.5 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-cyan-400"
                   />
@@ -630,14 +646,17 @@ export default function ScreenSimulator({
                     type="range"
                     min="50"
                     max="150"
-                    defaultValue={tvZoom}
+                    value={tvZoom}
+                    onChange={(e) => {
+                      setTvZoom(Number(e.target.value));
+                    }}
                     onMouseUp={(e) => {
                       const val = Number((e.target as HTMLInputElement).value);
-                      if (val !== tvZoom) handleUpdateTvProperty('zoom', val, setTvZoom);
+                      handleUpdateTvProperty('zoom', val, setTvZoom);
                     }}
                     onTouchEnd={(e) => {
                       const val = Number((e.target as HTMLInputElement).value);
-                      if (val !== tvZoom) handleUpdateTvProperty('zoom', val, setTvZoom);
+                      handleUpdateTvProperty('zoom', val, setTvZoom);
                     }}
                     className="w-full h-1.5 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-cyan-400"
                   />
@@ -654,14 +673,17 @@ export default function ScreenSimulator({
                     type="range"
                     min="0"
                     max="100"
-                    defaultValue={tvVolume}
+                    value={tvVolume}
+                    onChange={(e) => {
+                      setTvVolume(Number(e.target.value));
+                    }}
                     onMouseUp={(e) => {
                       const val = Number((e.target as HTMLInputElement).value);
-                      if (val !== tvVolume) handleUpdateTvProperty('volume', val, setTvVolume);
+                      handleUpdateTvProperty('volume', val, setTvVolume);
                     }}
                     onTouchEnd={(e) => {
                       const val = Number((e.target as HTMLInputElement).value);
-                      if (val !== tvVolume) handleUpdateTvProperty('volume', val, setTvVolume);
+                      handleUpdateTvProperty('volume', val, setTvVolume);
                     }}
                     className="w-full h-1.5 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-cyan-400"
                   />

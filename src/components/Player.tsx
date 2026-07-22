@@ -143,6 +143,51 @@ export default function Player() {
       // Single entry-point helper to compare and sync TV Settings (DeviceConfig)
       const syncTvSettings = (newTv: Tv) => {
         setActiveDevice(prev => {
+          if (!prev) return newTv;
+
+          // Logs exigidos para auditoria de sincronização
+          console.log("====== [CONFIG RECEBIDA] ======", newTv);
+          
+          console.log("[CONFIG TVS] Atributos da tabela 'tvs':", {
+            id: newTv.id,
+            nome: newTv.nome,
+            token: newTv.token,
+            playlist_id: newTv.playlistId,
+            orientacao: newTv.orientacao,
+            proporcao: newTv.proporcao,
+            modo_exibicao: newTv.modo_exibicao,
+            brilho: newTv.brilho,
+            contraste: newTv.contraste,
+            saturacao: newTv.saturacao,
+            zoom: newTv.zoom,
+            volume: newTv.volume,
+            tempo_transicao: newTv.tempo_transicao,
+            rotacao: newTv.rotacao,
+          });
+
+          console.log("[CONFIG CONFIGURACOES] Atributos unificados de 'configuracoes' (armazenados em 'tvs'):", {
+            resolucao: newTv.resolucao,
+            autoplay: newTv.autoplay,
+          });
+
+          console.log("[CONFIG FINAL] Objeto final unificado de configuração:", newTv);
+
+          // Verificar e listar campos alterados
+          const fieldsToCompare: (keyof Tv)[] = [
+            'nome', 'playlistId', 'orientacao', 'modo_exibicao', 'proporcao',
+            'brilho', 'contraste', 'saturacao', 'zoom', 'volume',
+            'tempo_transicao', 'rotacao', 'resolucao', 'autoplay'
+          ];
+
+          fieldsToCompare.forEach(field => {
+            const prevVal = prev[field];
+            const newVal = newTv[field];
+            if (prevVal !== newVal && newVal !== undefined) {
+              console.log(`[CAMPO ALTERADO] Campo "${String(field)}" | VALOR ANTIGO = ${prevVal} | VALOR NOVO = ${newVal}`);
+            }
+          });
+          console.log("=========================================");
+
           if (areTvsDifferent(prev, newTv)) {
             console.log("[PLAYER] Configurações da TV atualizadas.");
             return newTv;

@@ -4,7 +4,7 @@ import { Tv } from '../../types';
 export function mapDbToTv(db: any): Tv {
   const parts = (db.nome || '').split(' | ');
   const baseNome = parts[0] || '';
-  const orientacao = (db.orientacao || 'horizontal') as 'horizontal' | 'vertical';
+  const orientacao = (String(db.orientacao || 'horizontal').toLowerCase()) as 'horizontal' | 'vertical';
   
   console.log(
     "[TV REALTIME]",
@@ -34,6 +34,7 @@ export function mapDbToTv(db: any): Tv {
     tempo_transicao: db.tempo_transicao !== undefined ? db.tempo_transicao : 3,
     rotacao: db.rotacao !== undefined ? Number(db.rotacao) : 0,
     resolucao: db.resolucao || '1920x1080',
+    autoplay: db.autoplay !== undefined ? db.autoplay : true,
     conteudos_online: typeof db.conteudos_online === 'string' ? JSON.parse(db.conteudos_online) : (db.conteudos_online || []),
     texto_superior: db.texto_superior || '',
     texto_superior_cor: db.texto_superior_cor || '#ffffff',
@@ -70,6 +71,18 @@ export function mapTvToDb(tv: Tv): any {
     tempo_transicao: tv.tempo_transicao,
     rotacao: tv.rotacao !== undefined ? String(tv.rotacao) : '0',
     resolucao: tv.resolucao || '1920x1080',
+    autoplay: tv.autoplay !== undefined ? tv.autoplay : true,
+    conteudos_online: tv.conteudos_online || [],
+    texto_superior: tv.texto_superior || null,
+    texto_superior_cor: tv.texto_superior_cor || '#ffffff',
+    texto_superior_tamanho: tv.texto_superior_tamanho || 'base',
+    texto_superior_alinhamento: tv.texto_superior_alinhamento || 'center',
+    texto_superior_visivel: tv.texto_superior_visivel !== undefined ? tv.texto_superior_visivel : false,
+    texto_inferior: tv.texto_inferior || null,
+    texto_inferior_cor: tv.texto_inferior_cor || '#ffffff',
+    texto_inferior_tamanho: tv.texto_inferior_tamanho || 'base',
+    texto_inferior_alinhamento: tv.texto_inferior_alinhamento || 'center',
+    texto_inferior_visivel: tv.texto_inferior_visivel !== undefined ? tv.texto_inferior_visivel : false,
   };
 }
 
@@ -104,13 +117,47 @@ export const tvsService = {
   async saveTv(tv: Tv): Promise<boolean> {
     try {
       console.log("VisionCentral: salvando rotacao", tv.rotacao);
-      tv.ultimaSincronizacao = new Date().toISOString();
       const dbData = mapTvToDb(tv);
-      const response = await supabase.from('tvs').upsert(dbData);
-      console.log("VisionCentral: rotacao salva", response);
-      if (response.error) {
-        console.warn('Erro ao salvar TV:', response.error);
-        return false;
+      
+      // Verificar existência da TV para decidir entre UPDATE e INSERT
+      const { data: existing, error: checkError } = await supabase
+        .from('tvs')
+        .select('id')
+        .eq('id', tv.id)
+        .maybeSingle();
+
+      if (checkError) {
+        console.warn('Erro ao verificar existência da TV:', checkError);
+      }
+
+      if (existing) {
+        // Modo Edição/Update: Nunca enviar campos de heartbeat
+        delete dbData.status;
+        delete dbData.uptime;
+        delete dbData.ultima_conexao;
+        delete dbData.ultima_sincronizacao;
+
+        const response = await supabase
+          .from('tvs')
+          .update(dbData)
+          .eq('id', tv.id);
+
+        console.log("VisionCentral: TV atualizada no banco (campos de heartbeat preservados)", response);
+        if (response.error) {
+          console.warn('Erro ao atualizar TV:', response.error);
+          return false;
+        }
+      } else {
+        // Modo Criação/Insert: Enviar payload completo
+        const response = await supabase
+          .from('tvs')
+          .insert(dbData);
+
+        console.log("VisionCentral: TV inserida no banco", response);
+        if (response.error) {
+          console.warn('Erro ao inserir TV:', response.error);
+          return false;
+        }
       }
       return true;
     } catch (e) {
