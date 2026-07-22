@@ -1,6 +1,26 @@
 import { supabase } from '../../lib/supabase';
 import { Tv } from '../../types';
 
+const fieldMapping: Record<string, string> = {
+  clienteId: 'cliente_id',
+  playlistId: 'playlist_id',
+  ultimaSincronizacao: 'ultima_sincronizacao',
+  ultimaConexao: 'ultima_conexao',
+  modo_exibicao: 'modo_exibicao',
+  tempo_transicao: 'tempo_transicao',
+  conteudos_online: 'conteudos_online',
+  texto_superior: 'texto_superior',
+  texto_superior_cor: 'texto_superior_cor',
+  texto_superior_tamanho: 'texto_superior_tamanho',
+  texto_superior_alinhamento: 'texto_superior_alinhamento',
+  texto_superior_visivel: 'texto_superior_visivel',
+  texto_inferior: 'texto_inferior',
+  texto_inferior_cor: 'texto_inferior_cor',
+  texto_inferior_tamanho: 'texto_inferior_tamanho',
+  texto_inferior_alinhamento: 'texto_inferior_alinhamento',
+  texto_inferior_visivel: 'texto_inferior_visivel',
+};
+
 export function mapDbToTv(db: any): Tv {
   const parts = (db.nome || '').split(' | ');
   const baseNome = parts[0] || '';
@@ -116,7 +136,7 @@ export const tvsService = {
 
   async saveTv(tv: Tv): Promise<boolean> {
     try {
-      console.log("VisionCentral: salvando rotacao", tv.rotacao);
+      console.log("VisionCentral: salvando TV completa", tv.id);
       const dbData = mapTvToDb(tv);
       
       // Verificar existência da TV para decidir entre UPDATE e INSERT
@@ -162,6 +182,50 @@ export const tvsService = {
       return true;
     } catch (e) {
       console.error(e);
+      return false;
+    }
+  },
+
+  async updateTvField(id: string, field: keyof Tv, value: any): Promise<boolean> {
+    try {
+      const dbField = fieldMapping[field as string] || (field as string);
+      let dbValue = value;
+
+      // Tratamentos específicos baseados em mapTvToDb:
+      if (field === 'playlistId') {
+        dbValue = value || null;
+      } else if (field === 'rotacao') {
+        dbValue = value !== undefined ? String(value) : '0';
+      } else if (field === 'texto_superior' || field === 'texto_inferior') {
+        dbValue = value || null;
+      } else if (field === 'texto_superior_visivel' || field === 'texto_inferior_visivel') {
+        dbValue = value !== undefined ? !!value : false;
+      } else if (field === 'autoplay') {
+        dbValue = value !== undefined ? !!value : true;
+      } else if (field === 'nome') {
+        dbValue = value || '';
+      }
+
+      console.log(`[SUPABASE UPDATE FIELD] Atualizando campo "${dbField}" para o valor:`, dbValue, `na TV com ID:`, id);
+
+      const updateData: any = {
+        [dbField]: dbValue,
+        ultima_sincronizacao: new Date().toISOString()
+      };
+
+      const { error } = await supabase
+        .from('tvs')
+        .update(updateData)
+        .eq('id', id);
+
+      if (error) {
+        console.warn(`Erro ao atualizar campo "${dbField}" no Supabase:`, error);
+        return false;
+      }
+
+      return true;
+    } catch (e) {
+      console.error(`Erro em updateTvField para o campo "${field}":`, e);
       return false;
     }
   },

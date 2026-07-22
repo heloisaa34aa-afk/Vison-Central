@@ -226,22 +226,22 @@ export default function ScreenSimulator({
   const handleUpdateTvProperty = async (field: keyof Tv, value: any, setter: Function) => {
     if (!activeTv) return;
 
-    // Persist immediately in Supabase
-    const updatedTv = { 
-      ...activeTv, 
-      [field]: value, 
-      ultimaSincronizacao: new Date().toISOString() 
-    };
-
-    if (field === 'playlistId') {
-      updatedTv.playlistId = value || undefined;
-    }
-
-    const success = await storageService.saveTv(updatedTv);
+    // Persist immediately in Supabase updating only the specific column dynamically
+    const success = await storageService.updateTvField(activeTv.id, field, value);
     
     // Aguardar a confirmação do banco; somente então atualizar o estado local
     if (success) {
       setter(value);
+
+      const updatedTv = { 
+        ...activeTv, 
+        [field]: value, 
+        ultimaSincronizacao: new Date().toISOString() 
+      };
+
+      if (field === 'playlistId') {
+        updatedTv.playlistId = value || undefined;
+      }
 
       import('../services/supabase/player').then(({ playerService }) => {
         playerService.broadcastConfigUpdate(updatedTv.id, updatedTv);

@@ -25,6 +25,10 @@ export const storageService = {
     return tvsService.saveTv(tv);
   },
 
+  async updateTvField(id: string, field: keyof Tv, value: any): Promise<boolean> {
+    return tvsService.updateTvField(id, field, value);
+  },
+
   async deleteTv(id: string): Promise<boolean> {
     return tvsService.deleteTv(id);
   },
