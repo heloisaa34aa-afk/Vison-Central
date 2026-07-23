@@ -58,6 +58,7 @@ export default function ScreenSimulator({
   const [tvVolume, setTvVolume] = useState(50);
   const [tvTempoTransicao, setTvTempoTransicao] = useState(3);
   const [tvRotacao, setTvRotacao] = useState(0);
+  const [tvResolucao, setTvResolucao] = useState('1920x1080');
 
   // Novos Recursos: Conteúdo Online e Textos
   const [tvConteudoOnline, setTvConteudoOnline] = useState<{ id: string, nome: string, url: string, active: boolean }[]>([]);
@@ -120,6 +121,7 @@ export default function ScreenSimulator({
       setTvVolume(activeTv.volume !== undefined ? activeTv.volume : 50);
       setTvTempoTransicao(activeTv.tempo_transicao !== undefined ? activeTv.tempo_transicao : 3);
       setTvRotacao(activeTv.rotacao !== undefined ? activeTv.rotacao : 0);
+      setTvResolucao(activeTv.resolucao || '1920x1080');
       setTvConteudoOnline(activeTv.conteudos_online || []);
       setTvTextoSuperior(activeTv.texto_superior || '');
       setTvTextoSuperiorCor(activeTv.texto_superior_cor || '#ffffff');
@@ -146,6 +148,7 @@ export default function ScreenSimulator({
       setTvVolume(50);
       setTvTempoTransicao(3);
       setTvRotacao(0);
+      setTvResolucao('1920x1080');
       setTvConteudoOnline([]);
       setTvTextoSuperior('');
       setTvTextoSuperiorCor('#ffffff');
@@ -324,6 +327,32 @@ export default function ScreenSimulator({
     }
   };
 
+  // Parse resolution and orientation for exact simulation
+  let resWidth = 1920;
+  let resHeight = 1080;
+  if (tvResolucao && tvResolucao.includes('x')) {
+    const [w, h] = tvResolucao.split('x').map(Number);
+    if (!isNaN(w) && !isNaN(h) && w > 0 && h > 0) {
+      resWidth = w;
+      resHeight = h;
+    }
+  }
+
+  // Adjust aspect based on physical orientation
+  if (tvOrientacao === 'vertical') {
+    if (resWidth > resHeight) {
+      const temp = resWidth;
+      resWidth = resHeight;
+      resHeight = temp;
+    }
+  } else {
+    if (resHeight > resWidth) {
+      const temp = resWidth;
+      resWidth = resHeight;
+      resHeight = temp;
+    }
+  }
+
   return (
     <div className="grid grid-cols-1 lg:grid-cols-12 gap-8" id="configuracao-tv-root">
       
@@ -446,6 +475,27 @@ export default function ScreenSimulator({
                 {playlists.filter(p => p.clienteId === selectedClientId).map(p => (
                   <option key={p.id} value={p.id} className="bg-[#0d0d12]">{p.nome}</option>
                 ))}
+              </select>
+            </div>
+
+            {/* Resolution dropdown selector */}
+            <div className="space-y-1.5">
+              <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Resolução da Tela</label>
+              <select
+                key={`resolucao-${activeTv.id}`}
+                value={tvResolucao}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  setTvResolucao(val);
+                  handleUpdateTvProperty('resolucao', val, setTvResolucao);
+                }}
+                className="w-full px-3 py-2 text-xs bg-[#050508]/40 border border-white/10 rounded-lg text-slate-200 focus:outline-none focus:border-blue-500/50"
+              >
+                <option value="1920x1080">Full HD (1920x1080) - 16:9</option>
+                <option value="1280x720">HD (1280x720) - 16:9</option>
+                <option value="3840x2160">4K Ultra HD (3840x2160) - 16:9</option>
+                <option value="1024x768">XGA (1024x768) - 4:3</option>
+                <option value="1080x1920">Vertical Full HD (1080x1920) - 9:16</option>
               </select>
             </div>
 
@@ -985,74 +1035,83 @@ export default function ScreenSimulator({
                 <Sparkles className="w-3 h-3 text-cyan-400 animate-pulse" /> Preview em Tempo Real
               </div>
 
-              {/* TV Bezel Frame */}
-              <div ref={containerRef} className={`transition-all duration-500 relative flex justify-center items-center ${
-                tvOrientacao === 'vertical' 
-                  ? 'w-full max-w-[210px] aspect-[9/16]' 
-                  : 'w-full max-w-[540px] aspect-video'
-              }`}>
-                {/* Bezel frame */}
-                <div className="absolute inset-0 bg-neutral-950 rounded-[18px] shadow-2xl border-4 border-neutral-800 flex flex-col overflow-hidden p-2.5">
-                  <div className="relative w-full h-full bg-slate-950 rounded-lg overflow-hidden flex flex-col justify-between">
-                    
-                    {tvTextoSuperiorVisivel && tvTextoSuperior && (
-                      <div className="absolute top-4 left-0 right-0 z-50 pointer-events-none" style={{ textAlign: tvTextoSuperiorAlinhamento as any }}>
-                        <span style={{ 
-                          color: tvTextoSuperiorCor, 
-                          fontSize: tvTextoSuperiorTamanho === 'sm' ? '0.75rem' : tvTextoSuperiorTamanho === 'lg' ? '1.25rem' : tvTextoSuperiorTamanho === 'xl' ? '1.5rem' : '1rem',
-                          textShadow: '0px 2px 4px rgba(0,0,0,0.8)'
-                        }} className="font-bold px-4 py-2 bg-black/40 rounded-lg backdrop-blur-sm mx-4 inline-block">{tvTextoSuperior}</span>
-                      </div>
-                    )}
+              {/* TV Bezel and Screen Wrapper */}
+              <div 
+                ref={containerRef} 
+                className="transition-all duration-500 relative flex justify-center items-center w-full"
+                style={{
+                  maxWidth: tvOrientacao === 'vertical' ? '240px' : '540px',
+                }}
+              >
+                {/* Outer Bezel (Negative Inset to perfectly frame the screen) */}
+                <div className="absolute -inset-2.5 rounded-[18px] bg-neutral-900 border-4 border-neutral-800 shadow-2xl z-0 pointer-events-none" />
 
-                    {tvTextoInferiorVisivel && tvTextoInferior && (
-                      <div className="absolute bottom-4 left-0 right-0 z-50 pointer-events-none" style={{ textAlign: tvTextoInferiorAlinhamento as any }}>
-                        <span style={{ 
-                          color: tvTextoInferiorCor, 
-                          fontSize: tvTextoInferiorTamanho === 'sm' ? '0.75rem' : tvTextoInferiorTamanho === 'lg' ? '1.25rem' : tvTextoInferiorTamanho === 'xl' ? '1.5rem' : '1rem',
-                          textShadow: '0px 2px 4px rgba(0,0,0,0.8)'
-                        }} className="font-bold px-4 py-2 bg-black/40 rounded-lg backdrop-blur-sm mx-4 inline-block">{tvTextoInferior}</span>
-                      </div>
-                    )}
-
-                    {/* Display Media Container */}
-                    <div className="absolute inset-0 z-10 bg-slate-950 overflow-hidden" style={{ containerType: 'size' }}>
-                      {(() => {
-                        const activeOnlineContent = tvConteudoOnline.find(c => c.active);
-                        if (!activeOnlineContent && mediaList.length === 0) {
-                          return (
-                            <div className="flex h-full items-center justify-center">
-                              <div className="text-center text-gray-500 p-4 space-y-2">
-                                <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-tv w-10 h-10 mx-auto text-gray-700 animate-pulse"><rect width="20" height="15" x="2" y="7" rx="2" ry="2"/><polyline points="17 2 12 7 7 2"/></svg>
-                                <p className="text-[10px] font-bold text-slate-400">Sem Programação Ativa</p>
-                                <p className="text-[8px] text-gray-600">Vincule uma playlist para iniciar a transmissão.</p>
-                              </div>
-                            </div>
-                          );
-                        }
-
-                        const previewTv = {
-                          ...activeTv,
-                          orientacao: tvOrientacao,
-                          proporcao: tvProporcao,
-                          brilho: tvBrilho,
-                          contraste: tvContraste,
-                          saturacao: tvSaturacao,
-                          zoom: tvZoom,
-                          volume: tvVolume,
-                          rotacao: tvRotacao,
-                        };
-
-                        return (
-                          <MediaRenderer 
-                            tv={previewTv} 
-                            media={currentMedia} 
-                            onlineContent={activeOnlineContent} 
-                            isWebPlayer={false}
-                          />
-                        );
-                      })()}
+                {/* Inner Screen Area (Active Screen with Exact Aspect Ratio) */}
+                <div 
+                  className="relative w-full bg-black rounded-lg overflow-hidden flex flex-col justify-between z-10"
+                  style={{
+                    aspectRatio: `${resWidth}/${resHeight}`
+                  }}
+                >
+                  
+                  {tvTextoSuperiorVisivel && tvTextoSuperior && (
+                    <div className="absolute top-4 left-0 right-0 z-50 pointer-events-none" style={{ textAlign: tvTextoSuperiorAlinhamento as any }}>
+                      <span style={{ 
+                        color: tvTextoSuperiorCor, 
+                        fontSize: tvTextoSuperiorTamanho === 'sm' ? '0.75rem' : tvTextoSuperiorTamanho === 'lg' ? '1.25rem' : tvTextoSuperiorTamanho === 'xl' ? '1.5rem' : '1rem',
+                        textShadow: '0px 2px 4px rgba(0,0,0,0.8)'
+                      }} className="font-bold px-4 py-2 bg-black/40 rounded-lg backdrop-blur-sm mx-4 inline-block">{tvTextoSuperior}</span>
                     </div>
+                  )}
+
+                  {tvTextoInferiorVisivel && tvTextoInferior && (
+                    <div className="absolute bottom-4 left-0 right-0 z-50 pointer-events-none" style={{ textAlign: tvTextoInferiorAlinhamento as any }}>
+                      <span style={{ 
+                        color: tvTextoInferiorCor, 
+                        fontSize: tvTextoInferiorTamanho === 'sm' ? '0.75rem' : tvTextoInferiorTamanho === 'lg' ? '1.25rem' : tvTextoInferiorTamanho === 'xl' ? '1.5rem' : '1rem',
+                        textShadow: '0px 2px 4px rgba(0,0,0,0.8)'
+                      }} className="font-bold px-4 py-2 bg-black/40 rounded-lg backdrop-blur-sm mx-4 inline-block">{tvTextoInferior}</span>
+                    </div>
+                  )}
+
+                  {/* Display Media Container */}
+                  <div className="absolute inset-0 z-10 bg-black overflow-hidden" style={{ containerType: 'size' }}>
+                    {(() => {
+                      const activeOnlineContent = tvConteudoOnline.find(c => c.active);
+                      if (!activeOnlineContent && mediaList.length === 0) {
+                        return (
+                          <div className="flex h-full items-center justify-center">
+                            <div className="text-center text-gray-500 p-4 space-y-2">
+                              <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-tv w-10 h-10 mx-auto text-gray-700 animate-pulse"><rect width="20" height="15" x="2" y="7" rx="2" ry="2"/><polyline points="17 2 12 7 7 2"/></svg>
+                              <p className="text-[10px] font-bold text-slate-400">Sem Programação Ativa</p>
+                              <p className="text-[8px] text-gray-600">Vincule uma playlist para iniciar a transmissão.</p>
+                            </div>
+                          </div>
+                        );
+                      }
+
+                      const previewTv = {
+                        ...activeTv,
+                        orientacao: tvOrientacao,
+                        proporcao: tvProporcao,
+                        brilho: tvBrilho,
+                        contraste: tvContraste,
+                        saturacao: tvSaturacao,
+                        zoom: tvZoom,
+                        volume: tvVolume,
+                        rotacao: tvRotacao,
+                        resolucao: tvResolucao,
+                      };
+
+                      return (
+                        <MediaRenderer 
+                          tv={previewTv} 
+                          media={currentMedia} 
+                          onlineContent={activeOnlineContent} 
+                          isWebPlayer={false}
+                        />
+                      );
+                    })()}
                   </div>
                 </div>
               </div>
