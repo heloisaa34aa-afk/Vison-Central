@@ -21,6 +21,8 @@ import ClientsManager from './components/ClientsManager';
 import ClientPage from './components/ClientPage';
 import ScreenSimulator from './components/ScreenSimulator';
 import Player from './components/Player';
+import RelatorioReproducao from './components/RelatorioReproducao';
+import { FileText } from 'lucide-react';
 
 export default function App() {
   const isPlayerPage = window.location.pathname === '/player' || window.location.hash === '#/player';
@@ -338,6 +340,18 @@ export default function App() {
             Configuração de TV
           </button>
 
+          <button
+            onClick={() => { setActiveTab('relatorios'); setSelectedClientId(null); }}
+            className={`flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold transition-all whitespace-nowrap md:w-full ${
+              activeTab === 'relatorios'
+                ? 'bg-gradient-to-r from-blue-600 to-cyan-500 text-white shadow-[0_0_15px_rgba(37,99,235,0.3)]'
+                : 'text-slate-400 hover:bg-white/5 hover:text-white'
+            }`}
+          >
+            <FileText className="w-4 h-4 shrink-0" />
+            Relatórios
+          </button>
+
         </aside>
 
         {/* Dynamic Display area rendering active content */}
@@ -414,6 +428,11 @@ export default function App() {
                   selectedClientIdFromOutside={selectedClientIdForSim}
                 />
               )}
+
+              {activeTab === 'relatorios' && (
+                <RelatorioReproducao />
+              )}
+
             </>
           )}
         </section>

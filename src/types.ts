@@ -80,3 +80,15 @@ export interface LogAlerta {
   tipo: 'info' | 'warning' | 'error';
   criadoEm: string;
 }
+
+export interface HistoricoReproducao {
+  id: string;
+  tv_id: string;
+  cliente_id: string;
+  midia_id: string;
+  midia_nome: string;
+  midia_tipo: string;
+  iniciado_em: string;
+  duracao_segundos: number;
+  criado_em: string;
+}
