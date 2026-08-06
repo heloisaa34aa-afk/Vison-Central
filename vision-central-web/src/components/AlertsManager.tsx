@@ -24,6 +24,12 @@ export default function AlertsManager({ tvs, clientes }: AlertsManagerProps) {
   const [loading, setLoading] = useState<boolean>(false);
   const [events, setEvents] = useState<AlertEvent[]>([]);
   const [loadingEvents, setLoadingEvents] = useState<boolean>(true);
+  const [feedback, setFeedback] = useState<{type: 'error'|'success'|'info', text: string} | null>(null);
+
+  const showFeedback = (text: string, type: 'error'|'success'|'info' = 'info') => {
+    setFeedback({ text, type });
+    setTimeout(() => setFeedback(null), 5000);
+  };
 
   const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
 
@@ -72,7 +78,7 @@ export default function AlertsManager({ tvs, clientes }: AlertsManagerProps) {
 
   async function handleSubscribe() {
     if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
-      alert('Seu navegador não suporta notificações push.');
+      showFeedback('Seu navegador não suporta notificações push.', 'error');
       return;
     }
 
@@ -84,7 +90,7 @@ export default function AlertsManager({ tvs, clientes }: AlertsManagerProps) {
       }
 
       if (permission !== 'granted') {
-        alert('Permissão negada. Você precisa permitir as notificações no navegador.');
+        showFeedback('Permissão negada. Você precisa permitir as notificações no navegador.', 'error');
         return;
       }
 
@@ -111,10 +117,10 @@ export default function AlertsManager({ tvs, clientes }: AlertsManagerProps) {
       if (!subRes.ok) throw new Error('Erro ao salvar inscrição');
 
       setIsSubscribed(true);
-      alert('Notificações ativadas neste dispositivo!');
+      showFeedback('Notificações ativadas neste dispositivo!', 'success');
     } catch (e) {
       console.error('Erro ao ativar notificações:', e);
-      alert('Ocorreu um erro ao tentar ativar as notificações. Veja o console para mais detalhes.');
+      showFeedback('Ocorreu um erro ao tentar ativar as notificações. Veja o console para mais detalhes.', 'error');
     } finally {
       setLoading(false);
     }
@@ -136,10 +142,10 @@ export default function AlertsManager({ tvs, clientes }: AlertsManagerProps) {
         await subscription.unsubscribe();
       }
       setIsSubscribed(false);
-      alert('Notificações desativadas neste dispositivo.');
+      showFeedback('Notificações desativadas neste dispositivo.', 'info');
     } catch (e) {
       console.error('Erro ao desativar notificações:', e);
-      alert('Ocorreu um erro ao desativar as notificações.');
+      showFeedback('Ocorreu um erro ao desativar as notificações.', 'error');
     } finally {
       setLoading(false);
     }
@@ -152,7 +158,7 @@ export default function AlertsManager({ tvs, clientes }: AlertsManagerProps) {
       const subscription = await registration.pushManager.getSubscription();
 
       if (!subscription) {
-        alert('Nenhuma inscrição encontrada. Por favor, ative as notificações novamente.');
+        showFeedback('Nenhuma inscrição encontrada. Por favor, ative as notificações novamente.', 'error');
         return;
       }
 
@@ -163,11 +169,15 @@ export default function AlertsManager({ tvs, clientes }: AlertsManagerProps) {
           endpoint: subscription.endpoint
         })
       });
-      if (!res.ok) throw new Error('Falha ao enviar notificação de teste');
-      alert('Notificação de teste enviada!');
+      
+      const data = await res.json();
+      
+      if (!res.ok || data.success !== true) {
+        showFeedback('Falha ao enviar notificação de teste', 'error');
+      }
     } catch (e) {
       console.error(e);
-      alert('Erro ao enviar notificação de teste.');
+      showFeedback('Erro ao enviar notificação de teste.', 'error');
     } finally {
       setLoading(false);
     }
@@ -184,6 +194,17 @@ export default function AlertsManager({ tvs, clientes }: AlertsManagerProps) {
         </h2>
         <p className="text-slate-400">Gerencie notificações push e visualize eventos recentes das TVs.</p>
       </div>
+
+      {feedback && (
+        <div className={`p-4 rounded-xl border ${
+          feedback.type === 'error' ? 'bg-red-500/10 border-red-500/20 text-red-400' :
+          feedback.type === 'success' ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400' :
+          'bg-blue-500/10 border-blue-500/20 text-blue-400'
+        } flex items-center justify-between`}>
+          <p className="text-sm font-bold">{feedback.text}</p>
+          <button onClick={() => setFeedback(null)} className="text-current opacity-70 hover:opacity-100">&times;</button>
+        </div>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <div className="space-y-6">

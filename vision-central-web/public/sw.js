@@ -12,10 +12,10 @@ self.addEventListener('push', function(event) {
 
   const options = {
     body: data.body || 'Nova notificação',
-    icon: '/icon-192.png',
-    badge: '/icon-192.png',
+    tag: data.tag || `vision-central-${Date.now()}`,
+    renotify: true,
     data: {
-      url: self.registration.scope + '#alertas'
+      url: data.url || '/#alertas'
     }
   };
 
