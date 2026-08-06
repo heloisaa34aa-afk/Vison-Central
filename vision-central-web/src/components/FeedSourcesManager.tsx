@@ -34,13 +34,22 @@ export default function FeedSourcesManager() {
 
   async function loadData() {
     setLoading(true);
-    const [fetchedSources, fetchedPlaylists] = await Promise.all([
-      feedSourcesService.getAll(),
-      storageService.getPlaylists()
-    ]);
-    setSources(fetchedSources);
-    setPlaylists(fetchedPlaylists);
-    setLoading(false);
+    setErrorMsg('');
+    try {
+      const [fetchedSources, fetchedPlaylists] = await Promise.all([
+        feedSourcesService.getAll(),
+        storageService.getPlaylists()
+      ]);
+      setSources(Array.isArray(fetchedSources) ? fetchedSources : []);
+      setPlaylists(Array.isArray(fetchedPlaylists) ? fetchedPlaylists : []);
+    } catch (error) {
+      console.error('Erro ao carregar fontes de feed:', error);
+      setSources([]);
+      setPlaylists([]);
+      setErrorMsg('Não foi possível carregar as fontes. Verifique a conexão e tente novamente.');
+    } finally {
+      setLoading(false);
+    }
   }
 
   const resetForm = () => {
@@ -198,8 +207,11 @@ export default function FeedSourcesManager() {
       )}
 
       {errorMsg && !showForm && (
-        <div className="bg-rose-500/10 border border-rose-500/50 text-rose-400 text-sm p-4 rounded-xl">
-          {errorMsg}
+        <div className="bg-rose-500/10 border border-rose-500/50 text-rose-400 text-sm p-4 rounded-xl flex flex-col sm:flex-row sm:items-center justify-between gap-3" role="alert">
+          <span>{errorMsg}</span>
+          <button type="button" onClick={loadData} className="px-3 py-1.5 rounded-lg bg-white/10 hover:bg-white/15 text-white">
+            Tentar novamente
+          </button>
         </div>
       )}
 
@@ -321,7 +333,7 @@ export default function FeedSourcesManager() {
           <h3 className="text-sm font-bold text-white">Fontes de Feed</h3>
         </div>
         <div className="overflow-x-auto">
-          <table className="w-full text-left">
+          <table className="w-full min-w-[760px] text-left">
             <thead className="bg-slate-800/20 border-b border-white/5">
               <tr>
                 <th className="p-4 text-xs font-bold text-slate-400 uppercase tracking-wider">Perfil</th>

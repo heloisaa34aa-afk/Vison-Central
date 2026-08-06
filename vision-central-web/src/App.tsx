@@ -27,6 +27,7 @@ import Player from './components/Player';
 import RelatorioReproducao from './components/RelatorioReproducao';
 import FeedSourcesManager from './components/FeedSourcesManager';
 import AlertsManager from './components/AlertsManager';
+import PageErrorBoundary from './components/PageErrorBoundary';
 
 export default function App() {
   const isPlayerPage = window.location.pathname === '/player' || window.location.hash === '#/player';
@@ -461,11 +462,11 @@ export default function App() {
               )}
 
               {activeTab === 'relatorios' && (
-                <RelatorioReproducao />
+                <PageErrorBoundary resetKey={activeTab}><RelatorioReproducao /></PageErrorBoundary>
               )}
 
               {activeTab === 'feed_sources' && (
-                <FeedSourcesManager />
+                <PageErrorBoundary resetKey={activeTab}><FeedSourcesManager /></PageErrorBoundary>
               )}
 
               {activeTab === 'alertas' && (

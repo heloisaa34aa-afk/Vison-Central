@@ -1,18 +1,14 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { storageService } from '../lib/storage';
-import { historicoService } from '../services/supabase/historico';
-import { Cliente, Tv, HistoricoReproducao } from '../types';
+import { historicoService, HistoricoResumo } from '../services/supabase/historico';
+import { Cliente, Tv } from '../types';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { Download, Calendar, Filter, FileText, Search } from 'lucide-react';
 
-interface AggregatedMidia {
-  midia_nome: string;
-  midia_tipo: string;
-  exibicoes: number;
-  tempo_total: number;
-  tempo_medio: number;
-}
+const EMPTY_REPORT: HistoricoResumo = {
+  list: [], totalExibicoes: 0, tempoGeral: 0, midiaMaisExibida: 'Nenhuma'
+};
 
 export default function RelatorioReproducao() {
   const [clientes, setClientes] = useState<Cliente[]>([]);
@@ -31,8 +27,10 @@ export default function RelatorioReproducao() {
     return new Date().toISOString().split('T')[0];
   });
   
-  const [historico, setHistorico] = useState<HistoricoReproducao[]>([]);
+  const [aggregatedData, setAggregatedData] = useState<HistoricoResumo>(EMPTY_REPORT);
   const [loading, setLoading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState('');
+  const [hasSearched, setHasSearched] = useState(false);
 
   useEffect(() => {
     loadBaseData();
@@ -53,22 +51,29 @@ export default function RelatorioReproducao() {
       return;
     }
 
+    if (dataInicio > dataFim) {
+      setErrorMessage('A data inicial não pode ser posterior à data final.');
+      return;
+    }
+
     setLoading(true);
+    setErrorMessage('');
     try {
       // Fix dates to start and end of day in ISO
       const start = new Date(`${dataInicio}T00:00:00Z`).toISOString();
       const end = new Date(`${dataFim}T23:59:59Z`).toISOString();
       
-      const data = await historicoService.buscarPorPeriodo({
+      const data = await historicoService.buscarResumoPorPeriodo({
         clienteId: selectedCliente || undefined,
         tvId: selectedTv || undefined,
         dataInicio: start,
         dataFim: end
       });
-      setHistorico(data);
+      setAggregatedData(data);
+      setHasSearched(true);
     } catch (error) {
       console.error(error);
-      alert('Erro ao buscar dados.');
+      setErrorMessage('Não foi possível carregar o relatório. Verifique a conexão e tente novamente.');
     } finally {
       setLoading(false);
     }
@@ -78,46 +83,6 @@ export default function RelatorioReproducao() {
     if (!selectedCliente) return tvs;
     return tvs.filter(tv => tv.clienteId === selectedCliente);
   }, [selectedCliente, tvs]);
-
-  const aggregatedData = useMemo(() => {
-    const agg: Record<string, AggregatedMidia> = {};
-    let totalExibicoes = 0;
-    let tempoGeral = 0;
-
-    for (const row of historico) {
-      const key = row.midia_nome + '_' + row.midia_tipo;
-      if (!agg[key]) {
-        agg[key] = {
-          midia_nome: row.midia_nome,
-          midia_tipo: row.midia_tipo,
-          exibicoes: 0,
-          tempo_total: 0,
-          tempo_medio: 0
-        };
-      }
-      agg[key].exibicoes++;
-      agg[key].tempo_total += row.duracao_segundos;
-      
-      totalExibicoes++;
-      tempoGeral += row.duracao_segundos;
-    }
-
-    const aggregatedList = Object.values(agg).map(item => ({
-      ...item,
-      tempo_medio: Math.round(item.tempo_total / item.exibicoes)
-    }));
-
-    aggregatedList.sort((a, b) => b.tempo_total - a.tempo_total);
-
-    const midiaMaisExibida = aggregatedList.length > 0 ? aggregatedList[0].midia_nome : 'Nenhuma';
-
-    return {
-      list: aggregatedList,
-      totalExibicoes,
-      tempoGeral,
-      midiaMaisExibida
-    };
-  }, [historico]);
 
   const formatTime = (seconds: number) => {
     const h = Math.floor(seconds / 3600);
@@ -279,8 +244,14 @@ export default function RelatorioReproducao() {
         </div>
       </div>
 
+      {errorMessage && (
+        <div className="rounded-xl border border-rose-500/30 bg-rose-500/10 p-4 text-sm text-rose-300" role="alert">
+          {errorMessage}
+        </div>
+      )}
+
       {/* Summary Cards */}
-      {historico.length > 0 && (
+      {aggregatedData.totalExibicoes > 0 && (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div className="bg-slate-900/50 border border-white/10 rounded-xl p-6">
             <h3 className="text-slate-400 text-sm font-medium mb-1">Tempo Total de Tela</h3>
@@ -330,7 +301,7 @@ export default function RelatorioReproducao() {
               ) : (
                 <tr>
                   <td colSpan={5} className="p-8 text-center text-slate-500">
-                    {loading ? 'Buscando histórico...' : 'Nenhum histórico encontrado para o período.'}
+                    {loading ? 'Buscando histórico...' : hasSearched ? 'Nenhum histórico encontrado para o período.' : 'Escolha os filtros e toque em Buscar.'}
                   </td>
                 </tr>
               )}
