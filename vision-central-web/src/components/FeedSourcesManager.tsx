@@ -12,6 +12,8 @@ export default function FeedSourcesManager() {
   const [sources, setSources] = useState<FeedSource[]>([]);
   const [playlists, setPlaylists] = useState<Playlist[]>([]);
   const [loading, setLoading] = useState(true);
+  const [instagramConnectionId, setInstagramConnectionId] = useState<string | null>(null);
+  const [instagramUsername, setInstagramUsername] = useState<string>('');
 
   // Form states
   const [showForm, setShowForm] = useState(false);
@@ -42,7 +44,7 @@ export default function FeedSourcesManager() {
   }
 
   const resetForm = () => {
-    setPerfil('');
+    setPerfil(instagramUsername);
     setPlaylistId('');
     setIntervalo(24);
     setAtivo(true);
@@ -77,6 +79,11 @@ export default function FeedSourcesManager() {
       return;
     }
 
+    if (!instagramConnectionId) {
+      setErrorMsg('Conecte uma conta profissional do Instagram antes de criar a fonte.');
+      return;
+    }
+
     // Format profile
     let formattedPerfil = perfil.trim().toLowerCase();
     if (formattedPerfil.startsWith('@')) {
@@ -94,7 +101,8 @@ export default function FeedSourcesManager() {
       perfil: formattedPerfil,
       playlist_id: playlistId,
       intervalo_horas: intervalo,
-      ativo
+      ativo,
+      instagram_connection_id: instagramConnectionId
     };
 
     if (editingId) {
@@ -109,7 +117,8 @@ export default function FeedSourcesManager() {
     } else {
       const created = await feedSourcesService.create(payload);
       if (created) {
-        setSuccessMsg('Fonte do Instagram adicionada com sucesso.');
+        await fetch(`${API_URL}/api/feed/sync/${created.id}`, { method: 'POST' }).catch(() => null);
+        setSuccessMsg('Fonte adicionada. A primeira atualização foi iniciada.');
         setShowForm(false);
         loadData();
       } else {
@@ -136,7 +145,7 @@ export default function FeedSourcesManager() {
       const res = await fetch(`${API_URL}/api/feed/sync/${id}`, { method: 'POST' });
       const data = await res.json();
       if (res.ok && data.success) {
-        setSuccessMsg('Sincronização concluída com sucesso!');
+        setSuccessMsg('Sincronização iniciada. O status será atualizado em instantes.');
         loadData();
       } else {
         setErrorMsg(data.error || 'Erro na sincronização.');
@@ -158,7 +167,10 @@ export default function FeedSourcesManager() {
 
   return (
     <div className="space-y-6">
-      <InstagramLogin />
+      <InstagramLogin onConnectionChange={(status) => {
+        setInstagramConnectionId(status.connectionId || null);
+        if (status.username) setInstagramUsername(status.username);
+      }} />
       
       {/* Header */}
       <div className="flex flex-col md:flex-row justify-between md:items-center gap-4">
@@ -225,7 +237,7 @@ export default function FeedSourcesManager() {
                     required
                     value={perfil}
                     onChange={(e) => setPerfil(e.target.value)}
-                    placeholder="@nike"
+                    placeholder={instagramUsername ? `@${instagramUsername}` : '@seuperfil'}
                     className="w-full bg-[#050508]/40 border border-white/10 rounded-lg px-3 py-2 text-sm text-slate-200 focus:ring-1 focus:ring-pink-500 focus:outline-none"
                   />
                 </div>
