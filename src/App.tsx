@@ -22,7 +22,8 @@ import ClientPage from './components/ClientPage';
 import ScreenSimulator from './components/ScreenSimulator';
 import Player from './components/Player';
 import RelatorioReproducao from './components/RelatorioReproducao';
-import { FileText } from 'lucide-react';
+import FeedSourcesManager from './components/FeedSourcesManager';
+import { FileText, Rss } from 'lucide-react';
 
 export default function App() {
   const isPlayerPage = window.location.pathname === '/player' || window.location.hash === '#/player';
@@ -352,6 +353,19 @@ export default function App() {
             Relatórios
           </button>
 
+          <button
+            onClick={() => { setActiveTab('feed_sources'); setSelectedClientId(null); }}
+            className={`flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold transition-all whitespace-nowrap md:w-full ${
+              activeTab === 'feed_sources'
+                ? 'bg-gradient-to-r from-blue-600 to-cyan-500 text-white shadow-[0_0_15px_rgba(37,99,235,0.3)]'
+                : 'text-slate-400 hover:bg-white/5 hover:text-white'
+            }`}
+          >
+            <Rss className="w-4 h-4 shrink-0" />
+            Fontes de Feed
+          </button>
+
+
         </aside>
 
         {/* Dynamic Display area rendering active content */}
@@ -431,6 +445,10 @@ export default function App() {
 
               {activeTab === 'relatorios' && (
                 <RelatorioReproducao />
+              )}
+
+              {activeTab === 'feed_sources' && (
+                <FeedSourcesManager />
               )}
 
             </>

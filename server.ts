@@ -3,6 +3,8 @@ import path from "path";
 import dotenv from "dotenv";
 import { GoogleGenAI, Type } from "@google/genai";
 import { createServer as createViteServer } from "vite";
+import { initWorker } from "./src/feedWorker/worker";
+
 
 dotenv.config();
 
@@ -30,6 +32,41 @@ if (apiKey) {
 }
 
 // API Routes FIRST
+
+app.post("/api/instagram/login", async (req, res) => {
+  try {
+    const { loginToInstagram } = await import("./src/feedWorker/scraper/login");
+    const result = await loginToInstagram();
+    if (result.success) {
+      res.json({ success: true });
+    } else {
+      res.status(401).json({ error: result.reason || "Falha ao realizar login no Instagram" });
+    }
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post("/api/feed/sync/:id", async (req, res) => {
+  const { id } = req.params;
+  try {
+    const { syncFeedSource } = await import("./src/feedWorker/syncFeed");
+    const { db } = await import("./src/feedWorker/database");
+    
+    const source = await db.getFeedSourceById(id);
+    if (!source) {
+      return res.status(404).json({ error: "Fonte de feed não encontrada" });
+    }
+
+    // Run sync in background so we don't block the request if it takes too long
+    syncFeedSource(source).catch(e => console.error("Sync error:", e));
+    
+    res.json({ success: true, message: "Sincronização iniciada" });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 app.post("/api/gemini/generate", async (req, res) => {
   const { establishmentType, targetAudience, toneGoal } = req.body;
 
@@ -139,9 +176,13 @@ async function setupVite() {
   });
 }
 
-setupVite().catch((err) => {
+setupVite().then(() => {
+  // Inicializar o worker após o servidor Vite iniciar
+  initWorker();
+}).catch((err) => {
   console.error("Failed to start Vite middleware server:", err);
 });
+
 
 // APK Android API Integration
 app.post("/api/apk/heartbeat", async (req, res) => {

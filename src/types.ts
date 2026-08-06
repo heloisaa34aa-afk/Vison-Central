@@ -81,6 +81,22 @@ export interface LogAlerta {
   criadoEm: string;
 }
 
+export interface FeedSource {
+  id: string;
+  playlist_id: string;
+  tipo: string;
+  perfil: string;
+  intervalo_horas: number;
+  ativo: boolean;
+  ultima_execucao?: string | null;
+  ultimo_item_id?: string | null;
+  criado_em: string;
+  proxima_execucao?: string | null;
+  quantidade_importada?: number;
+  status?: string;
+  ultimo_erro?: string | null;
+}
+
 export interface HistoricoReproducao {
   id: string;
   tv_id: string;
