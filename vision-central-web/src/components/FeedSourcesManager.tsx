@@ -40,8 +40,8 @@ export default function FeedSourcesManager() {
         feedSourcesService.getAll(),
         storageService.getPlaylists()
       ]);
-      setSources(Array.isArray(fetchedSources) ? fetchedSources : []);
-      setPlaylists(Array.isArray(fetchedPlaylists) ? fetchedPlaylists : []);
+      setSources(Array.isArray(fetchedSources) ? fetchedSources.filter(Boolean) : []);
+      setPlaylists(Array.isArray(fetchedPlaylists) ? fetchedPlaylists.filter(Boolean) : []);
     } catch (error) {
       console.error('Erro ao carregar fontes de feed:', error);
       setSources([]);

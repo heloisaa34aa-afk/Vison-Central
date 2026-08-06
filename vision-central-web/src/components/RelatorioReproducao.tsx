@@ -41,8 +41,8 @@ export default function RelatorioReproducao() {
       storageService.getClientes(),
       storageService.getTvs()
     ]);
-    setClientes(clientsData);
-    setTvs(tvsData);
+    setClientes(Array.isArray(clientsData) ? clientsData.filter(Boolean) : []);
+    setTvs(Array.isArray(tvsData) ? tvsData.filter(Boolean) : []);
   }
 
   const handleFetchData = async () => {
@@ -69,7 +69,13 @@ export default function RelatorioReproducao() {
         dataInicio: start,
         dataFim: end
       });
-      setAggregatedData(data);
+      const safeList = Array.isArray(data?.list) ? data.list.filter(Boolean) : [];
+      setAggregatedData({
+        list: safeList,
+        totalExibicoes: Number(data?.totalExibicoes) || 0,
+        tempoGeral: Number(data?.tempoGeral) || 0,
+        midiaMaisExibida: String(data?.midiaMaisExibida || 'Nenhuma')
+      });
       setHasSearched(true);
     } catch (error) {
       console.error(error);
