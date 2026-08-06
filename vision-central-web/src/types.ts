@@ -41,6 +41,7 @@ export interface Tv {
   rotacao?: number;
   resolucao?: string;
   autoplay?: boolean;
+  config_revision?: number;
 
   // Novos recursos
   conteudos_online?: { id: string, nome: string, url: string, active: boolean }[];

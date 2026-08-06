@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { API_URL } from '../config/api';
 import { Cliente } from '../types';
 import { 
   Sparkles, 
@@ -62,7 +63,7 @@ export default function AIScheduler({ clients, onUpdateClientTicker }: AISchedul
     setAppliedIndex(null);
 
     try {
-      const response = await fetch('/api/gemini/generate', {
+      const response = await fetch(`${API_URL}/api/gemini/generate`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

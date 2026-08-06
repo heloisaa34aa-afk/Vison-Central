@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { API_URL } from '../config/api';
 import { feedSourcesService } from '../services/supabase/feedSources';
 import { FeedSource, Playlist } from '../types';
 import { storageService } from '../lib/storage';
@@ -132,7 +133,7 @@ export default function FeedSourcesManager() {
   const handleSync = async (id: string) => {
     try {
       setSuccessMsg('Sincronização iniciada...');
-      const res = await fetch(`/api/feed/sync/${id}`, { method: 'POST' });
+      const res = await fetch(`${API_URL}/api/feed/sync/${id}`, { method: 'POST' });
       const data = await res.json();
       if (res.ok && data.success) {
         setSuccessMsg('Sincronização concluída com sucesso!');

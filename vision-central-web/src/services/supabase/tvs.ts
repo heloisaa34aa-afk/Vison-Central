@@ -66,6 +66,7 @@ export function mapDbToTv(db: any): Tv {
     texto_inferior_tamanho: db.texto_inferior_tamanho || 'base',
     texto_inferior_alinhamento: db.texto_inferior_alinhamento || 'center',
     texto_inferior_visivel: db.texto_inferior_visivel || false,
+    config_revision: db.config_revision || 0,
   };
 }
 
@@ -103,6 +104,7 @@ export function mapTvToDb(tv: Tv): any {
     texto_inferior_tamanho: tv.texto_inferior_tamanho || 'base',
     texto_inferior_alinhamento: tv.texto_inferior_alinhamento || 'center',
     texto_inferior_visivel: tv.texto_inferior_visivel !== undefined ? tv.texto_inferior_visivel : false,
+    config_revision: tv.config_revision || 0,
   };
 }
 
@@ -208,11 +210,20 @@ export const tvsService = {
 
       console.log(`[SUPABASE UPDATE FIELD] Atualizando campo "${dbField}" para o valor:`, dbValue, `na TV com ID:`, id);
 
+      // Se for alteracao visual, incrementar a versao
+      let increment = 1;
+      if (['nome', 'playlistId'].includes(field)) increment = 0;
       const updateData: any = {
         [dbField]: dbValue,
         ultima_sincronizacao: new Date().toISOString()
       };
 
+      if (increment > 0) {
+        // Busca a revisao atual e incrementa
+        const { data: revData } = await supabase.from('tvs').select('config_revision').eq('id', id).maybeSingle();
+        const currentRev = revData?.config_revision || 0;
+        updateData.config_revision = currentRev + 1;
+      }
       const { error } = await supabase
         .from('tvs')
         .update(updateData)

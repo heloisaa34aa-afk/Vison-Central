@@ -427,7 +427,7 @@ export default function Player() {
 
       <div className="absolute inset-0 overflow-hidden" style={{ containerType: 'size' }}>
         <MediaRenderer 
-          tv={activeDevice}
+          tv={activeDevice as Tv}
           media={currentMedia}
           onlineContent={activeOnlineContent}
           onMediaError={handleMediaError}

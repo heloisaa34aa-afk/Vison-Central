@@ -26,7 +26,7 @@ export default function Dashboard({
 }: DashboardProps) {
   
   // Calcular estatísticas
-  const totalTelas = clientes.reduce((acc, c) => acc + c.quantidadeTelas, 0);
+  const totalTelas = tvs.length;
   const tvsOnline = tvs.filter(isTvOnline).length;
   const tvsOffline = tvs.length - tvsOnline;
 
