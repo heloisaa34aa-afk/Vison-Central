@@ -23,17 +23,38 @@ export const historicoService = {
         query = query.eq('tv_id', params.tvId);
       }
 
-      const { data, error } = await query;
+      query = query.order('iniciado_em', { ascending: true }).order('id', { ascending: true });
 
-      if (error) {
-        console.error('Erro ao buscar histórico de reprodução:', error);
-        return [];
+      let allData: HistoricoReproducao[] = [];
+      let from = 0;
+      let limit = 1000;
+      let fetchMore = true;
+
+      while (fetchMore) {
+        const to = from + limit - 1;
+        const { data, error } = await query.range(from, to);
+
+        if (error) {
+          console.error('Erro ao buscar histórico de reprodução:', error);
+          throw error;
+        }
+
+        if (data && data.length > 0) {
+          allData = [...allData, ...(data as HistoricoReproducao[])];
+          if (data.length < limit) {
+            fetchMore = false;
+          } else {
+            from += limit;
+          }
+        } else {
+          fetchMore = false;
+        }
       }
 
-      return data as HistoricoReproducao[];
+      return allData;
     } catch (error) {
       console.error('Erro na requisição do histórico de reprodução:', error);
-      return [];
+      throw error;
     }
   }
 };

@@ -12,7 +12,10 @@ import {
   Tv as TvIcon, 
   Radio, 
   CheckCircle,
-  Building2
+  Building2,
+  FileText,
+  Rss,
+  Bell
 } from 'lucide-react';
 
 // Components
@@ -23,7 +26,7 @@ import ScreenSimulator from './components/ScreenSimulator';
 import Player from './components/Player';
 import RelatorioReproducao from './components/RelatorioReproducao';
 import FeedSourcesManager from './components/FeedSourcesManager';
-import { FileText, Rss } from 'lucide-react';
+import AlertsManager from './components/AlertsManager';
 
 export default function App() {
   const isPlayerPage = window.location.pathname === '/player' || window.location.hash === '#/player';
@@ -32,7 +35,9 @@ export default function App() {
     return <Player />;
   }
 
-  const [activeTab, setActiveTab] = useState<string>('dashboard');
+  const [activeTab, setActiveTab] = useState<string>(
+    window.location.hash === '#alertas' ? 'alertas' : 'dashboard'
+  );
   
   // Outside triggers for simulator
   const [selectedClientIdForSim, setSelectedClientIdForSim] = useState<string | null>(null);
@@ -365,6 +370,18 @@ export default function App() {
             Fontes de Feed
           </button>
 
+          <button
+            onClick={() => { setActiveTab('alertas'); setSelectedClientId(null); }}
+            className={`flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold transition-all whitespace-nowrap md:w-full ${
+              activeTab === 'alertas'
+                ? 'bg-gradient-to-r from-blue-600 to-cyan-500 text-white shadow-[0_0_15px_rgba(37,99,235,0.3)]'
+                : 'text-slate-400 hover:bg-white/5 hover:text-white'
+            }`}
+          >
+            <Bell className="w-4 h-4 shrink-0" />
+            Alertas
+          </button>
+
 
         </aside>
 
@@ -449,6 +466,10 @@ export default function App() {
 
               {activeTab === 'feed_sources' && (
                 <FeedSourcesManager />
+              )}
+
+              {activeTab === 'alertas' && (
+                <AlertsManager tvs={devices} clientes={clients} />
               )}
 
             </>
