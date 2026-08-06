@@ -2,8 +2,6 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { storageService } from '../lib/storage';
 import { historicoService, HistoricoResumo } from '../services/supabase/historico';
 import { Cliente, Tv } from '../types';
-import jsPDF from 'jspdf';
-import autoTable from 'jspdf-autotable';
 import { Download, Calendar, Filter, FileText, Search } from 'lucide-react';
 
 const EMPTY_REPORT: HistoricoResumo = {
@@ -106,14 +104,26 @@ export default function RelatorioReproducao() {
     return `${m}min ${seconds % 60}s`;
   };
 
-  const exportPDF = () => {
+  const exportPDF = async () => {
     if (aggregatedData.list.length === 0) {
       alert('Não há dados para exportar.');
       return;
     }
 
-    const doc = new jsPDF();
-    
+    const isAppleMobile = /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+      (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+    const previewWindow = isAppleMobile ? window.open('', '_blank') : null;
+
+    try {
+      // Só carrega o gerador quando o usuário exporta. Isso evita falhas do
+      // jsPDF durante a abertura da página em navegadores iOS mais antigos.
+      const [{ jsPDF }, autoTableModule] = await Promise.all([
+        import('jspdf'),
+        import('jspdf-autotable')
+      ]);
+      const autoTable = autoTableModule.default;
+      const doc = new jsPDF();
+
     // Header
     doc.setFontSize(18);
     doc.text('Relatório de Mídias Reproduzidas', 14, 22);
@@ -146,7 +156,7 @@ export default function RelatorioReproducao() {
       formatTime(item.tempo_medio)
     ]);
 
-    autoTable(doc, {
+      autoTable(doc, {
       startY: 85,
       head: [['Mídia', 'Tipo', 'Qtd. Exibições', 'Tempo Total', 'Tempo Médio']],
       body: tableData,
@@ -155,10 +165,22 @@ export default function RelatorioReproducao() {
       headStyles: { fillColor: [41, 128, 185] }
     });
 
-    // Save
-    const clientFileName = clienteName.replace(/\s+/g, '-').toLowerCase();
-    const fileName = `relatorio-reproducao-${clientFileName}-${dataInicio}-a-${dataFim}.pdf`;
-    doc.save(fileName);
+      const clientFileName = clienteName.replace(/\s+/g, '-').toLowerCase();
+      const fileName = `relatorio-reproducao-${clientFileName}-${dataInicio}-a-${dataFim}.pdf`;
+
+      if (isAppleMobile && previewWindow) {
+        const blob = doc.output('blob');
+        const pdfUrl = URL.createObjectURL(blob);
+        previewWindow.location.href = pdfUrl;
+        window.setTimeout(() => URL.revokeObjectURL(pdfUrl), 60000);
+      } else {
+        doc.save(fileName);
+      }
+    } catch (error) {
+      previewWindow?.close();
+      console.error('Erro ao gerar PDF:', error);
+      setErrorMessage('Não foi possível gerar o PDF neste aparelho. Tente novamente ou utilize outro navegador.');
+    }
   };
 
   return (
