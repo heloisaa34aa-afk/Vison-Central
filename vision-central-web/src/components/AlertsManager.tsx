@@ -10,10 +10,13 @@ interface AlertsManagerProps {
 }
 
 interface AlertEvent {
-  id: number;
-  message: string;
-  created_at: string;
-  type?: string;
+  id: string;
+  tv_id: string;
+  cliente_id?: string | null;
+  tipo: 'offline' | 'recovered';
+  titulo: string;
+  mensagem: string;
+  criado_em: string;
 }
 
 export default function AlertsManager({ tvs, clientes }: AlertsManagerProps) {
@@ -100,7 +103,9 @@ export default function AlertsManager({ tvs, clientes }: AlertsManagerProps) {
       const subRes = await fetch(`${API_URL}/api/alerts/subscribe`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(subscription)
+        body: JSON.stringify({
+          subscription: subscription.toJSON()
+        })
       });
 
       if (!subRes.ok) throw new Error('Erro ao salvar inscrição');
@@ -143,7 +148,21 @@ export default function AlertsManager({ tvs, clientes }: AlertsManagerProps) {
   async function handleTestNotification() {
     setLoading(true);
     try {
-      const res = await fetch(`${API_URL}/api/alerts/test`, { method: 'POST' });
+      const registration = await navigator.serviceWorker.ready;
+      const subscription = await registration.pushManager.getSubscription();
+
+      if (!subscription) {
+        alert('Nenhuma inscrição encontrada. Por favor, ative as notificações novamente.');
+        return;
+      }
+
+      const res = await fetch(`${API_URL}/api/alerts/test`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          endpoint: subscription.endpoint
+        })
+      });
       if (!res.ok) throw new Error('Falha ao enviar notificação de teste');
       alert('Notificação de teste enviada!');
     } catch (e) {
@@ -279,8 +298,14 @@ export default function AlertsManager({ tvs, clientes }: AlertsManagerProps) {
               <div className="space-y-3">
                 {events.map((evt, idx) => (
                   <div key={idx} className="bg-black/30 border border-white/5 p-3 rounded-lg">
-                    <p className="text-sm text-slate-200 mb-1">{evt.message}</p>
-                    <p className="text-[10px] text-slate-500">{new Date(evt.created_at).toLocaleString()}</p>
+                    <p className="text-sm font-bold text-slate-200 mb-1">{evt.titulo}</p>
+                    <p className="text-sm text-slate-400 mb-1">{evt.mensagem}</p>
+                    <div className="flex items-center justify-between mt-2">
+                      <span className={`text-[10px] uppercase font-bold px-2 py-1 rounded ${evt.tipo === 'offline' ? 'bg-red-400/10 text-red-400' : 'bg-emerald-400/10 text-emerald-400'}`}>
+                        {evt.tipo}
+                      </span>
+                      <p className="text-[10px] text-slate-500">{new Date(evt.criado_em).toLocaleString()}</p>
+                    </div>
                   </div>
                 ))}
               </div>
