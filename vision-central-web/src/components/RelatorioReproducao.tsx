@@ -29,6 +29,7 @@ export default function RelatorioReproducao() {
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
   const [hasSearched, setHasSearched] = useState(false);
+  const [loadingPdf, setLoadingPdf] = useState(false);
 
   useEffect(() => {
     loadBaseData();
@@ -105,81 +106,76 @@ export default function RelatorioReproducao() {
   };
 
   const exportPDF = async () => {
-    if (aggregatedData.list.length === 0) {
-      alert('Não há dados para exportar.');
-      return;
-    }
-
-    const isAppleMobile = /iPad|iPhone|iPod/.test(navigator.userAgent) ||
-      (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
-    const previewWindow = isAppleMobile ? window.open('', '_blank') : null;
-
+    if (aggregatedData.list.length === 0 || loadingPdf) return;
+    setLoadingPdf(true);
+    
     try {
-      // Só carrega o gerador quando o usuário exporta. Isso evita falhas do
-      // jsPDF durante a abertura da página em navegadores iOS mais antigos.
-      const [{ jsPDF }, autoTableModule] = await Promise.all([
-        import('jspdf'),
-        import('jspdf-autotable')
-      ]);
-      const autoTable = autoTableModule.default;
+      const { default: jsPDF } = await import('jspdf');
+      const { default: autoTable } = await import('jspdf-autotable');
+
       const doc = new jsPDF();
+      const clienteName = clientes.find(c => c.id === selectedCliente)?.nome || 'Todos';
+      
+      doc.setFontSize(16);
+      doc.text('Relatorio de Reproducao', 14, 20);
+      
+      doc.setFontSize(10);
+      doc.setTextColor(100);
+      doc.text(`Cliente: ${clienteName}`, 14, 30);
+      if (selectedTv) {
+        const tvName = tvs.find(t => t.id === selectedTv)?.nome || 'N/A';
+        doc.text(`TV: ${tvName}`, 14, 36);
+      }
+      doc.text(`Periodo: ${dataInicio} ate ${dataFim}`, 14, selectedTv ? 42 : 36);
 
-    // Header
-    doc.setFontSize(18);
-    doc.text('Relatório de Mídias Reproduzidas', 14, 22);
-    
-    doc.setFontSize(11);
-    doc.setTextColor(100);
-    
-    const clienteName = selectedCliente ? clientes.find(c => c.id === selectedCliente)?.nome || 'Todos' : 'Todos os Clientes';
-    const tvName = selectedTv ? tvs.find(t => t.id === selectedTv)?.nome || 'Todas' : 'Todas as TVs';
-    
-    doc.text(`Cliente: ${clienteName}`, 14, 30);
-    doc.text(`TV: ${tvName}`, 14, 36);
-    doc.text(`Período: ${dataInicio.split('-').reverse().join('/')} a ${dataFim.split('-').reverse().join('/')}`, 14, 42);
-    doc.text(`Gerado em: ${new Date().toLocaleString()}`, 14, 48);
+      doc.setFontSize(12);
+      doc.setTextColor(0);
+      doc.text('Resumo', 14, 56);
+      doc.setFontSize(10);
+      doc.setTextColor(100);
+      doc.text(`Tempo Total de Tela: ${formatShortTime(aggregatedData.tempoGeral)}`, 14, 64);
+      doc.text(`Total de Exibicoes: ${aggregatedData.totalExibicoes}`, 14, 70);
+      doc.text(`Midia Mais Exibida: ${aggregatedData.midiaMaisExibida}`, 14, 76);
 
-    doc.setFontSize(12);
-    doc.setTextColor(0);
-    doc.text('Resumo:', 14, 58);
-    doc.setFontSize(10);
-    doc.text(`Tempo Total: ${formatTime(aggregatedData.tempoGeral)}`, 14, 64);
-    doc.text(`Total de Exibições: ${aggregatedData.totalExibicoes}`, 14, 70);
-    doc.text(`Mídia Mais Exibida: ${aggregatedData.midiaMaisExibida}`, 14, 76);
-
-    // Table
-    const tableData = aggregatedData.list.map(item => [
-      item.midia_nome,
-      item.midia_tipo,
-      item.exibicoes.toString(),
-      formatTime(item.tempo_total),
-      formatTime(item.tempo_medio)
-    ]);
+      const tableData = aggregatedData.list.map(item => [
+        item.midia_nome,
+        item.midia_tipo,
+        item.exibicoes.toString(),
+        formatTime(item.tempo_total),
+        formatTime(item.tempo_medio)
+      ]);
 
       autoTable(doc, {
-      startY: 85,
-      head: [['Mídia', 'Tipo', 'Qtd. Exibições', 'Tempo Total', 'Tempo Médio']],
-      body: tableData,
-      theme: 'grid',
-      styles: { fontSize: 9 },
-      headStyles: { fillColor: [41, 128, 185] }
-    });
+        startY: 85,
+        head: [['Mídia', 'Tipo', 'Qtd. Exibições', 'Tempo Total', 'Tempo Médio']],
+        body: tableData,
+        theme: 'grid',
+        styles: { fontSize: 9 },
+        headStyles: { fillColor: [41, 128, 185] }
+      });
 
       const clientFileName = clienteName.replace(/\s+/g, '-').toLowerCase();
       const fileName = `relatorio-reproducao-${clientFileName}-${dataInicio}-a-${dataFim}.pdf`;
 
-      if (isAppleMobile && previewWindow) {
+      const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
+      const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+
+      if (isSafari || isIOS) {
         const blob = doc.output('blob');
-        const pdfUrl = URL.createObjectURL(blob);
-        previewWindow.location.href = pdfUrl;
-        window.setTimeout(() => URL.revokeObjectURL(pdfUrl), 60000);
+        const url = URL.createObjectURL(blob);
+        const win = window.open(url, '_blank');
+        if (!win) {
+           alert('O Safari bloqueou a abertura do PDF. Permita popups para este site.');
+        }
+        setTimeout(() => URL.revokeObjectURL(url), 3000);
       } else {
         doc.save(fileName);
       }
-    } catch (error) {
-      previewWindow?.close();
-      console.error('Erro ao gerar PDF:', error);
-      setErrorMessage('Não foi possível gerar o PDF neste aparelho. Tente novamente ou utilize outro navegador.');
+    } catch (err) {
+      console.error('Erro ao gerar PDF:', err);
+      setErrorMessage('Falha ao gerar o PDF. Tente novamente.');
+    } finally {
+      setLoadingPdf(false);
     }
   };
 
@@ -199,7 +195,7 @@ export default function RelatorioReproducao() {
           disabled={aggregatedData.list.length === 0}
           className="bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded-lg flex items-center justify-center gap-2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
         >
-          <Download className="w-4 h-4" /> Exportar PDF
+          {loadingPdf ? <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div> : <Download className="w-4 h-4" />} {loadingPdf ? 'Gerando PDF...' : 'Exportar PDF'}
         </button>
       </div>
 

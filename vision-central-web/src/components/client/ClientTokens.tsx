@@ -38,7 +38,22 @@ export default function ClientTokens({
 
   // 1. Copy Token to clipboard
   const handleCopy = (token: string) => {
-    navigator.clipboard.writeText(token);
+    
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(token).catch(err => console.error("Clipboard error", err));
+    } else {
+      const textArea = document.createElement("textarea");
+      textArea.value = token;
+      document.body.appendChild(textArea);
+      textArea.select();
+      try {
+        document.execCommand('copy');
+      } catch (err) {
+        console.error("Fallback clipboard error", err);
+      }
+      document.body.removeChild(textArea);
+    }
+
     setCopiedToken(token);
     setTimeout(() => setCopiedToken(null), 2000);
     showToast('Token copiado!');

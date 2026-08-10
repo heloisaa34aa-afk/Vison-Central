@@ -136,7 +136,22 @@ export default function AIScheduler({ clients, onUpdateClientTicker }: AISchedul
   };
 
   const handleCopy = (text: string, index: number) => {
-    navigator.clipboard.writeText(text);
+    
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).catch(err => console.error("Clipboard error", err));
+    } else {
+      const textArea = document.createElement("textarea");
+      textArea.value = text;
+      document.body.appendChild(textArea);
+      textArea.select();
+      try {
+        document.execCommand('copy');
+      } catch (err) {
+        console.error("Fallback clipboard error", err);
+      }
+      document.body.removeChild(textArea);
+    }
+
     setCopiedIndex(index);
     setTimeout(() => setCopiedIndex(null), 2000);
   };
