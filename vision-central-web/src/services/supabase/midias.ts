@@ -66,36 +66,41 @@ export const midiasService = {
       // 1. Obter a URL da mídia primeiro
       const { data: mediaData, error: fetchError } = await supabase
         .from('midias')
-        .select('url_storage')
+        .select('url_storage, origem')
         .eq('id', id)
         .single();
-      
+        
       if (fetchError) {
         console.warn('Erro ao buscar mídia para exclusão:', fetchError);
+        return false;
       }
 
-      // 2. Deletar os vínculos em playlist_midias primeiro para evitar violações de FK
-      try {
-        await supabase.from('playlist_midias').delete().eq('midia_id', id);
-      } catch (e) {
-        console.warn('Aviso ao deletar mídias de playlists:', e);
+      // 2. Deletar do storage se a URL estiver disponível
+      if (mediaData && mediaData.url_storage) {
+        const storageDeleted = await storageServiceSupabase.deleteMediaFile(mediaData.url_storage);
+        if (!storageDeleted) {
+          console.warn('Falha ao excluir arquivo físico da mídia no storage/R2.');
+          return false;
+        }
       }
 
-      // 3. Deletar do banco de dados
+      // 3. Deletar os vínculos em playlist_midias primeiro para evitar violações de FK
+      const { error: playlistError } = await supabase.from('playlist_midias').delete().eq('midia_id', id);
+      if (playlistError) {
+        console.warn('Erro ao deletar vínculos de playlist_midias:', playlistError);
+        return false;
+      }
+
+      // 4. Deletar do banco de dados
       const { error: deleteError } = await supabase.from('midias').delete().eq('id', id);
       if (deleteError) {
         console.warn('Erro ao deletar mídia do banco:', deleteError);
         return false;
       }
 
-      // 4. Deletar do storage se a URL estiver disponível
-      if (mediaData && mediaData.url_storage) {
-        await storageServiceSupabase.deleteMediaFile(mediaData.url_storage);
-      }
-
       return true;
     } catch (e) {
-      console.error(e);
+      console.error('Exceção ao deletar mídia:', e);
       return false;
     }
   }

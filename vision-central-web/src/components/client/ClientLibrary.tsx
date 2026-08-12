@@ -39,6 +39,7 @@ const [isDragging, setIsDragging] = useState(false);
   const [uploadingFiles, setUploadingFiles] = useState<{name: string, progress: number}[]>([]);
   const [editingMediaId, setEditingMediaId] = useState<string | null>(null);
   const [editMediaName, setEditMediaName] = useState('');
+  const [deletingMediaId, setDeletingMediaId] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleDragOver = (e: React.DragEvent) => {
@@ -189,10 +190,18 @@ const processFiles = async (files: FileList | null) => {
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
-  const handleDelete = (id: string) => {
+  const handleDelete = async (id: string) => {
+    if (deletingMediaId) return;
     if (confirm('Deseja excluir esta mídia? Ela será removida da biblioteca e de todas as playlists.')) {
-      onUpdateMedia(prev => prev.filter(m => m.id !== id));
-      showToast('Mídia excluída com sucesso.');
+      setDeletingMediaId(id);
+      const success = await storageService.deleteMidia(id);
+      setDeletingMediaId(null);
+      if (success) {
+        onUpdateMedia(prev => prev.filter(m => m.id !== id));
+        showToast('Mídia excluída com sucesso.');
+      } else {
+        showToast('Não foi possível excluir a mídia. Tente novamente.');
+      }
     }
   };
 
@@ -256,7 +265,8 @@ const renderMediaGrid = (items: Midia[], icon: React.ReactNode, title: string) =
               )}
               <button 
                 onClick={() => handleDelete(item.id)}
-                className="absolute top-2 right-2 p-1.5 bg-black/60 hover:bg-rose-500/80 text-white rounded opacity-0 group-hover:opacity-100 transition-all backdrop-blur-sm"
+                disabled={deletingMediaId === item.id}
+                className={`absolute top-2 right-2 p-1.5 ${deletingMediaId === item.id ? 'bg-rose-500 text-white opacity-100' : 'bg-black/60 hover:bg-rose-500/80 text-white opacity-0 group-hover:opacity-100'} rounded transition-all backdrop-blur-sm`}
                 title="Excluir Mídia"
               >
                 <Trash2 className="w-3.5 h-3.5" />

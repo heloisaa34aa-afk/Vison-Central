@@ -75,10 +75,27 @@ export const storageServiceSupabase = {
         });
         
         if (!response.ok) {
-           console.warn('Erro ao deletar do Cloudflare R2 via backend:', response.status);
+           let errorMsg = `Erro ${response.status}`;
+           try {
+             const errData = await response.json();
+             if (errData.error) errorMsg = errData.error;
+           } catch (e) {}
+           console.warn('Erro ao deletar do Cloudflare R2 via backend:', response.status, errorMsg);
            return false;
         }
-        return true;
+
+        try {
+          const data = await response.json();
+          if (data.deleted === true) {
+            return true;
+          } else {
+            console.warn('Backend não confirmou a exclusão (deleted !== true).', data);
+            return false;
+          }
+        } catch (e) {
+          console.warn('Erro ao ler a resposta JSON do backend após exclusão.');
+          return false;
+        }
       }
       return false;
     } catch (e) {
