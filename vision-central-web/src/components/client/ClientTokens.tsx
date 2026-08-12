@@ -148,8 +148,13 @@ export default function ClientTokens({
     if (isProcessing) return;
     setIsProcessing(true);
     const newToken = tokensService.generateToken();
-    const defaultPlaylistId = client.playlistId
-      || playlists.find(playlist => playlist.clienteId === client.id)?.id;
+    
+    // Select default playlist
+    let defaultPlaylistId = client.playlistId;
+    if (!defaultPlaylistId && playlists.length > 0) {
+      defaultPlaylistId = playlists[0].id;
+    }
+
     const newDevice: Tv = {
       id: `dev-${Date.now()}`,
       clienteId: client.id,
@@ -164,9 +169,7 @@ export default function ClientTokens({
     
     const success = await storageService.saveTv(newDevice);
     if (success) {
-      onUpdateDevices(prev => prev.some(device => device.id === newDevice.id)
-        ? prev.map(device => device.id === newDevice.id ? newDevice : device)
-        : [...prev, newDevice]);
+      onUpdateDevices(prev => [...prev, newDevice]);
       showToast('Nova TV adicionada. Use o token para pareamento!');
     } else {
       showToast('Não foi possível salvar a nova TV no banco.');

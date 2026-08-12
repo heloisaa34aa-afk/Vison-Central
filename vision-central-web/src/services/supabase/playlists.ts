@@ -48,40 +48,27 @@ export const playlistsService = {
 
   async savePlaylist(playlist: Playlist): Promise<boolean> {
     try {
-      const { data: previousRelations, error: previousRelationsError } = await supabase
-        .from('playlist_midias')
-        .select('id, playlist_id, midia_id, ordem, duracao')
-        .eq('playlist_id', playlist.id);
-
-      if (previousRelationsError) {
-        console.warn('Erro ao preparar salvamento da playlist:', previousRelationsError);
-        return false;
-      }
-
       // 1. Salvar a playlist em si
       const { error: plError } = await supabase.from('playlists').upsert({
         id: playlist.id,
         nome: playlist.nome,
         cliente_id: playlist.clienteId || null
       });
-
       if (plError) {
         console.warn('Erro ao salvar playlist:', plError);
         return false;
       }
 
-      // 2. Deletar as relações existentes em playlist_midias
-      const { error: deleteRelationsError } = await supabase
+      // 2. Fetch existing relations for rollback capability
+      const { data: existingRels } = await supabase
         .from('playlist_midias')
-        .delete()
+        .select('*')
         .eq('playlist_id', playlist.id);
 
-      if (deleteRelationsError) {
-        console.warn('Erro ao substituir mídias da playlist:', deleteRelationsError);
-        return false;
-      }
+      // 3. Deletar as relações existentes
+      await supabase.from('playlist_midias').delete().eq('playlist_id', playlist.id);
 
-      // 3. Inserir as novas relações em playlist_midias
+      // 4. Inserir as novas relações em playlist_midias
       if (playlist.midiasIds && playlist.midiasIds.length > 0) {
         const relations = playlist.midiasIds.map((midiaId, idx) => {
           const itemDur = (playlist.midiasDurations && playlist.midiasDurations[idx] !== undefined)
@@ -95,22 +82,16 @@ export const playlistsService = {
             duracao: itemDur
           };
         });
-
         const { error: relError } = await supabase.from('playlist_midias').insert(relations);
         if (relError) {
           console.warn('Erro ao salvar mídias da playlist:', relError);
-          if (previousRelations && previousRelations.length > 0) {
-            const { error: rollbackError } = await supabase
-              .from('playlist_midias')
-              .insert(previousRelations);
-            if (rollbackError) {
-              console.error('Erro ao restaurar vínculos anteriores da playlist:', rollbackError);
-            }
+          // Rollback: try to restore existing relations if insert failed
+          if (existingRels && existingRels.length > 0) {
+             await supabase.from('playlist_midias').insert(existingRels);
           }
           return false;
         }
       }
-
       return true;
     } catch (e) {
       console.error(e);

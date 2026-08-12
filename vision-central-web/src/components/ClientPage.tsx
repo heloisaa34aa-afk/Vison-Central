@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Cliente, Tv, Playlist, Midia } from '../types';
+import { storageService } from '../lib/storage';
 import { 
   Tv as TvIcon, 
   FolderHeart, 
@@ -23,7 +24,6 @@ import ClientTokens from './client/ClientTokens';
 import ClientLibrary from './client/ClientLibrary';
 import ClientPlaylists from './client/ClientPlaylists';
 import { isTvOnline } from '../utils/tvStatus';
-import { storageService } from '../lib/storage';
 
 interface ClientPageProps {
   clientId: string;
@@ -168,14 +168,17 @@ export default function ClientPage({
   const [editOrientacao, setEditOrientacao] = useState(client.orientacao);
   const [editFuso, setEditFuso] = useState(client.fusoHorario);
   const [editTicker, setEditTicker] = useState(client.textoTicker || '');
+  const [isProcessing, setIsProcessing] = useState(false);
 
   const handleSaveSettings = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isProcessing) return;
     if (!editNome.trim() || !editBairro.trim()) {
       showToast('Por favor, preencha todos os campos obrigatórios.');
       return;
     }
 
+    setIsProcessing(true);
     const updated: Cliente = {
       ...client,
       nome: editNome.trim(),
@@ -193,8 +196,9 @@ export default function ClientPage({
       onUpdateClient(updated);
       showToast('Configurações do cliente salvas no Supabase!');
     } else {
-      showToast('Não foi possível salvar as configurações do cliente.');
+      showToast('Erro ao salvar cliente no Supabase.');
     }
+    setIsProcessing(false);
   };
 
   return (
@@ -486,7 +490,8 @@ export default function ClientPage({
             <div className="flex justify-end pt-4 border-t border-white/5">
               <button 
                 type="submit"
-                className="px-6 py-2.5 bg-gradient-to-r from-blue-600 to-cyan-500 hover:opacity-95 text-white rounded-lg text-sm font-bold shadow-md transition-all uppercase tracking-wider"
+                disabled={isProcessing}
+                className="px-6 py-2.5 bg-gradient-to-r from-blue-600 to-cyan-500 hover:opacity-95 text-white rounded-lg text-sm font-bold shadow-md transition-all uppercase tracking-wider disabled:opacity-50"
               >
                 Salvar Configurações
               </button>

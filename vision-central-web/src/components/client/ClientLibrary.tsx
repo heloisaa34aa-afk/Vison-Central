@@ -39,6 +39,7 @@ const [isDragging, setIsDragging] = useState(false);
   const [uploadingFiles, setUploadingFiles] = useState<{name: string, progress: number}[]>([]);
   const [editingMediaId, setEditingMediaId] = useState<string | null>(null);
   const [editMediaName, setEditMediaName] = useState('');
+  const [isProcessing, setIsProcessing] = useState(false);
   const [deletingMediaId, setDeletingMediaId] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -211,7 +212,9 @@ const processFiles = async (files: FileList | null) => {
   };
 
   const handleSaveRename = async (item: Midia) => {
+    if (isProcessing) return;
     if (!editMediaName.trim()) return;
+    setIsProcessing(true);
     const updated = { ...item, nome: editMediaName.trim() };
     const success = await storageService.saveMidia(updated);
     if (success) {
@@ -219,8 +222,9 @@ const processFiles = async (files: FileList | null) => {
       setEditingMediaId(null);
       showToast('Mídia renomeada com sucesso.');
     } else {
-      showToast('Não foi possível renomear a mídia.');
+      showToast('Erro ao renomear mídia.');
     }
+    setIsProcessing(false);
   };
 
   // Filtrar mídias para exibir apenas as pertencentes a este cliente
@@ -289,6 +293,7 @@ const renderMediaGrid = (items: Midia[], icon: React.ReactNode, title: string) =
                   />
                   <button
                     onClick={() => handleSaveRename(item)}
+                    disabled={isProcessing}
                     className="p-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded shrink-0"
                     title="Salvar"
                   >

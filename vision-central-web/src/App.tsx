@@ -10,8 +10,6 @@ import {
 import { Cliente, Tv, Playlist, Midia } from './types';
 import { storageService } from './lib/storage';
 import { supabase } from './lib/supabase';
-import { mapDbToTv } from './services/supabase/tvs';
-import { mapDbToCliente } from './services/supabase/clientes';
 
 // Lazy loading components
 const Dashboard = lazy(() => import('./components/Dashboard.tsx'));
@@ -90,13 +88,16 @@ export default function App() {
         (payload) => {
           if (!isMounted) return;
           if (payload.eventType === 'UPDATE') {
-            const updatedTv = mapDbToTv(payload.new);
-            setDevices(prev => prev.map(tv => tv.id === updatedTv.id ? updatedTv : tv));
+            const updatedTv = mapDbTvToUi(payload.new);
+            setDevices(prev => prev.map(tv => tv.id === updatedTv.id ? { ...tv, ...updatedTv } : tv));
           } else if (payload.eventType === 'INSERT') {
-            const newTv = mapDbToTv(payload.new);
-            setDevices(prev => prev.some(tv => tv.id === newTv.id)
-              ? prev.map(tv => tv.id === newTv.id ? newTv : tv)
-              : [...prev, newTv]);
+            const newTv = mapDbTvToUi(payload.new);
+            setDevices(prev => {
+              if (prev.some(t => t.id === newTv.id)) {
+                return prev.map(t => t.id === newTv.id ? { ...t, ...newTv } : t);
+              }
+              return [...prev, newTv];
+            });
           } else if (payload.eventType === 'DELETE') {
             const oldTv = payload.old as Tv;
             setDevices(prev => prev.filter(tv => tv.id !== oldTv.id));
@@ -109,13 +110,16 @@ export default function App() {
         (payload) => {
           if (!isMounted) return;
           if (payload.eventType === 'UPDATE') {
-            const updatedClient = mapDbToCliente(payload.new);
-            setClients(prev => prev.map(c => c.id === updatedClient.id ? updatedClient : c));
+            const updatedClient = mapDbClientToUi(payload.new);
+            setClients(prev => prev.map(c => c.id === updatedClient.id ? { ...c, ...updatedClient } : c));
           } else if (payload.eventType === 'INSERT') {
-            const newClient = mapDbToCliente(payload.new);
-            setClients(prev => prev.some(client => client.id === newClient.id)
-              ? prev.map(client => client.id === newClient.id ? newClient : client)
-              : [...prev, newClient]);
+            const newClient = mapDbClientToUi(payload.new);
+            setClients(prev => {
+              if (prev.some(c => c.id === newClient.id)) {
+                return prev.map(c => c.id === newClient.id ? { ...c, ...newClient } : c);
+              }
+              return [...prev, newClient];
+            });
           } else if (payload.eventType === 'DELETE') {
             const oldClient = payload.old as Cliente;
             setClients(prev => prev.filter(c => c.id !== oldClient.id));
@@ -149,6 +153,28 @@ export default function App() {
   const handleUpdatePlaylists = (id: string, partial: Partial<Playlist>) => {
     setPlaylists(prev => prev.map(p => p.id === id ? { ...p, ...partial } : p));
   };
+  
+const mapDbTvToUi = (db: any): Tv => {
+  return {
+    ...db,
+    clienteId: db.cliente_id || db.clienteId,
+    playlistId: db.playlist_id || db.playlistId,
+    ultimaSincronizacao: db.ultima_sincronizacao || db.ultimaSincronizacao,
+    ultimaConexao: db.ultima_conexao || db.ultimaConexao
+  };
+};
+
+const mapDbClientToUi = (db: any): Cliente => {
+  return {
+    ...db,
+    quantidadeTelas: db.quantidade_telas || db.quantidadeTelas,
+    fusoHorario: db.fuso_horario || db.fusoHorario,
+    tipoIcone: db.tipo_icone || db.tipoIcone,
+    playlistId: db.playlist_id || db.playlistId,
+    textoTicker: db.texto_ticker || db.textoTicker
+  };
+};
+
   const handleUpdateMedia = (id: string, partial: Partial<Midia>) => {
     setMedia(prev => prev.map(m => m.id === id ? { ...m, ...partial } : m));
   };
@@ -251,9 +277,7 @@ export default function App() {
                   onAddClient={async (newClient) => {
                     const success = await storageService.saveCliente(newClient);
                     if (success) {
-                      setClients(prev => prev.some(client => client.id === newClient.id)
-                        ? prev.map(client => client.id === newClient.id ? newClient : client)
-                        : [...prev, newClient]);
+                      setClients(prev => [...prev, newClient]);
                       showToast('Cliente criado com sucesso!');
                     } else {
                       showToast('Erro ao criar cliente.');

@@ -30,25 +30,9 @@ export default function ClientPlaylists({ client, playlists, media, onUpdatePlay
   const [selectedAvailableIds, setSelectedAvailableIds] = useState<string[]>([]);
   const [isEditingName, setIsEditingName] = useState<string | null>(null);
   const [editNameText, setEditNameText] = useState('');
-  const persistenceQueue = React.useRef<Promise<void>>(Promise.resolve());
 
   const clientMedia = media.filter(m => m.clienteId === client.id);
   const clientPlaylists = playlists.filter(p => p.clienteId === client.id);
-
-  const persistPlaylist = (playlist: Playlist, successMessage?: string) => {
-    onUpdatePlaylists(prev => prev.map(item => item.id === playlist.id ? playlist : item));
-    persistenceQueue.current = persistenceQueue.current.then(async () => {
-      const success = await storageService.savePlaylist(playlist);
-      if (success) {
-        if (successMessage) showToast(successMessage);
-      } else {
-        showToast('Não foi possível salvar a playlist no Supabase.');
-      }
-    }).catch(error => {
-      console.error('Erro ao persistir playlist:', error);
-      showToast('Não foi possível salvar a playlist no Supabase.');
-    });
-  };
 
   
   const getIconForType = (tipo: string, sizeClass = "w-4 h-4") => {
@@ -71,13 +55,8 @@ const handleCreatePlaylist = () => {
       midiasDurations: [],
       clienteId: client.id
     };
-    onUpdatePlaylists(prev => prev.some(item => item.id === newPlaylist.id)
-      ? prev.map(item => item.id === newPlaylist.id ? newPlaylist : item)
-      : [newPlaylist, ...prev]);
-    persistenceQueue.current = persistenceQueue.current.then(async () => {
-      const success = await storageService.savePlaylist(newPlaylist);
-      showToast(success ? 'Nova playlist criada com sucesso!' : 'Não foi possível criar a playlist no Supabase.');
-    });
+    onUpdatePlaylists(prev => [newPlaylist, ...prev]);
+    showToast('Nova playlist criada com sucesso!');
     setEditingPlaylistId(newPlaylist.id);
   };
 
@@ -90,29 +69,22 @@ const handleCreatePlaylist = () => {
       midiasDurations: playlist.midiasDurations ? [...playlist.midiasDurations] : []
     };
     onUpdatePlaylists(prev => [newPlaylist, ...prev]);
-    persistenceQueue.current = persistenceQueue.current.then(async () => {
-      const success = await storageService.savePlaylist(newPlaylist);
-      showToast(success ? 'Playlist duplicada com sucesso!' : 'Não foi possível duplicar a playlist no Supabase.');
-    });
+    showToast('Playlist duplicada com sucesso!');
   };
 
   const handleDelete = (id: string) => {
     if (confirm('Aviso: Tem certeza que deseja excluir esta playlist? As TVs que utilizam essa playlist voltarão a herdar a padrão.')) {
       onUpdatePlaylists(prev => prev.filter(p => p.id !== id));
       if (editingPlaylistId === id) setEditingPlaylistId(null);
-      persistenceQueue.current = persistenceQueue.current.then(async () => {
-        const success = await storageService.deletePlaylist(id);
-        showToast(success ? 'Playlist excluída com sucesso.' : 'Não foi possível excluir a playlist do Supabase.');
-      });
+      showToast('Playlist excluída com sucesso.');
     }
   };
 
   const handleRenamePlaylist = (playlistId: string) => {
     if (!editNameText.trim()) return;
-    const playlist = playlists.find(item => item.id === playlistId);
-    if (!playlist) return;
-    persistPlaylist({ ...playlist, nome: editNameText.trim() }, 'Nome da playlist atualizado.');
+    onUpdatePlaylists(prev => prev.map(p => p.id === playlistId ? { ...p, nome: editNameText.trim() } : p));
     setIsEditingName(null);
+    showToast('Nome da playlist atualizado.');
   };
 
   const activePlaylist = clientPlaylists.find(p => p.id === editingPlaylistId);
@@ -147,11 +119,11 @@ const handleCreatePlaylist = () => {
     nextIds.splice(idx, 0, draggedId);
     nextDurs.splice(idx, 0, draggedDur);
     
-    persistPlaylist({
-      ...activePlaylist,
+    onUpdatePlaylists(prev => prev.map(p => p.id === activePlaylist.id ? { 
+      ...p, 
       midiasIds: nextIds, 
       midiasDurations: nextDurs 
-    });
+    } : p));
     setDraggedIdx(null);
   };
 
@@ -165,11 +137,11 @@ const handleCreatePlaylist = () => {
       nextDurs.splice(idx, 1);
     }
 
-    persistPlaylist({
-      ...activePlaylist,
+    onUpdatePlaylists(prev => prev.map(p => p.id === activePlaylist.id ? { 
+      ...p, 
       midiasIds: nextIds, 
       midiasDurations: nextDurs 
-    });
+    } : p));
   };
 
   const handleAddSingleMedia = (mediaId: string) => {
@@ -186,11 +158,12 @@ const handleCreatePlaylist = () => {
     }
     nextDurs.push(mDur);
 
-    persistPlaylist({
-      ...activePlaylist,
+    onUpdatePlaylists(prev => prev.map(p => p.id === activePlaylist.id ? { 
+      ...p, 
       midiasIds: nextIds, 
       midiasDurations: nextDurs 
-    }, 'Mídia adicionada!');
+    } : p));
+    showToast('Mídia adicionada!');
   };
 
   // Multiple media selection and bulk adding
@@ -219,12 +192,13 @@ const handleCreatePlaylist = () => {
       nextDurs.push(m?.duracao || 10);
     });
 
-    persistPlaylist({
-      ...activePlaylist,
+    onUpdatePlaylists(prev => prev.map(p => p.id === activePlaylist.id ? { 
+      ...p, 
       midiasIds: nextIds, 
       midiasDurations: nextDurs 
-    }, `${selectedAvailableIds.length} mídias adicionadas com sucesso!`);
+    } : p));
 
+    showToast(`${selectedAvailableIds.length} mídias adicionadas com sucesso!`);
     setSelectedAvailableIds([]);
   };
 
@@ -242,10 +216,10 @@ const handleCreatePlaylist = () => {
 
     nextDurs[idx] = seconds;
 
-    persistPlaylist({
-      ...activePlaylist,
+    onUpdatePlaylists(prev => prev.map(p => p.id === activePlaylist.id ? { 
+      ...p, 
       midiasDurations: nextDurs 
-    });
+    } : p));
   };
 
   const moveItem = (idx: number, direction: 'up' | 'down') => {
@@ -267,11 +241,11 @@ const handleCreatePlaylist = () => {
       [nextDurs[idx + 1], nextDurs[idx]] = [nextDurs[idx], nextDurs[idx + 1]];
     }
 
-    persistPlaylist({
-      ...activePlaylist,
+    onUpdatePlaylists(prev => prev.map(p => p.id === activePlaylist.id ? { 
+      ...p, 
       midiasIds: nextIds, 
       midiasDurations: nextDurs 
-    });
+    } : p));
   };
 
   return (
@@ -289,6 +263,7 @@ const handleCreatePlaylist = () => {
           </div>
           <button 
             onClick={handleCreatePlaylist}
+            disabled={isProcessing}
             className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-bold transition-colors shrink-0"
           >
             <Plus className="w-3.5 h-3.5" /> Nova Playlist
@@ -338,7 +313,8 @@ const handleCreatePlaylist = () => {
                       <Edit2 className="w-3.5 h-3.5" />
                     </button>
                     <button 
-                      onClick={() => handleDuplicate(playlist)} 
+                      onClick={() => handleDuplicate(playlist)}
+                       disabled={isProcessing} 
                       className="p-1 text-slate-400 hover:text-white transition-colors" 
                       title="Duplicar"
                     >
@@ -448,6 +424,7 @@ const handleCreatePlaylist = () => {
                                 max={3600}
                                 value={currentDur}
                                 onChange={(e) => handleUpdateDuration(idx, parseInt(e.target.value) || 10)}
+                                disabled={isProcessing}
                                 className="w-12 bg-black border border-white/10 rounded text-[10px] text-center py-0.5 text-cyan-400 font-bold focus:outline-none focus:border-blue-500"
                               />
                               <span className="text-[10px] text-slate-500">s</span>
@@ -480,7 +457,8 @@ const handleCreatePlaylist = () => {
                       </div>
                       
                       <button 
-                        onClick={() => handleRemoveFromPlaylist(idx)} 
+                        onClick={() => handleRemoveFromPlaylist(idx)}
+                         disabled={isProcessing} 
                         className="p-2 text-rose-500 hover:text-rose-400 hover:bg-rose-500/10 rounded-lg ml-1 transition-colors shrink-0"
                         title="Remover"
                       >
@@ -508,6 +486,7 @@ const handleCreatePlaylist = () => {
                  {selectedAvailableIds.length > 0 && (
                    <button
                      onClick={handleAddSelectedMedia}
+                     disabled={isProcessing}
                      className="px-2.5 py-1 bg-gradient-to-r from-blue-600 to-cyan-500 hover:opacity-95 text-white rounded text-[10px] font-extrabold uppercase tracking-wide transition-all"
                    >
                      Adicionar Selecionadas ({selectedAvailableIds.length})
@@ -555,6 +534,7 @@ const handleCreatePlaylist = () => {
                                e.stopPropagation();
                                handleAddSingleMedia(m.id);
                              }}
+                             disabled={isProcessing}
                              className="p-1.5 bg-blue-600/80 hover:bg-blue-500 text-white rounded-lg opacity-0 group-hover:opacity-100 transition-all shrink-0"
                              title="Adicionar à Playlist"
                            >
