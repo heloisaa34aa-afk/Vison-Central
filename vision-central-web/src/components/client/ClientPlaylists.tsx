@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Cliente, Playlist, Midia } from '../../types';
+import { storageService } from '../../lib/storage';
 import { 
   ListVideo, 
   Edit2, 
@@ -29,9 +30,25 @@ export default function ClientPlaylists({ client, playlists, media, onUpdatePlay
   const [selectedAvailableIds, setSelectedAvailableIds] = useState<string[]>([]);
   const [isEditingName, setIsEditingName] = useState<string | null>(null);
   const [editNameText, setEditNameText] = useState('');
+  const persistenceQueue = React.useRef<Promise<void>>(Promise.resolve());
 
   const clientMedia = media.filter(m => m.clienteId === client.id);
   const clientPlaylists = playlists.filter(p => p.clienteId === client.id);
+
+  const persistPlaylist = (playlist: Playlist, successMessage?: string) => {
+    onUpdatePlaylists(prev => prev.map(item => item.id === playlist.id ? playlist : item));
+    persistenceQueue.current = persistenceQueue.current.then(async () => {
+      const success = await storageService.savePlaylist(playlist);
+      if (success) {
+        if (successMessage) showToast(successMessage);
+      } else {
+        showToast('Não foi possível salvar a playlist no Supabase.');
+      }
+    }).catch(error => {
+      console.error('Erro ao persistir playlist:', error);
+      showToast('Não foi possível salvar a playlist no Supabase.');
+    });
+  };
 
   
   const getIconForType = (tipo: string, sizeClass = "w-4 h-4") => {
@@ -54,8 +71,13 @@ const handleCreatePlaylist = () => {
       midiasDurations: [],
       clienteId: client.id
     };
-    onUpdatePlaylists(prev => [newPlaylist, ...prev]);
-    showToast('Nova playlist criada com sucesso!');
+    onUpdatePlaylists(prev => prev.some(item => item.id === newPlaylist.id)
+      ? prev.map(item => item.id === newPlaylist.id ? newPlaylist : item)
+      : [newPlaylist, ...prev]);
+    persistenceQueue.current = persistenceQueue.current.then(async () => {
+      const success = await storageService.savePlaylist(newPlaylist);
+      showToast(success ? 'Nova playlist criada com sucesso!' : 'Não foi possível criar a playlist no Supabase.');
+    });
     setEditingPlaylistId(newPlaylist.id);
   };
 
@@ -68,22 +90,29 @@ const handleCreatePlaylist = () => {
       midiasDurations: playlist.midiasDurations ? [...playlist.midiasDurations] : []
     };
     onUpdatePlaylists(prev => [newPlaylist, ...prev]);
-    showToast('Playlist duplicada com sucesso!');
+    persistenceQueue.current = persistenceQueue.current.then(async () => {
+      const success = await storageService.savePlaylist(newPlaylist);
+      showToast(success ? 'Playlist duplicada com sucesso!' : 'Não foi possível duplicar a playlist no Supabase.');
+    });
   };
 
   const handleDelete = (id: string) => {
     if (confirm('Aviso: Tem certeza que deseja excluir esta playlist? As TVs que utilizam essa playlist voltarão a herdar a padrão.')) {
       onUpdatePlaylists(prev => prev.filter(p => p.id !== id));
       if (editingPlaylistId === id) setEditingPlaylistId(null);
-      showToast('Playlist excluída com sucesso.');
+      persistenceQueue.current = persistenceQueue.current.then(async () => {
+        const success = await storageService.deletePlaylist(id);
+        showToast(success ? 'Playlist excluída com sucesso.' : 'Não foi possível excluir a playlist do Supabase.');
+      });
     }
   };
 
   const handleRenamePlaylist = (playlistId: string) => {
     if (!editNameText.trim()) return;
-    onUpdatePlaylists(prev => prev.map(p => p.id === playlistId ? { ...p, nome: editNameText.trim() } : p));
+    const playlist = playlists.find(item => item.id === playlistId);
+    if (!playlist) return;
+    persistPlaylist({ ...playlist, nome: editNameText.trim() }, 'Nome da playlist atualizado.');
     setIsEditingName(null);
-    showToast('Nome da playlist atualizado.');
   };
 
   const activePlaylist = clientPlaylists.find(p => p.id === editingPlaylistId);
@@ -118,11 +147,11 @@ const handleCreatePlaylist = () => {
     nextIds.splice(idx, 0, draggedId);
     nextDurs.splice(idx, 0, draggedDur);
     
-    onUpdatePlaylists(prev => prev.map(p => p.id === activePlaylist.id ? { 
-      ...p, 
+    persistPlaylist({
+      ...activePlaylist,
       midiasIds: nextIds, 
       midiasDurations: nextDurs 
-    } : p));
+    });
     setDraggedIdx(null);
   };
 
@@ -136,11 +165,11 @@ const handleCreatePlaylist = () => {
       nextDurs.splice(idx, 1);
     }
 
-    onUpdatePlaylists(prev => prev.map(p => p.id === activePlaylist.id ? { 
-      ...p, 
+    persistPlaylist({
+      ...activePlaylist,
       midiasIds: nextIds, 
       midiasDurations: nextDurs 
-    } : p));
+    });
   };
 
   const handleAddSingleMedia = (mediaId: string) => {
@@ -157,12 +186,11 @@ const handleCreatePlaylist = () => {
     }
     nextDurs.push(mDur);
 
-    onUpdatePlaylists(prev => prev.map(p => p.id === activePlaylist.id ? { 
-      ...p, 
+    persistPlaylist({
+      ...activePlaylist,
       midiasIds: nextIds, 
       midiasDurations: nextDurs 
-    } : p));
-    showToast('Mídia adicionada!');
+    }, 'Mídia adicionada!');
   };
 
   // Multiple media selection and bulk adding
@@ -191,13 +219,12 @@ const handleCreatePlaylist = () => {
       nextDurs.push(m?.duracao || 10);
     });
 
-    onUpdatePlaylists(prev => prev.map(p => p.id === activePlaylist.id ? { 
-      ...p, 
+    persistPlaylist({
+      ...activePlaylist,
       midiasIds: nextIds, 
       midiasDurations: nextDurs 
-    } : p));
+    }, `${selectedAvailableIds.length} mídias adicionadas com sucesso!`);
 
-    showToast(`${selectedAvailableIds.length} mídias adicionadas com sucesso!`);
     setSelectedAvailableIds([]);
   };
 
@@ -215,10 +242,10 @@ const handleCreatePlaylist = () => {
 
     nextDurs[idx] = seconds;
 
-    onUpdatePlaylists(prev => prev.map(p => p.id === activePlaylist.id ? { 
-      ...p, 
+    persistPlaylist({
+      ...activePlaylist,
       midiasDurations: nextDurs 
-    } : p));
+    });
   };
 
   const moveItem = (idx: number, direction: 'up' | 'down') => {
@@ -240,11 +267,11 @@ const handleCreatePlaylist = () => {
       [nextDurs[idx + 1], nextDurs[idx]] = [nextDurs[idx], nextDurs[idx + 1]];
     }
 
-    onUpdatePlaylists(prev => prev.map(p => p.id === activePlaylist.id ? { 
-      ...p, 
+    persistPlaylist({
+      ...activePlaylist,
       midiasIds: nextIds, 
       midiasDurations: nextDurs 
-    } : p));
+    });
   };
 
   return (

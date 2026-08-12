@@ -23,6 +23,7 @@ import ClientTokens from './client/ClientTokens';
 import ClientLibrary from './client/ClientLibrary';
 import ClientPlaylists from './client/ClientPlaylists';
 import { isTvOnline } from '../utils/tvStatus';
+import { storageService } from '../lib/storage';
 
 interface ClientPageProps {
   clientId: string;
@@ -168,7 +169,7 @@ export default function ClientPage({
   const [editFuso, setEditFuso] = useState(client.fusoHorario);
   const [editTicker, setEditTicker] = useState(client.textoTicker || '');
 
-  const handleSaveSettings = (e: React.FormEvent) => {
+  const handleSaveSettings = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!editNome.trim() || !editBairro.trim()) {
       showToast('Por favor, preencha todos os campos obrigatórios.');
@@ -187,8 +188,13 @@ export default function ClientPage({
       textoTicker: editTicker.trim() || undefined
     };
 
-    onUpdateClient(updated);
-    showToast('Configurações do cliente salvas no Supabase!');
+    const success = await storageService.saveCliente(updated);
+    if (success) {
+      onUpdateClient(updated);
+      showToast('Configurações do cliente salvas no Supabase!');
+    } else {
+      showToast('Não foi possível salvar as configurações do cliente.');
+    }
   };
 
   return (

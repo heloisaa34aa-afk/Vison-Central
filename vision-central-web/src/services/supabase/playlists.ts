@@ -48,6 +48,16 @@ export const playlistsService = {
 
   async savePlaylist(playlist: Playlist): Promise<boolean> {
     try {
+      const { data: previousRelations, error: previousRelationsError } = await supabase
+        .from('playlist_midias')
+        .select('id, playlist_id, midia_id, ordem, duracao')
+        .eq('playlist_id', playlist.id);
+
+      if (previousRelationsError) {
+        console.warn('Erro ao preparar salvamento da playlist:', previousRelationsError);
+        return false;
+      }
+
       // 1. Salvar a playlist em si
       const { error: plError } = await supabase.from('playlists').upsert({
         id: playlist.id,
@@ -61,7 +71,15 @@ export const playlistsService = {
       }
 
       // 2. Deletar as relações existentes em playlist_midias
-      await supabase.from('playlist_midias').delete().eq('playlist_id', playlist.id);
+      const { error: deleteRelationsError } = await supabase
+        .from('playlist_midias')
+        .delete()
+        .eq('playlist_id', playlist.id);
+
+      if (deleteRelationsError) {
+        console.warn('Erro ao substituir mídias da playlist:', deleteRelationsError);
+        return false;
+      }
 
       // 3. Inserir as novas relações em playlist_midias
       if (playlist.midiasIds && playlist.midiasIds.length > 0) {
@@ -81,6 +99,14 @@ export const playlistsService = {
         const { error: relError } = await supabase.from('playlist_midias').insert(relations);
         if (relError) {
           console.warn('Erro ao salvar mídias da playlist:', relError);
+          if (previousRelations && previousRelations.length > 0) {
+            const { error: rollbackError } = await supabase
+              .from('playlist_midias')
+              .insert(previousRelations);
+            if (rollbackError) {
+              console.error('Erro ao restaurar vínculos anteriores da playlist:', rollbackError);
+            }
+          }
           return false;
         }
       }

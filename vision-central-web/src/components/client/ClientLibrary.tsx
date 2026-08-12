@@ -210,11 +210,17 @@ const processFiles = async (files: FileList | null) => {
     setEditMediaName(item.nome);
   };
 
-  const handleSaveRename = (item: Midia) => {
+  const handleSaveRename = async (item: Midia) => {
     if (!editMediaName.trim()) return;
-    onUpdateMedia(prev => prev.map(m => m.id === item.id ? { ...m, nome: editMediaName.trim() } : m));
-    setEditingMediaId(null);
-    showToast('Mídia renomeada com sucesso.');
+    const updated = { ...item, nome: editMediaName.trim() };
+    const success = await storageService.saveMidia(updated);
+    if (success) {
+      onUpdateMedia(prev => prev.map(m => m.id === item.id ? updated : m));
+      setEditingMediaId(null);
+      showToast('Mídia renomeada com sucesso.');
+    } else {
+      showToast('Não foi possível renomear a mídia.');
+    }
   };
 
   // Filtrar mídias para exibir apenas as pertencentes a este cliente

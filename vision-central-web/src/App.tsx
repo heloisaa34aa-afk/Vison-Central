@@ -10,6 +10,8 @@ import {
 import { Cliente, Tv, Playlist, Midia } from './types';
 import { storageService } from './lib/storage';
 import { supabase } from './lib/supabase';
+import { mapDbToTv } from './services/supabase/tvs';
+import { mapDbToCliente } from './services/supabase/clientes';
 
 // Lazy loading components
 const Dashboard = lazy(() => import('./components/Dashboard.tsx'));
@@ -88,11 +90,13 @@ export default function App() {
         (payload) => {
           if (!isMounted) return;
           if (payload.eventType === 'UPDATE') {
-            const updatedTv = payload.new as Tv;
+            const updatedTv = mapDbToTv(payload.new);
             setDevices(prev => prev.map(tv => tv.id === updatedTv.id ? updatedTv : tv));
           } else if (payload.eventType === 'INSERT') {
-            const newTv = payload.new as Tv;
-            setDevices(prev => [...prev, newTv]);
+            const newTv = mapDbToTv(payload.new);
+            setDevices(prev => prev.some(tv => tv.id === newTv.id)
+              ? prev.map(tv => tv.id === newTv.id ? newTv : tv)
+              : [...prev, newTv]);
           } else if (payload.eventType === 'DELETE') {
             const oldTv = payload.old as Tv;
             setDevices(prev => prev.filter(tv => tv.id !== oldTv.id));
@@ -105,11 +109,13 @@ export default function App() {
         (payload) => {
           if (!isMounted) return;
           if (payload.eventType === 'UPDATE') {
-            const updatedClient = payload.new as Cliente;
+            const updatedClient = mapDbToCliente(payload.new);
             setClients(prev => prev.map(c => c.id === updatedClient.id ? updatedClient : c));
           } else if (payload.eventType === 'INSERT') {
-            const newClient = payload.new as Cliente;
-            setClients(prev => [...prev, newClient]);
+            const newClient = mapDbToCliente(payload.new);
+            setClients(prev => prev.some(client => client.id === newClient.id)
+              ? prev.map(client => client.id === newClient.id ? newClient : client)
+              : [...prev, newClient]);
           } else if (payload.eventType === 'DELETE') {
             const oldClient = payload.old as Cliente;
             setClients(prev => prev.filter(c => c.id !== oldClient.id));
@@ -245,7 +251,9 @@ export default function App() {
                   onAddClient={async (newClient) => {
                     const success = await storageService.saveCliente(newClient);
                     if (success) {
-                      setClients(prev => [...prev, newClient]);
+                      setClients(prev => prev.some(client => client.id === newClient.id)
+                        ? prev.map(client => client.id === newClient.id ? newClient : client)
+                        : [...prev, newClient]);
                       showToast('Cliente criado com sucesso!');
                     } else {
                       showToast('Erro ao criar cliente.');
