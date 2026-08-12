@@ -29,6 +29,10 @@ export const storageService = {
     return tvsService.updateTvField(id, field, value);
   },
 
+  async requestTvSync(id: string): Promise<boolean> {
+    return tvsService.requestSync(id);
+  },
+
   async deleteTv(id: string): Promise<boolean> {
     return tvsService.deleteTv(id);
   },

@@ -144,7 +144,7 @@ export const tvsService = {
       // Verificar existência da TV para decidir entre UPDATE e INSERT
       const { data: existing, error: checkError } = await supabase
         .from('tvs')
-        .select('id')
+        .select('id, config_revision')
         .eq('id', tv.id)
         .maybeSingle();
 
@@ -157,7 +157,9 @@ export const tvsService = {
         delete dbData.status;
         delete dbData.uptime;
         delete dbData.ultima_conexao;
-        delete dbData.ultima_sincronizacao;
+        dbData.ultima_sincronizacao = new Date().toISOString();
+        // Never allow a stale UI object to move the synchronization revision backwards.
+        dbData.config_revision = Number(existing.config_revision || 0) + 1;
 
         const response = await supabase
           .from('tvs')
@@ -237,6 +239,39 @@ export const tvsService = {
       return true;
     } catch (e) {
       console.error(`Erro em updateTvField para o campo "${field}":`, e);
+      return false;
+    }
+  },
+
+  async requestSync(id: string): Promise<boolean> {
+    try {
+      const { data, error: readError } = await supabase
+        .from('tvs')
+        .select('config_revision')
+        .eq('id', id)
+        .maybeSingle();
+
+      if (readError) {
+        console.warn('Erro ao consultar a revisão da TV:', readError);
+        return false;
+      }
+
+      const { error } = await supabase
+        .from('tvs')
+        .update({
+          config_revision: Number(data?.config_revision || 0) + 1,
+          ultima_sincronizacao: new Date().toISOString(),
+        })
+        .eq('id', id);
+
+      if (error) {
+        console.warn('Erro ao solicitar sincronização remota:', error);
+        return false;
+      }
+
+      return true;
+    } catch (error) {
+      console.error('Erro ao solicitar sincronização remota:', error);
       return false;
     }
   },

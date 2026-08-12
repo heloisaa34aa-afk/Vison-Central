@@ -79,6 +79,7 @@ export default function ScreenSimulator({
   const [currentMediaIndex, setCurrentMediaIndex] = useState(0);
   const [progress, setProgress] = useState(0);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [isRemoteSyncing, setIsRemoteSyncing] = useState(false);
 
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -162,9 +163,6 @@ export default function ScreenSimulator({
       setTvTextoInferiorVisivel(false);
     }
   }, [selectedTvId, activeTv]);
-
-  // 4. Check if there are unsaved pending changes (Sincronização)
-  const isDirty = false;
 
   // 5. Load playlist and current media list for active TV
   const activePlaylistId = tvPlaylistId || (clients.find(c => c.id === selectedClientId)?.playlistId) || '';
@@ -258,48 +256,21 @@ export default function ScreenSimulator({
 
   // 7. Sincronizar Agora (Manual Sync)
   const handleSincronizar = async () => {
-    if (!activeTv) return;
-    
-    const updatedTv: Tv = {
-      ...activeTv,
-      nome: tvNome,
-      playlistId: tvPlaylistId || undefined,
-      orientacao: tvOrientacao,
-      modo_exibicao: tvModoReproducao,
-      proporcao: tvProporcao,
-      brilho: tvBrilho,
-      contraste: tvContraste,
-      saturacao: tvSaturacao,
-      zoom: tvZoom,
-      volume: tvVolume,
-      tempo_transicao: tvTempoTransicao,
-      rotacao: tvRotacao,
-      conteudos_online: tvConteudoOnline,
-      texto_superior: tvTextoSuperior,
-      texto_superior_cor: tvTextoSuperiorCor,
-      texto_superior_tamanho: tvTextoSuperiorTamanho,
-      texto_superior_alinhamento: tvTextoSuperiorAlinhamento,
-      texto_superior_visivel: tvTextoSuperiorVisivel,
-      texto_inferior: tvTextoInferior,
-      texto_inferior_cor: tvTextoInferiorCor,
-      texto_inferior_tamanho: tvTextoInferiorTamanho,
-      texto_inferior_alinhamento: tvTextoInferiorAlinhamento,
-      texto_inferior_visivel: tvTextoInferiorVisivel,
-      ultimaSincronizacao: new Date().toISOString()
-    };
+    if (!activeTv || isRemoteSyncing) return;
 
-    const success = await storageService.saveTv(updatedTv);
-    if (success) {
-      // Import the services inside the component since we don't have them imported at the top
-      import('../services/supabase/player').then(({ playerService }) => {
-        playerService.broadcastConfigUpdate(updatedTv.id, updatedTv);
-        playerService.broadcastPlaylistUpdate(updatedTv.id);
-      });
-      
-      // Update local state immediately
-      showLocalToast('Configurações sincronizadas com sucesso!');
-    } else {
-      showLocalToast('Erro ao sincronizar as configurações.');
+    setIsRemoteSyncing(true);
+    try {
+      const success = await storageService.requestTvSync(activeTv.id);
+      if (success) {
+        const { playerService } = await import('../services/supabase/player');
+        await playerService.broadcastConfigUpdate(activeTv.id, activeTv);
+        await playerService.broadcastPlaylistUpdate(activeTv.id);
+        showLocalToast('Sincronização remota solicitada com sucesso!');
+      } else {
+        showLocalToast('Erro ao solicitar a sincronização remota.');
+      }
+    } finally {
+      setIsRemoteSyncing(false);
     }
   };
 
@@ -441,9 +412,9 @@ export default function ScreenSimulator({
 
               {/* Status Sincronização indicator */}
               <div className="flex items-center gap-1.5">
-                <span className={`w-2 h-2 rounded-full ${isDirty ? 'bg-amber-500 animate-pulse' : 'bg-emerald-500'}`} />
+                <span className={`w-2 h-2 rounded-full ${isRemoteSyncing ? 'bg-amber-500 animate-pulse' : 'bg-emerald-500'}`} />
                 <span className="text-[9px] font-bold uppercase tracking-wider text-slate-400">
-                  {isDirty ? 'Pendente' : 'Sincronizado'}
+                  {isRemoteSyncing ? 'Sincronizando' : 'Sincronização automática'}
                 </span>
               </div>
             </div>
@@ -970,22 +941,12 @@ export default function ScreenSimulator({
             {/* Sync now button! */}
             <button
               onClick={handleSincronizar}
-              disabled={!isDirty}
-              className={`w-full py-3 rounded-xl text-xs font-bold uppercase tracking-wider transition-all flex items-center justify-center gap-2 border ${
-                isDirty 
-                  ? 'bg-gradient-to-r from-blue-600 to-cyan-500 hover:opacity-95 text-white border-blue-500 shadow-[0_0_15px_rgba(59,130,246,0.3)] cursor-pointer'
-                  : 'bg-[#12121a] text-slate-500 border-white/5 cursor-not-allowed'
-              }`}
+              disabled={isRemoteSyncing}
+              className="w-full py-3 rounded-xl text-xs font-bold uppercase tracking-wider transition-all flex items-center justify-center gap-2 border bg-gradient-to-r from-blue-600 to-cyan-500 hover:opacity-95 text-white border-blue-500 shadow-[0_0_15px_rgba(59,130,246,0.3)] cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              <RefreshCw className={`w-3.5 h-3.5 ${isDirty ? 'animate-spin' : ''}`} />
-              Sincronizar Agora
+              <RefreshCw className={`w-3.5 h-3.5 ${isRemoteSyncing ? 'animate-spin' : ''}`} />
+              {isRemoteSyncing ? 'Solicitando...' : 'Sincronizar Agora'}
             </button>
-            
-            {isDirty && (
-              <p className="text-[10px] text-amber-400/80 text-center animate-pulse">
-                Sincronização automática de segurança em até 60 segundos
-              </p>
-            )}
           </div>
         )}
       </div>
