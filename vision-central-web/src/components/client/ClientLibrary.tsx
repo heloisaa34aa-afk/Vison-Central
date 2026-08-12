@@ -133,7 +133,7 @@ const processFiles = async (files: FileList | null) => {
         }, 120);
 
         // Upload to storage
-        const uploadedUrl = await storageServiceSupabase.uploadMediaFile(file);
+        const uploadedUrl = await storageServiceSupabase.uploadMediaFile(file, client.id);
         
         clearInterval(interval);
         setUploadingFiles(prev => prev.map(f => f.name === progressName ? { ...f, progress: 100 } : f));

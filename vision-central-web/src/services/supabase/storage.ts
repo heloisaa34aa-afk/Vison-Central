@@ -1,4 +1,5 @@
 import { supabase } from '../../lib/supabase';
+import { API_URL } from '../../config/api';
 
 export const storageServiceSupabase = {
   async ensureBucketExists(): Promise<void> {
@@ -14,53 +15,68 @@ export const storageServiceSupabase = {
     }
   },
 
-  async uploadMediaFile(file: File): Promise<string> {
+  async uploadMediaFile(file: File, clientId: string): Promise<string> {
     try {
-      await this.ensureBucketExists();
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('clientId', clientId);
 
-      const fileExt = file.name.split('.').pop() || 'png';
-      const fileName = `${Date.now()}-${Math.random().toString(36).substring(2, 9)}.${fileExt}`;
-      const filePath = fileName;
+      const response = await fetch(`${API_URL}/api/media/upload`, {
+        method: 'POST',
+        body: formData,
+      });
 
-      const { error } = await supabase.storage
-        .from('midias')
-        .upload(filePath, file, {
-          cacheControl: '3600',
-          upsert: false,
-        });
-
-      if (error) {
-        throw error;
+      if (!response.ok) {
+        let errorMsg = `Erro ${response.status}: falha no upload para o servidor`;
+        try {
+          const errData = await response.json();
+          if (errData.error) errorMsg = errData.error;
+        } catch (err) {}
+        throw new Error(errorMsg);
       }
 
-      const { data: publicUrlData } = supabase.storage
-        .from('midias')
-        .getPublicUrl(filePath);
-
-      if (!publicUrlData || !publicUrlData.publicUrl) {
-        throw new Error('Não foi possível obter a URL pública do arquivo enviado.');
+      const data = await response.json();
+      
+      if (!data.url) {
+        throw new Error('Não foi possível obter a URL da mídia do backend.');
       }
 
-      return publicUrlData.publicUrl;
+      return data.url;
     } catch (e: any) {
-      console.error('Erro no upload para o Supabase Storage:', e);
+      console.error('Erro no upload de mídia (via backend R2):', e);
       throw e;
     }
   },
 
   async deleteMediaFile(fileUrl: string): Promise<boolean> {
     try {
-      const parts = fileUrl.split('/storage/v1/object/public/');
-      if (parts.length > 1) {
-        const pathAndBucket = parts[1];
-        const bucketParts = pathAndBucket.split('/');
-        const bucket = bucketParts[0];
-        const path = bucketParts.slice(1).join('/');
+      if (fileUrl.includes('/storage/v1/object/public/')) {
+        const parts = fileUrl.split('/storage/v1/object/public/');
+        if (parts.length > 1) {
+          const pathAndBucket = parts[1];
+          const bucketParts = pathAndBucket.split('/');
+          const bucket = bucketParts[0];
+          const path = bucketParts.slice(1).join('/');
+          
+          const { error } = await supabase.storage.from(bucket).remove([path]);
+          if (error) {
+            console.warn('Erro ao deletar do Supabase Storage:', error);
+            return false;
+          }
+          return true;
+        }
+      } else {
+        const response = await fetch(`${API_URL}/api/media`, {
+          method: 'DELETE',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ url: fileUrl })
+        });
         
-        const { error } = await supabase.storage.from(bucket).remove([path]);
-        if (error) {
-          console.warn('Erro ao deletar do Supabase Storage:', error);
-          return false;
+        if (!response.ok) {
+           console.warn('Erro ao deletar do Cloudflare R2 via backend:', response.status);
+           return false;
         }
         return true;
       }
