@@ -30,6 +30,7 @@ export default function ClientPlaylists({ client, playlists, media, onUpdatePlay
   const [selectedAvailableIds, setSelectedAvailableIds] = useState<string[]>([]);
   const [isEditingName, setIsEditingName] = useState<string | null>(null);
   const [editNameText, setEditNameText] = useState('');
+  const [isProcessing, setIsProcessing] = useState(false);
 
   const clientMedia = media.filter(m => m.clienteId === client.id);
   const clientPlaylists = playlists.filter(p => p.clienteId === client.id);
@@ -47,44 +48,92 @@ export default function ClientPlaylists({ client, playlists, media, onUpdatePlay
       default: return <Globe className={`${sizeClass} text-blue-500`} />;
     }
   };
-const handleCreatePlaylist = () => {
-    const newPlaylist: Playlist = {
-      id: `p-${Date.now()}`,
-      nome: `Nova Playlist ${clientPlaylists.length + 1}`,
-      midiasIds: [],
-      midiasDurations: [],
-      clienteId: client.id
-    };
-    onUpdatePlaylists(prev => [newPlaylist, ...prev]);
-    showToast('Nova playlist criada com sucesso!');
-    setEditingPlaylistId(newPlaylist.id);
-  };
-
-  const handleDuplicate = (playlist: Playlist) => {
-    const newPlaylist: Playlist = {
-      ...playlist,
-      id: `p-${Date.now()}`,
-      nome: `${playlist.nome} (Cópia)`,
-      midiasIds: [...playlist.midiasIds],
-      midiasDurations: playlist.midiasDurations ? [...playlist.midiasDurations] : []
-    };
-    onUpdatePlaylists(prev => [newPlaylist, ...prev]);
-    showToast('Playlist duplicada com sucesso!');
-  };
-
-  const handleDelete = (id: string) => {
-    if (confirm('Aviso: Tem certeza que deseja excluir esta playlist? As TVs que utilizam essa playlist voltarão a herdar a padrão.')) {
-      onUpdatePlaylists(prev => prev.filter(p => p.id !== id));
-      if (editingPlaylistId === id) setEditingPlaylistId(null);
-      showToast('Playlist excluída com sucesso.');
+const handleCreatePlaylist = async () => {
+    if (isProcessing) return;
+    try {
+      setIsProcessing(true);
+      const newPlaylist: Playlist = {
+        id: `p-${Date.now()}`,
+        nome: `Nova Playlist ${clientPlaylists.length + 1}`,
+        midiasIds: [],
+        midiasDurations: [],
+        clienteId: client.id
+      };
+      const success = await storageService.savePlaylist(newPlaylist);
+      if (success) {
+        onUpdatePlaylists(prev => [newPlaylist, ...prev]);
+        showToast('Nova playlist criada com sucesso!');
+        setEditingPlaylistId(newPlaylist.id);
+      } else {
+        showToast('Erro ao criar playlist no banco.');
+      }
+    } finally {
+      setIsProcessing(false);
     }
   };
 
-  const handleRenamePlaylist = (playlistId: string) => {
+  const handleDuplicate = async (playlist: Playlist) => {
+    if (isProcessing) return;
+    try {
+      setIsProcessing(true);
+      const newPlaylist: Playlist = {
+        ...playlist,
+        id: `p-${Date.now()}`,
+        nome: `${playlist.nome} (Cópia)`,
+        midiasIds: [...playlist.midiasIds],
+        midiasDurations: playlist.midiasDurations ? [...playlist.midiasDurations] : [],
+        clienteId: client.id
+      };
+      const success = await storageService.savePlaylist(newPlaylist);
+      if (success) {
+        onUpdatePlaylists(prev => [newPlaylist, ...prev]);
+        showToast('Playlist duplicada com sucesso!');
+      } else {
+        showToast('Erro ao duplicar playlist.');
+      }
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  const handleDelete = async (id: string) => {
+    if (isProcessing) return;
+    if (confirm('Aviso: Tem certeza que deseja excluir esta playlist? As TVs que utilizam essa playlist voltarão a herdar a padrão.')) {
+      try {
+        setIsProcessing(true);
+        const success = await storageService.deletePlaylist(id);
+        if (success) {
+          onUpdatePlaylists(prev => prev.filter(p => p.id !== id));
+          if (editingPlaylistId === id) setEditingPlaylistId(null);
+          showToast('Playlist excluída com sucesso.');
+        } else {
+          showToast('Erro ao excluir playlist.');
+        }
+      } finally {
+        setIsProcessing(false);
+      }
+    }
+  };
+
+  const handleRenamePlaylist = async (playlistId: string) => {
+    if (isProcessing) return;
     if (!editNameText.trim()) return;
-    onUpdatePlaylists(prev => prev.map(p => p.id === playlistId ? { ...p, nome: editNameText.trim() } : p));
-    setIsEditingName(null);
-    showToast('Nome da playlist atualizado.');
+    try {
+      setIsProcessing(true);
+      const activeP = clientPlaylists.find(p => p.id === playlistId);
+      if (!activeP) return;
+      const updated = { ...activeP, nome: editNameText.trim() };
+      const success = await storageService.savePlaylist(updated);
+      if (success) {
+        onUpdatePlaylists(prev => prev.map(p => p.id === playlistId ? updated : p));
+        setIsEditingName(null);
+        showToast('Nome da playlist atualizado.');
+      } else {
+        showToast('Erro ao atualizar nome da playlist.');
+      }
+    } finally {
+      setIsProcessing(false);
+    }
   };
 
   const activePlaylist = clientPlaylists.find(p => p.id === editingPlaylistId);
@@ -100,70 +149,91 @@ const handleCreatePlaylist = () => {
     e.preventDefault();
   };
 
-  const handleDrop = (idx: number) => {
-    if (draggedIdx === null || draggedIdx === idx || !activePlaylist) return;
+  const handleDrop = async (idx: number) => {
+    if (draggedIdx === null || draggedIdx === idx || !activePlaylist || isProcessing) return;
     
-    const nextIds = [...activePlaylist.midiasIds];
-    const nextDurs = activePlaylist.midiasDurations ? [...activePlaylist.midiasDurations] : [];
-    
-    // Fill array if undefined
-    while (nextDurs.length < nextIds.length) {
-      const mId = nextIds[nextDurs.length];
-      const m = clientMedia.find(x => x.id === mId);
-      nextDurs.push(m?.duracao || 10);
+    try {
+      setIsProcessing(true);
+      const nextIds = [...activePlaylist.midiasIds];
+      const nextDurs = activePlaylist.midiasDurations ? [...activePlaylist.midiasDurations] : [];
+      
+      // Fill array if undefined
+      while (nextDurs.length < nextIds.length) {
+        const mId = nextIds[nextDurs.length];
+        const m = clientMedia.find(x => x.id === mId);
+        nextDurs.push(m?.duracao || 10);
+      }
+
+      const [draggedId] = nextIds.splice(draggedIdx, 1);
+      const [draggedDur] = nextDurs.splice(draggedIdx, 1);
+
+      nextIds.splice(idx, 0, draggedId);
+      nextDurs.splice(idx, 0, draggedDur);
+      
+      const updated = { ...activePlaylist, midiasIds: nextIds, midiasDurations: nextDurs };
+      const success = await storageService.savePlaylist(updated);
+      if (success) {
+        onUpdatePlaylists(prev => prev.map(p => p.id === activePlaylist.id ? updated : p));
+        setDraggedIdx(null);
+      } else {
+        showToast('Erro ao reordenar mídia.');
+      }
+    } finally {
+      setIsProcessing(false);
     }
-
-    const [draggedId] = nextIds.splice(draggedIdx, 1);
-    const [draggedDur] = nextDurs.splice(draggedIdx, 1);
-
-    nextIds.splice(idx, 0, draggedId);
-    nextDurs.splice(idx, 0, draggedDur);
-    
-    onUpdatePlaylists(prev => prev.map(p => p.id === activePlaylist.id ? { 
-      ...p, 
-      midiasIds: nextIds, 
-      midiasDurations: nextDurs 
-    } : p));
-    setDraggedIdx(null);
   };
 
-  const handleRemoveFromPlaylist = (idx: number) => {
-    if (!activePlaylist) return;
-    const nextIds = [...activePlaylist.midiasIds];
-    const nextDurs = activePlaylist.midiasDurations ? [...activePlaylist.midiasDurations] : [];
-
-    nextIds.splice(idx, 1);
-    if (nextDurs.length > idx) {
-      nextDurs.splice(idx, 1);
+  const handleRemoveFromPlaylist = async (idx: number) => {
+    if (!activePlaylist || isProcessing) return;
+    try {
+      setIsProcessing(true);
+      const nextIds = [...activePlaylist.midiasIds];
+      const nextDurs = activePlaylist.midiasDurations ? [...activePlaylist.midiasDurations] : [];
+      nextIds.splice(idx, 1);
+      if (nextDurs.length > idx) {
+        nextDurs.splice(idx, 1);
+      }
+      
+      const updated = { ...activePlaylist, midiasIds: nextIds, midiasDurations: nextDurs };
+      const success = await storageService.savePlaylist(updated);
+      if (success) {
+        onUpdatePlaylists(prev => prev.map(p => p.id === activePlaylist.id ? updated : p));
+      } else {
+        showToast('Erro ao remover mídia.');
+      }
+    } finally {
+      setIsProcessing(false);
     }
-
-    onUpdatePlaylists(prev => prev.map(p => p.id === activePlaylist.id ? { 
-      ...p, 
-      midiasIds: nextIds, 
-      midiasDurations: nextDurs 
-    } : p));
   };
 
-  const handleAddSingleMedia = (mediaId: string) => {
-    if (!activePlaylist) return;
-    const m = clientMedia.find(x => x.id === mediaId);
-    const mDur = m?.duracao || 10;
-
-    const nextIds = [...activePlaylist.midiasIds, mediaId];
-    const nextDurs = activePlaylist.midiasDurations ? [...activePlaylist.midiasDurations] : [];
-    while (nextDurs.length < activePlaylist.midiasIds.length) {
-      const prevId = activePlaylist.midiasIds[nextDurs.length];
-      const prevMedia = clientMedia.find(x => x.id === prevId);
-      nextDurs.push(prevMedia?.duracao || 10);
+  const handleAddSingleMedia = async (mediaId: string) => {
+    if (!activePlaylist || isProcessing) return;
+    try {
+      setIsProcessing(true);
+      const m = clientMedia.find(x => x.id === mediaId);
+      const mDur = m?.duracao || 10;
+      
+      const nextIds = [...activePlaylist.midiasIds, mediaId];
+      const nextDurs = activePlaylist.midiasDurations ? [...activePlaylist.midiasDurations] : [];
+      
+      while (nextDurs.length < activePlaylist.midiasIds.length) {
+        const prevId = activePlaylist.midiasIds[nextDurs.length];
+        const prevMedia = clientMedia.find(x => x.id === prevId);
+        nextDurs.push(prevMedia?.duracao || 10);
+      }
+      nextDurs.push(mDur);
+      
+      const updated = { ...activePlaylist, midiasIds: nextIds, midiasDurations: nextDurs };
+      const success = await storageService.savePlaylist(updated);
+      if (success) {
+        onUpdatePlaylists(prev => prev.map(p => p.id === activePlaylist.id ? updated : p));
+        showToast('Mídia adicionada!');
+      } else {
+        showToast('Erro ao adicionar mídia.');
+      }
+    } finally {
+      setIsProcessing(false);
     }
-    nextDurs.push(mDur);
-
-    onUpdatePlaylists(prev => prev.map(p => p.id === activePlaylist.id ? { 
-      ...p, 
-      midiasIds: nextIds, 
-      midiasDurations: nextDurs 
-    } : p));
-    showToast('Mídia adicionada!');
   };
 
   // Multiple media selection and bulk adding
@@ -173,79 +243,97 @@ const handleCreatePlaylist = () => {
     );
   };
 
-  const handleAddSelectedMedia = () => {
-    if (!activePlaylist || selectedAvailableIds.length === 0) return;
-    
-    const nextIds = [...activePlaylist.midiasIds];
-    const nextDurs = activePlaylist.midiasDurations ? [...activePlaylist.midiasDurations] : [];
+  const handleAddSelectedMedia = async () => {
+    if (!activePlaylist || selectedAvailableIds.length === 0 || isProcessing) return;
+    try {
+      setIsProcessing(true);
+      const nextIds = [...activePlaylist.midiasIds];
+      const nextDurs = activePlaylist.midiasDurations ? [...activePlaylist.midiasDurations] : [];
 
-    // Ensure durations are aligned
-    while (nextDurs.length < activePlaylist.midiasIds.length) {
-      const prevId = activePlaylist.midiasIds[nextDurs.length];
-      const prevMedia = clientMedia.find(x => x.id === prevId);
-      nextDurs.push(prevMedia?.duracao || 10);
+      // Ensure durations are aligned
+      while (nextDurs.length < activePlaylist.midiasIds.length) {
+        const prevId = activePlaylist.midiasIds[nextDurs.length];
+        const prevMedia = clientMedia.find(x => x.id === prevId);
+        nextDurs.push(prevMedia?.duracao || 10);
+      }
+
+      selectedAvailableIds.forEach(id => {
+        nextIds.push(id);
+        const m = clientMedia.find(x => x.id === id);
+        nextDurs.push(m?.duracao || 10);
+      });
+      
+      const updated = { ...activePlaylist, midiasIds: nextIds, midiasDurations: nextDurs };
+      const success = await storageService.savePlaylist(updated);
+      if (success) {
+        onUpdatePlaylists(prev => prev.map(p => p.id === activePlaylist.id ? updated : p));
+        showToast(`${selectedAvailableIds.length} mídias adicionadas com sucesso!`);
+        setSelectedAvailableIds([]);
+      } else {
+        showToast('Erro ao adicionar mídias.');
+      }
+    } finally {
+      setIsProcessing(false);
     }
-
-    selectedAvailableIds.forEach(id => {
-      nextIds.push(id);
-      const m = clientMedia.find(x => x.id === id);
-      nextDurs.push(m?.duracao || 10);
-    });
-
-    onUpdatePlaylists(prev => prev.map(p => p.id === activePlaylist.id ? { 
-      ...p, 
-      midiasIds: nextIds, 
-      midiasDurations: nextDurs 
-    } : p));
-
-    showToast(`${selectedAvailableIds.length} mídias adicionadas com sucesso!`);
-    setSelectedAvailableIds([]);
   };
 
-  const handleUpdateDuration = (idx: number, seconds: number) => {
-    if (!activePlaylist || seconds <= 0 || isNaN(seconds)) return;
-    
-    const nextIds = [...activePlaylist.midiasIds];
-    const nextDurs = activePlaylist.midiasDurations ? [...activePlaylist.midiasDurations] : [];
+  const handleUpdateDuration = async (idx: number, seconds: number) => {
+    if (!activePlaylist || seconds <= 0 || isNaN(seconds) || isProcessing) return;
+    try {
+      setIsProcessing(true);
+      const nextIds = [...activePlaylist.midiasIds];
+      const nextDurs = activePlaylist.midiasDurations ? [...activePlaylist.midiasDurations] : [];
 
-    while (nextDurs.length < nextIds.length) {
-      const mId = nextIds[nextDurs.length];
-      const m = clientMedia.find(x => x.id === mId);
-      nextDurs.push(m?.duracao || 10);
+      while (nextDurs.length < nextIds.length) {
+        const mId = nextIds[nextDurs.length];
+        const m = clientMedia.find(x => x.id === mId);
+        nextDurs.push(m?.duracao || 10);
+      }
+      nextDurs[idx] = seconds;
+      
+      const updated = { ...activePlaylist, midiasDurations: nextDurs };
+      const success = await storageService.savePlaylist(updated);
+      if (success) {
+        onUpdatePlaylists(prev => prev.map(p => p.id === activePlaylist.id ? updated : p));
+      } else {
+        showToast('Erro ao alterar duração.');
+      }
+    } finally {
+      setIsProcessing(false);
     }
-
-    nextDurs[idx] = seconds;
-
-    onUpdatePlaylists(prev => prev.map(p => p.id === activePlaylist.id ? { 
-      ...p, 
-      midiasDurations: nextDurs 
-    } : p));
   };
 
-  const moveItem = (idx: number, direction: 'up' | 'down') => {
-    if (!activePlaylist) return;
-    const nextIds = [...activePlaylist.midiasIds];
-    const nextDurs = activePlaylist.midiasDurations ? [...activePlaylist.midiasDurations] : [];
+  const moveItem = async (idx: number, direction: 'up' | 'down') => {
+    if (!activePlaylist || isProcessing) return;
+    try {
+      setIsProcessing(true);
+      const nextIds = [...activePlaylist.midiasIds];
+      const nextDurs = activePlaylist.midiasDurations ? [...activePlaylist.midiasDurations] : [];
 
-    while (nextDurs.length < nextIds.length) {
-      const mId = nextIds[nextDurs.length];
-      const m = clientMedia.find(x => x.id === mId);
-      nextDurs.push(m?.duracao || 10);
+      while (nextDurs.length < nextIds.length) {
+        const mId = nextIds[nextDurs.length];
+        const m = clientMedia.find(x => x.id === mId);
+        nextDurs.push(m?.duracao || 10);
+      }
+
+      if (direction === 'up' && idx > 0) {
+        [nextIds[idx - 1], nextIds[idx]] = [nextIds[idx], nextIds[idx - 1]];
+        [nextDurs[idx - 1], nextDurs[idx]] = [nextDurs[idx], nextDurs[idx - 1]];
+      } else if (direction === 'down' && idx < nextIds.length - 1) {
+        [nextIds[idx + 1], nextIds[idx]] = [nextIds[idx], nextIds[idx + 1]];
+        [nextDurs[idx + 1], nextDurs[idx]] = [nextDurs[idx], nextDurs[idx + 1]];
+      }
+
+      const updated = { ...activePlaylist, midiasIds: nextIds, midiasDurations: nextDurs };
+      const success = await storageService.savePlaylist(updated);
+      if (success) {
+        onUpdatePlaylists(prev => prev.map(p => p.id === activePlaylist.id ? updated : p));
+      } else {
+        showToast('Erro ao reordenar mídia.');
+      }
+    } finally {
+      setIsProcessing(false);
     }
-
-    if (direction === 'up' && idx > 0) {
-      [nextIds[idx - 1], nextIds[idx]] = [nextIds[idx], nextIds[idx - 1]];
-      [nextDurs[idx - 1], nextDurs[idx]] = [nextDurs[idx], nextDurs[idx - 1]];
-    } else if (direction === 'down' && idx < nextIds.length - 1) {
-      [nextIds[idx + 1], nextIds[idx]] = [nextIds[idx], nextIds[idx + 1]];
-      [nextDurs[idx + 1], nextDurs[idx]] = [nextDurs[idx], nextDurs[idx + 1]];
-    }
-
-    onUpdatePlaylists(prev => prev.map(p => p.id === activePlaylist.id ? { 
-      ...p, 
-      midiasIds: nextIds, 
-      midiasDurations: nextDurs 
-    } : p));
   };
 
   return (
