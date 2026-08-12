@@ -88,6 +88,9 @@ export interface FeedSource {
   tipo: string;
   perfil: string;
   intervalo_horas: number;
+  horario_execucao?: string | null;
+  timezone?: string | null;
+  instagram_connection_id?: string | null;
   ativo: boolean;
   ultima_execucao?: string | null;
   ultimo_item_id?: string | null;
