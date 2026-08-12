@@ -14,6 +14,7 @@ import {
   PlaySquare
 } from 'lucide-react';
 import { tokensService } from '../../services/supabase/tokens';
+import { storageService } from '../../lib/storage';
 import { isTvOnline } from '../../utils/tvStatus';
 
 interface ClientTokensProps {
@@ -35,6 +36,7 @@ export default function ClientTokens({
   const [copiedToken, setCopiedToken] = useState<string | null>(null);
   const [editingTvId, setEditingTvId] = useState<string | null>(null);
   const [editTvName, setEditTvName] = useState('');
+  const [isProcessing, setIsProcessing] = useState(false);
 
   // 1. Copy Token to clipboard
   const handleCopy = (token: string) => {
@@ -60,50 +62,91 @@ export default function ClientTokens({
   };
 
   // 2. Generate new unique token (Renew Token) and immediately invalidate the old player
-  const handleRenewToken = (deviceId: string) => {
+  const handleRenewToken = async (deviceId: string) => {
+    if (isProcessing) return;
     if (confirm('Deseja gerar um novo Token para esta tela? O player conectado com o token anterior será desconectado imediatamente.')) {
+      setIsProcessing(true);
       const newToken = tokensService.generateToken();
-      onUpdateDevices(prev => prev.map(d => d.id === deviceId ? { 
-        ...d, 
-        token: newToken,
-        status: 'Offline', // reset status to force new pairing
-        uptime: '0h 0m'
-      } : d));
-      showToast('Novo token gerado. Player anterior desconectado.');
+      
+      const successToken = await storageService.updateTvField(deviceId, 'token', newToken);
+      const successStatus = await storageService.updateTvField(deviceId, 'status', 'Offline');
+      
+      if (successToken && successStatus) {
+        onUpdateDevices(prev => prev.map(d => d.id === deviceId ? { 
+          ...d, 
+          token: newToken,
+          status: 'Offline', // reset status to force new pairing
+          uptime: '0h 0m'
+        } : d));
+        showToast('Novo token gerado. Player anterior desconectado.');
+      } else {
+        showToast('Não foi possível gerar novo token.');
+      }
+      setIsProcessing(false);
     }
   };
 
   // 3. Disconnect player
-  const handleDisconnect = (deviceId: string) => {
+  const handleDisconnect = async (deviceId: string) => {
+    if (isProcessing) return;
     if (confirm('Deseja desconectar este player? Ele será colocado em repouso Offline.')) {
-      onUpdateDevices(prev => prev.map(d => d.id === deviceId ? { 
-        ...d, 
-        status: 'Offline',
-        uptime: '0h 0m'
-      } : d));
-      showToast('Player desconectado.');
+      setIsProcessing(true);
+      const successStatus = await storageService.updateTvField(deviceId, 'status', 'Offline');
+      const successUptime = await storageService.updateTvField(deviceId, 'uptime', '0h 0m');
+      
+      if (successStatus) {
+        onUpdateDevices(prev => prev.map(d => d.id === deviceId ? { 
+          ...d, 
+          status: 'Offline',
+          uptime: '0h 0m'
+        } : d));
+        showToast('Player desconectado.');
+      } else {
+        showToast('Não foi possível desconectar o player.');
+      }
+      setIsProcessing(false);
     }
   };
 
   // 4. Force synchronization
-  const handleSyncNow = (deviceId: string) => {
-    onUpdateDevices(prev => prev.map(d => d.id === deviceId ? { 
-      ...d, 
-      ultimaSincronizacao: new Date().toISOString() 
-    } : d));
-    showToast('Comando de sincronização enviado.');
+  const handleSyncNow = async (deviceId: string) => {
+    if (isProcessing) return;
+    setIsProcessing(true);
+    const now = new Date().toISOString();
+    const success = await storageService.updateTvField(deviceId, 'ultimaSincronizacao', now);
+    
+    if (success) {
+      onUpdateDevices(prev => prev.map(d => d.id === deviceId ? { 
+        ...d, 
+        ultimaSincronizacao: now 
+      } : d));
+      showToast('Comando de sincronização enviado.');
+    } else {
+      showToast('Não foi possível sincronizar.');
+    }
+    setIsProcessing(false);
   };
 
   // 5. Delete TV completely
-  const handleDeleteTV = (deviceId: string) => {
+  const handleDeleteTV = async (deviceId: string) => {
+    if (isProcessing) return;
     if (confirm('Tem certeza que deseja excluir esta TV permanentemente? Todos os logs e pareamentos associados serão deletados.')) {
-      onUpdateDevices(prev => prev.filter(d => d.id !== deviceId));
-      showToast('TV excluída com sucesso.');
+      setIsProcessing(true);
+      const success = await storageService.deleteTv(deviceId);
+      if (success) {
+        onUpdateDevices(prev => prev.filter(d => d.id !== deviceId));
+        showToast('TV excluída com sucesso.');
+      } else {
+        showToast('Não foi possível excluir a TV.');
+      }
+      setIsProcessing(false);
     }
   };
 
   // 6. Add a new TV
-  const handleAddTV = () => {
+  const handleAddTV = async () => {
+    if (isProcessing) return;
+    setIsProcessing(true);
     const newToken = tokensService.generateToken();
     const newDevice: Tv = {
       id: `dev-${Date.now()}`,
@@ -115,8 +158,15 @@ export default function ClientTokens({
       uptime: '0h 0m',
       ultimaConexao: new Date().toISOString()
     };
-    onUpdateDevices(prev => [...prev, newDevice]);
-    showToast('Nova TV adicionada. Use o token para pareamento!');
+    
+    const success = await storageService.saveTv(newDevice);
+    if (success) {
+      onUpdateDevices(prev => [...prev, newDevice]);
+      showToast('Nova TV adicionada. Use o token para pareamento!');
+    } else {
+      showToast('Não foi possível salvar a nova TV no banco.');
+    }
+    setIsProcessing(false);
   };
 
   // 7. Update TV Name
@@ -125,20 +175,40 @@ export default function ClientTokens({
     setEditTvName(tv.nome);
   };
 
-  const handleSaveTvName = (deviceId: string) => {
+  const handleSaveTvName = async (deviceId: string) => {
+    if (isProcessing) return;
     if (!editTvName.trim()) return;
-    onUpdateDevices(prev => prev.map(d => d.id === deviceId ? { ...d, nome: editTvName.trim() } : d));
-    setEditingTvId(null);
-    showToast('Nome da TV atualizado.');
+    setIsProcessing(true);
+    const novoNome = editTvName.trim();
+    const success = await storageService.updateTvField(deviceId, 'nome', novoNome);
+    
+    if (success) {
+      onUpdateDevices(prev => prev.map(d => d.id === deviceId ? { ...d, nome: novoNome } : d));
+      setEditingTvId(null);
+      showToast('Nome da TV atualizado.');
+    } else {
+      showToast('Não foi possível atualizar o nome da TV.');
+    }
+    setIsProcessing(false);
   };
 
   // 8. Update TV specific Playlist selection
-  const handlePlaylistChange = (deviceId: string, playlistId: string) => {
-    onUpdateDevices(prev => prev.map(d => d.id === deviceId ? { 
-      ...d, 
-      playlistId: playlistId || undefined 
-    } : d));
-    showToast('Playlist da TV atualizada.');
+  const handlePlaylistChange = async (deviceId: string, playlistId: string) => {
+    if (isProcessing) return;
+    setIsProcessing(true);
+    const newPlaylistId = playlistId || null;
+    const success = await storageService.updateTvField(deviceId, 'playlistId', newPlaylistId);
+    
+    if (success) {
+      onUpdateDevices(prev => prev.map(d => d.id === deviceId ? { 
+        ...d, 
+        playlistId: newPlaylistId || undefined 
+      } : d));
+      showToast('Playlist da TV atualizada.');
+    } else {
+      showToast('Não foi possível atualizar a playlist da TV.');
+    }
+    setIsProcessing(false);
   };
 
   const getPlaylistName = (id?: string) => {
@@ -162,6 +232,7 @@ export default function ClientTokens({
         </div>
         <button 
           onClick={handleAddTV}
+          disabled={isProcessing}
           className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-blue-600 to-cyan-500 hover:opacity-95 text-white rounded-lg text-sm font-bold shadow-md transition-all shrink-0"
         >
           <Plus className="w-4 h-4" />
@@ -189,6 +260,7 @@ export default function ClientTokens({
                     />
                     <button 
                       onClick={() => handleSaveTvName(device.id)}
+                      disabled={isProcessing}
                       className="p-1.5 bg-blue-600 text-white rounded hover:bg-blue-700 shrink-0"
                     >
                       <CheckSquare className="w-3.5 h-3.5" />
@@ -231,6 +303,7 @@ export default function ClientTokens({
                 <select
                   value={device.playlistId || ''}
                   onChange={(e) => handlePlaylistChange(device.id, e.target.value)}
+                  disabled={isProcessing}
                   className="w-full bg-[#09090e] border border-white/10 rounded-md px-2 py-1.5 text-xs text-slate-300 focus:outline-none focus:border-blue-500/50"
                 >
                   <option value="">Herdar do Cliente ({getPlaylistName(client.playlistId)})</option>
@@ -261,6 +334,7 @@ export default function ClientTokens({
               <div className="grid grid-cols-2 gap-2">
                 <button 
                   onClick={() => handleRenewToken(device.id)}
+                  disabled={isProcessing}
                   className="px-2 py-1.5 bg-white/5 hover:bg-blue-600/20 text-slate-300 hover:text-blue-400 text-[10px] font-extrabold uppercase rounded-lg border border-white/10 hover:border-blue-500/30 transition-all flex items-center justify-center gap-1"
                   title="Novo Token"
                 >
@@ -269,6 +343,7 @@ export default function ClientTokens({
                 </button>
                 <button 
                   onClick={() => handleSyncNow(device.id)}
+                  disabled={isProcessing}
                   className="px-2 py-1.5 bg-white/5 hover:bg-cyan-600/20 text-slate-300 hover:text-cyan-400 text-[10px] font-extrabold uppercase rounded-lg border border-white/10 hover:border-cyan-500/30 transition-all flex items-center justify-center gap-1"
                   title="Sincronizar"
                 >
@@ -280,6 +355,7 @@ export default function ClientTokens({
               <div className="grid grid-cols-2 gap-2">
                 <button 
                   onClick={() => handleDisconnect(device.id)}
+                  disabled={isProcessing}
                   className="px-2 py-1.5 bg-white/5 hover:bg-amber-600/20 text-slate-300 hover:text-amber-400 text-[10px] font-extrabold uppercase rounded-lg border border-white/10 hover:border-amber-500/30 transition-all flex items-center justify-center gap-1"
                   title="Desconectar"
                 >
@@ -288,6 +364,7 @@ export default function ClientTokens({
                 </button>
                 <button 
                   onClick={() => handleDeleteTV(device.id)}
+                  disabled={isProcessing}
                   className="px-2 py-1.5 bg-white/5 hover:bg-rose-600/20 text-slate-300 hover:text-rose-400 text-[10px] font-extrabold uppercase rounded-lg border border-white/10 hover:border-rose-500/30 transition-all flex items-center justify-center gap-1"
                   title="Excluir"
                 >
