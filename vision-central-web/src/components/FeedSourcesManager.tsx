@@ -107,7 +107,8 @@ export default function FeedSourcesManager() {
       const response = await fetch(`${API_URL}/api/feed/sync/${id}`, { method: 'POST' });
       const data = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(data.error || 'Falha ao iniciar a consulta.');
-      setSuccessMsg('Consulta iniciada. Atualize a lista em alguns instantes para conferir o resultado.');
+      setSuccessMsg(data.message || 'Consulta adicionada à fila. Um coletor disponível fará o processamento.');
+      await loadData();
     } catch (error: any) {
       setErrorMsg(error?.message || 'Erro de rede ao iniciar a consulta.');
     } finally {
@@ -201,7 +202,7 @@ export default function FeedSourcesManager() {
                   <td className="p-4 text-sm text-slate-300">{playlist?.nome || 'Playlist não encontrada'}</td>
                   <td className="p-4 text-sm text-slate-300">{source.horario_execucao || DEFAULT_TIME}</td>
                   <td className="p-4 text-sm text-slate-400">{source.ultima_execucao ? new Date(source.ultima_execucao).toLocaleString('pt-BR') : 'Nunca'}</td>
-                  <td className="p-4"><span className={`text-[10px] font-bold uppercase ${source.status === 'error' ? 'text-rose-400' : source.ativo ? 'text-emerald-400' : 'text-slate-500'}`} title={source.ultimo_erro || ''}>{source.status === 'error' ? source.ultimo_erro || 'Erro' : source.ativo ? 'Ativo' : 'Inativo'}</span></td>
+                  <td className="p-4"><span className={`text-[10px] font-bold uppercase ${source.status === 'error' ? 'text-rose-400' : source.status === 'processing' ? 'text-cyan-400' : source.status === 'queued' ? 'text-amber-400' : source.ativo ? 'text-emerald-400' : 'text-slate-500'}`} title={source.ultimo_erro || ''}>{source.status === 'error' ? source.ultimo_erro || 'Erro' : source.status === 'processing' ? 'Coletando' : source.status === 'queued' ? 'Aguardando coletor' : source.ativo ? 'Ativo' : 'Inativo'}</span></td>
                   <td className="p-4"><div className="flex gap-2">
                     <button disabled={processingId === source.id} onClick={() => void syncNow(source.id)} title="Sincronizar agora" className="p-2 text-slate-400 hover:text-emerald-400 disabled:opacity-40"><RefreshCw className={`w-4 h-4 ${processingId === source.id ? 'animate-spin' : ''}`} /></button>
                     <button onClick={() => openForm(source)} title="Editar" className="p-2 text-slate-400 hover:text-white"><Edit2 className="w-4 h-4" /></button>
