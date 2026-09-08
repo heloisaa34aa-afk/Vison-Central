@@ -11,6 +11,15 @@ import { Cliente, Tv, Playlist, Midia } from './types';
 import { storageService } from './lib/storage';
 import { supabase } from './lib/supabase';
 
+function heartbeatTimeMs(value: unknown): number {
+  if (typeof value !== 'string' || !value.trim()) return Number.NaN;
+  const normalized = value.trim()
+    .replace(' ', 'T')
+    .replace(/(\.\d{3})\d+/, '$1')
+    .replace(/([+-]\d{2})$/, '$1:00');
+  return Date.parse(normalized);
+}
+
 // Lazy loading components
 const Dashboard = lazy(() => import('./components/Dashboard.tsx'));
 const ClientsManager = lazy(() => import('./components/ClientsManager.tsx'));
@@ -94,9 +103,8 @@ export default function App() {
           const current = refreshedById.get(tv.id);
           return current ? {
             ...tv,
-            status: current.status === 'Online' &&
-              Number.isFinite(new Date(current.last_seen_at).getTime()) &&
-              now - new Date(current.last_seen_at).getTime() <= 7 * 60 * 1000
+            status: Number.isFinite(heartbeatTimeMs(current.last_seen_at)) &&
+              now - heartbeatTimeMs(current.last_seen_at) <= 7 * 60 * 1000
                 ? 'Online'
                 : 'Offline',
             uptime: current.uptime,

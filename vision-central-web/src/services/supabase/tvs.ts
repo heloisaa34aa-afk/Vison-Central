@@ -21,6 +21,15 @@ const fieldMapping: Record<string, string> = {
   texto_inferior_visivel: 'texto_inferior_visivel',
 };
 
+function heartbeatTimeMs(value: unknown): number {
+  if (typeof value !== 'string' || !value.trim()) return Number.NaN;
+  const normalized = value.trim()
+    .replace(' ', 'T')
+    .replace(/(\.\d{3})\d+/, '$1')
+    .replace(/([+-]\d{2})$/, '$1:00');
+  return Date.parse(normalized);
+}
+
 export function mapDbToTv(db: any, heartbeat?: any): Tv {
   const parts = (db.nome || '').split(' | ');
   const baseNome = parts[0] || '';
@@ -34,14 +43,16 @@ export function mapDbToTv(db: any, heartbeat?: any): Tv {
   );
 
   const lastSeenAt = heartbeat?.last_seen_at as string | undefined;
-  const lastSeenMs = lastSeenAt ? new Date(lastSeenAt).getTime() : Number.NaN;
+  const lastSeenMs = heartbeatTimeMs(lastSeenAt);
   const heartbeatIsFresh = Number.isFinite(lastSeenMs) && Date.now() - lastSeenMs <= 7 * 60 * 1000;
 
   return {
     id: db.id,
     clienteId: db.cliente_id || '',
     nome: baseNome,
-    status: heartbeat?.status === 'Online' && heartbeatIsFresh ? 'Online' : 'Offline',
+    // Online/Offline é derivado do heartbeat recente. O campo status pode ter
+    // sido deixado por uma versão antiga e não deve derrubar uma TV ativa.
+    status: heartbeatIsFresh ? 'Online' : 'Offline',
     uptime: heartbeat?.uptime || '0h 0m',
     token: db.token || '',
     ultimaSincronizacao: db.ultima_sincronizacao || '',
