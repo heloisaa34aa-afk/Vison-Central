@@ -1,5 +1,6 @@
 import { supabase } from '../../lib/supabase';
 import { FeedSource } from '../../types';
+import { API_URL } from '../../config/api';
 
 export const feedSourcesService = {
   async getAll(): Promise<FeedSource[]> {
@@ -43,6 +44,11 @@ export const feedSourcesService = {
 
   async create(source: Omit<FeedSource, 'id' | 'criado_em' | 'ultima_execucao' | 'ultimo_item_id'>): Promise<FeedSource | null> {
     try {
+      const { data: existingRows, error: existingError } = await supabase
+        .from('feed_sources').select('*').eq('playlist_id', source.playlist_id)
+        .ilike('perfil', source.perfil).limit(1);
+      if (existingError) throw existingError;
+      if (existingRows?.[0]) return existingRows[0] as FeedSource;
       const { data, error } = await supabase
         .from('feed_sources')
         .insert([source])
@@ -84,16 +90,11 @@ export const feedSourcesService = {
 
   async delete(id: string): Promise<boolean> {
     try {
-      const { error } = await supabase
-        .from('feed_sources')
-        .delete()
-        .eq('id', id);
-
-      if (error) {
-        console.error('Erro ao deletar fonte de feed:', error);
-        return false;
+      const response = await fetch(`${API_URL}/api/feed/${encodeURIComponent(id)}`, { method: 'DELETE' });
+      if (!response.ok) {
+        const data = await response.json().catch(() => ({}));
+        throw new Error(data.error || 'Backend nao confirmou a exclusao.');
       }
-
       return true;
     } catch (error) {
       console.error('Erro na requisição de exclusão da fonte de feed:', error);

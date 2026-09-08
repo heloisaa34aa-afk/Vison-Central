@@ -117,7 +117,7 @@ export default function FeedSourcesManager() {
   }
 
   async function removeSource(id: string) {
-    if (!window.confirm('Remover esta fonte? A última mídia importada continuará na playlist.')) return;
+    if (!window.confirm('Remover esta fonte? A mídia importada será retirada da playlist e excluída do armazenamento.')) return;
     setProcessingId(id);
     const removed = await feedSourcesService.delete(id);
     setProcessingId(null);
@@ -125,7 +125,7 @@ export default function FeedSourcesManager() {
       setErrorMsg('Não foi possível remover a fonte.');
       return;
     }
-    setSuccessMsg('Fonte removida.');
+    setSuccessMsg('Fonte, tarefa e mídia removidas da playlist.');
     await loadData();
   }
 
