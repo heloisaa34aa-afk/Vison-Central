@@ -21,7 +21,7 @@ const fieldMapping: Record<string, string> = {
   texto_inferior_visivel: 'texto_inferior_visivel',
 };
 
-export function mapDbToTv(db: any): Tv {
+export function mapDbToTv(db: any, heartbeat?: any): Tv {
   const parts = (db.nome || '').split(' | ');
   const baseNome = parts[0] || '';
   const orientacao = (String(db.orientacao || 'horizontal').toLowerCase()) as 'horizontal' | 'vertical';
@@ -29,20 +29,24 @@ export function mapDbToTv(db: any): Tv {
   console.log(
     "[TV REALTIME]",
     db.id,
-    db.status,
-    db.ultima_conexao
+    heartbeat?.status,
+    heartbeat?.last_seen_at
   );
+
+  const lastSeenAt = heartbeat?.last_seen_at as string | undefined;
+  const lastSeenMs = lastSeenAt ? new Date(lastSeenAt).getTime() : Number.NaN;
+  const heartbeatIsFresh = Number.isFinite(lastSeenMs) && Date.now() - lastSeenMs <= 7 * 60 * 1000;
 
   return {
     id: db.id,
     clienteId: db.cliente_id || '',
     nome: baseNome,
-    status: (db.status as any) || 'Offline',
-    uptime: db.uptime || '0h 0m',
+    status: heartbeat?.status === 'Online' && heartbeatIsFresh ? 'Online' : 'Offline',
+    uptime: heartbeat?.uptime || '0h 0m',
     token: db.token || '',
     ultimaSincronizacao: db.ultima_sincronizacao || '',
     playlistId: db.playlist_id || undefined,
-    ultimaConexao: db.ultima_conexao || undefined,
+    ultimaConexao: lastSeenAt,
     orientacao,
     modo_exibicao: db.modo_exibicao || 'Autoplay',
     proporcao: db.proporcao || 'contain',
@@ -111,9 +115,11 @@ export function mapTvToDb(tv: Tv): any {
 export const tvsService = {
   async getTvs(): Promise<Tv[]> {
     try {
-    const { data, error } = await supabase
-      .from('tvs')
-      .select('*');
+    const [tvResult, heartbeatResult] = await Promise.all([
+      supabase.from('tvs').select('*'),
+      supabase.from('tv_heartbeats').select('tv_id,status,last_seen_at,uptime'),
+    ]);
+    const { data, error } = tvResult;
 
     console.log("========== TVS ==========");
     console.log(data);
@@ -123,7 +129,13 @@ export const tvsService = {
       return [];
     }
 
-    const tvs = data ? data.map(mapDbToTv) : [];
+    if (heartbeatResult.error) {
+      console.warn('Erro ao buscar presença das TVs:', heartbeatResult.error);
+    }
+    const heartbeatByTv = new Map(
+      (heartbeatResult.data || []).map((heartbeat: any) => [String(heartbeat.tv_id), heartbeat])
+    );
+    const tvs = data ? data.map((tv: any) => mapDbToTv(tv, heartbeatByTv.get(String(tv.id)))) : [];
 
     console.log("========== TVS MAPEADAS ==========");
     console.log(tvs);

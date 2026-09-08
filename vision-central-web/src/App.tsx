@@ -80,6 +80,38 @@ export default function App() {
 
     fetchInitialData();
 
+    // Presence is not a Realtime table. Refresh only the lightweight online
+    // indicators once per minute without replacing locally edited settings.
+    const refreshTvPresence = async () => {
+      try {
+        const { data: refreshed, error } = await supabase.from('tv_heartbeats')
+          .select('tv_id,status,uptime,last_seen_at');
+        if (error) throw error;
+        if (!isMounted) return;
+        const refreshedById = new Map((refreshed || []).map(tv => [tv.tv_id, tv]));
+        const now = Date.now();
+        setDevices(previous => previous.map(tv => {
+          const current = refreshedById.get(tv.id);
+          return current ? {
+            ...tv,
+            status: current.status === 'Online' &&
+              Number.isFinite(new Date(current.last_seen_at).getTime()) &&
+              now - new Date(current.last_seen_at).getTime() <= 7 * 60 * 1000
+                ? 'Online'
+                : 'Offline',
+            uptime: current.uptime,
+            ultimaConexao: current.last_seen_at,
+          } : { ...tv, status: 'Offline' };
+        }));
+      } catch (error) {
+        console.warn('Falha ao atualizar presença das TVs:', error);
+      }
+    };
+
+    // Atualiza imediatamente e depois mantém uma consulta leve de presença.
+    void refreshTvPresence();
+    const presenceInterval = window.setInterval(refreshTvPresence, 30_000);
+
     // Single global realtime connection
     const channel = supabase.channel('global-app-changes')
       .on(
@@ -89,7 +121,13 @@ export default function App() {
           if (!isMounted) return;
           if (payload.eventType === 'UPDATE') {
             const updatedTv = mapDbTvToUi(payload.new);
-            setDevices(prev => prev.map(tv => tv.id === updatedTv.id ? { ...tv, ...updatedTv } : tv));
+            setDevices(prev => prev.map(tv => tv.id === updatedTv.id ? {
+              ...tv,
+              ...updatedTv,
+              status: tv.status,
+              uptime: tv.uptime,
+              ultimaConexao: tv.ultimaConexao,
+            } : tv));
           } else if (payload.eventType === 'INSERT') {
             const newTv = mapDbTvToUi(payload.new);
             setDevices(prev => {
@@ -130,6 +168,7 @@ export default function App() {
 
     return () => {
       isMounted = false;
+      window.clearInterval(presenceInterval);
       supabase.removeChannel(channel);
     };
   }, []);
