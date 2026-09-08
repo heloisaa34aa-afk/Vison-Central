@@ -1,0 +1,308 @@
+import { supabase } from '../../lib/supabase';
+import { Tv } from '../../types';
+
+const fieldMapping: Record<string, string> = {
+  clienteId: 'cliente_id',
+  playlistId: 'playlist_id',
+  ultimaSincronizacao: 'ultima_sincronizacao',
+  ultimaConexao: 'ultima_conexao',
+  modo_exibicao: 'modo_exibicao',
+  tempo_transicao: 'tempo_transicao',
+  conteudos_online: 'conteudos_online',
+  texto_superior: 'texto_superior',
+  texto_superior_cor: 'texto_superior_cor',
+  texto_superior_tamanho: 'texto_superior_tamanho',
+  texto_superior_alinhamento: 'texto_superior_alinhamento',
+  texto_superior_visivel: 'texto_superior_visivel',
+  texto_inferior: 'texto_inferior',
+  texto_inferior_cor: 'texto_inferior_cor',
+  texto_inferior_tamanho: 'texto_inferior_tamanho',
+  texto_inferior_alinhamento: 'texto_inferior_alinhamento',
+  texto_inferior_visivel: 'texto_inferior_visivel',
+};
+
+export function mapDbToTv(db: any, heartbeat?: any): Tv {
+  const parts = (db.nome || '').split(' | ');
+  const baseNome = parts[0] || '';
+  const orientacao = (String(db.orientacao || 'horizontal').toLowerCase()) as 'horizontal' | 'vertical';
+  
+  console.log(
+    "[TV REALTIME]",
+    db.id,
+    heartbeat?.status,
+    heartbeat?.last_seen_at
+  );
+
+  return {
+    id: db.id,
+    clienteId: db.cliente_id || '',
+    nome: baseNome,
+    status: (heartbeat?.status as any) || 'Offline',
+    uptime: heartbeat?.uptime || '0h 0m',
+    token: db.token || '',
+    ultimaSincronizacao: db.ultima_sincronizacao || '',
+    playlistId: db.playlist_id || undefined,
+    ultimaConexao: heartbeat?.last_seen_at || undefined,
+    orientacao,
+    modo_exibicao: db.modo_exibicao || 'Autoplay',
+    proporcao: db.proporcao || 'contain',
+    brilho: db.brilho !== undefined ? db.brilho : 100,
+    contraste: db.contraste !== undefined ? db.contraste : 100,
+    saturacao: db.saturacao !== undefined ? db.saturacao : 100,
+    zoom: db.zoom !== undefined ? db.zoom : 100,
+    volume: db.volume !== undefined ? db.volume : 50,
+    tempo_transicao: db.tempo_transicao !== undefined ? db.tempo_transicao : 3,
+    rotacao: db.rotacao !== undefined ? Number(db.rotacao) : 0,
+    resolucao: db.resolucao || '1920x1080',
+    autoplay: db.autoplay !== undefined ? db.autoplay : true,
+    conteudos_online: typeof db.conteudos_online === 'string' ? JSON.parse(db.conteudos_online) : (db.conteudos_online || []),
+    texto_superior: db.texto_superior || '',
+    texto_superior_cor: db.texto_superior_cor || '#ffffff',
+    texto_superior_tamanho: db.texto_superior_tamanho || 'base',
+    texto_superior_alinhamento: db.texto_superior_alinhamento || 'center',
+    texto_superior_visivel: db.texto_superior_visivel || false,
+    texto_inferior: db.texto_inferior || '',
+    texto_inferior_cor: db.texto_inferior_cor || '#ffffff',
+    texto_inferior_tamanho: db.texto_inferior_tamanho || 'base',
+    texto_inferior_alinhamento: db.texto_inferior_alinhamento || 'center',
+    texto_inferior_visivel: db.texto_inferior_visivel || false,
+    config_revision: db.config_revision || 0,
+  };
+}
+
+export function mapTvToDb(tv: Tv): any {
+  return {
+    id: tv.id,
+    cliente_id: tv.clienteId,
+    nome: tv.nome || '',
+    token: tv.token,
+    status: tv.status,
+    uptime: tv.uptime,
+    ultima_sincronizacao: tv.ultimaSincronizacao || new Date().toISOString(),
+    playlist_id: tv.playlistId || null,
+    ultima_conexao: tv.ultimaConexao || new Date().toISOString(),
+    orientacao: tv.orientacao,
+    modo_exibicao: tv.modo_exibicao,
+    proporcao: tv.proporcao,
+    brilho: tv.brilho,
+    contraste: tv.contraste,
+    saturacao: tv.saturacao,
+    zoom: tv.zoom,
+    volume: tv.volume,
+    tempo_transicao: tv.tempo_transicao,
+    rotacao: tv.rotacao !== undefined ? String(tv.rotacao) : '0',
+    resolucao: tv.resolucao || '1920x1080',
+    autoplay: tv.autoplay !== undefined ? tv.autoplay : true,
+    conteudos_online: tv.conteudos_online || [],
+    texto_superior: tv.texto_superior || null,
+    texto_superior_cor: tv.texto_superior_cor || '#ffffff',
+    texto_superior_tamanho: tv.texto_superior_tamanho || 'base',
+    texto_superior_alinhamento: tv.texto_superior_alinhamento || 'center',
+    texto_superior_visivel: tv.texto_superior_visivel !== undefined ? tv.texto_superior_visivel : false,
+    texto_inferior: tv.texto_inferior || null,
+    texto_inferior_cor: tv.texto_inferior_cor || '#ffffff',
+    texto_inferior_tamanho: tv.texto_inferior_tamanho || 'base',
+    texto_inferior_alinhamento: tv.texto_inferior_alinhamento || 'center',
+    texto_inferior_visivel: tv.texto_inferior_visivel !== undefined ? tv.texto_inferior_visivel : false,
+    config_revision: tv.config_revision || 0,
+  };
+}
+
+export const tvsService = {
+  async getTvs(): Promise<Tv[]> {
+    try {
+    const [tvResult, heartbeatResult] = await Promise.all([
+      supabase.from('tvs').select('*'),
+      supabase.from('tv_heartbeats').select('tv_id,status,last_seen_at,uptime'),
+    ]);
+    const { data, error } = tvResult;
+
+    console.log("========== TVS ==========");
+    console.log(data);
+
+    if (error) {
+      console.warn("Erro ao buscar TVs:", error);
+      return [];
+    }
+
+    if (heartbeatResult.error) {
+      console.warn('Erro ao buscar presença das TVs:', heartbeatResult.error);
+    }
+    const heartbeatByTv = new Map(
+      (heartbeatResult.data || []).map((heartbeat: any) => [String(heartbeat.tv_id), heartbeat])
+    );
+    const tvs = data ? data.map((tv: any) => mapDbToTv(tv, heartbeatByTv.get(String(tv.id)))) : [];
+
+    console.log("========== TVS MAPEADAS ==========");
+    console.log(tvs);
+
+    return tvs;
+
+  } catch (e) {
+    console.error("Erro em getTvs:", e);
+    return [];
+  }
+},
+
+  async saveTv(tv: Tv): Promise<boolean> {
+    try {
+      console.log("VisionCentral: salvando TV completa", tv.id);
+      const dbData = mapTvToDb(tv);
+      
+      // Verificar existência da TV para decidir entre UPDATE e INSERT
+      const { data: existing, error: checkError } = await supabase
+        .from('tvs')
+        .select('id, config_revision')
+        .eq('id', tv.id)
+        .maybeSingle();
+
+      if (checkError) {
+        console.warn('Erro ao verificar existência da TV:', checkError);
+      }
+
+      if (existing) {
+        // Modo Edição/Update: Nunca enviar campos de heartbeat
+        delete dbData.status;
+        delete dbData.uptime;
+        delete dbData.ultima_conexao;
+        dbData.ultima_sincronizacao = new Date().toISOString();
+        // Never allow a stale UI object to move the synchronization revision backwards.
+        dbData.config_revision = Number(existing.config_revision || 0) + 1;
+
+        const response = await supabase
+          .from('tvs')
+          .update(dbData)
+          .eq('id', tv.id);
+
+        console.log("VisionCentral: TV atualizada no banco (campos de heartbeat preservados)", response);
+        if (response.error) {
+          console.warn('Erro ao atualizar TV:', response.error);
+          return false;
+        }
+      } else {
+        // Modo Criação/Insert: Enviar payload completo
+        const response = await supabase
+          .from('tvs')
+          .insert(dbData);
+
+        console.log("VisionCentral: TV inserida no banco", response);
+        if (response.error) {
+          console.warn('Erro ao inserir TV:', response.error);
+          return false;
+        }
+      }
+      return true;
+    } catch (e) {
+      console.error(e);
+      return false;
+    }
+  },
+
+  async updateTvField(id: string, field: keyof Tv, value: any): Promise<boolean> {
+    try {
+      const dbField = fieldMapping[field as string] || (field as string);
+      let dbValue = value;
+
+      // Tratamentos específicos baseados em mapTvToDb:
+      if (field === 'playlistId') {
+        dbValue = value || null;
+      } else if (field === 'rotacao') {
+        dbValue = value !== undefined ? String(value) : '0';
+      } else if (field === 'texto_superior' || field === 'texto_inferior') {
+        dbValue = value || null;
+      } else if (field === 'texto_superior_visivel' || field === 'texto_inferior_visivel') {
+        dbValue = value !== undefined ? !!value : false;
+      } else if (field === 'autoplay') {
+        dbValue = value !== undefined ? !!value : true;
+      } else if (field === 'nome') {
+        dbValue = value || '';
+      }
+
+      console.log(`[SUPABASE UPDATE FIELD] Atualizando campo "${dbField}" para o valor:`, dbValue, `na TV com ID:`, id);
+
+      // Se for alteracao visual, incrementar a versao
+      let increment = 1;
+      if (['nome', 'playlistId'].includes(field)) increment = 0;
+      const updateData: any = {
+        [dbField]: dbValue,
+        ultima_sincronizacao: new Date().toISOString()
+      };
+
+      if (increment > 0) {
+        // Busca a revisao atual e incrementa
+        const { data: revData } = await supabase.from('tvs').select('config_revision').eq('id', id).maybeSingle();
+        const currentRev = revData?.config_revision || 0;
+        updateData.config_revision = currentRev + 1;
+      }
+      const { error } = await supabase
+        .from('tvs')
+        .update(updateData)
+        .eq('id', id);
+
+      if (error) {
+        console.warn(`Erro ao atualizar campo "${dbField}" no Supabase:`, error);
+        return false;
+      }
+
+      return true;
+    } catch (e) {
+      console.error(`Erro em updateTvField para o campo "${field}":`, e);
+      return false;
+    }
+  },
+
+  async requestSync(id: string): Promise<boolean> {
+    try {
+      const { data, error: readError } = await supabase
+        .from('tvs')
+        .select('config_revision')
+        .eq('id', id)
+        .maybeSingle();
+
+      if (readError) {
+        console.warn('Erro ao consultar a revisão da TV:', readError);
+        return false;
+      }
+
+      const { error } = await supabase
+        .from('tvs')
+        .update({
+          config_revision: Number(data?.config_revision || 0) + 1,
+          ultima_sincronizacao: new Date().toISOString(),
+        })
+        .eq('id', id);
+
+      if (error) {
+        console.warn('Erro ao solicitar sincronização remota:', error);
+        return false;
+      }
+
+      return true;
+    } catch (error) {
+      console.error('Erro ao solicitar sincronização remota:', error);
+      return false;
+    }
+  },
+
+  async deleteTv(id: string): Promise<boolean> {
+    try {
+      // 1. Deletar os logs associados à TV primeiro para garantir que não haja restrição de FK
+      try {
+        await supabase.from('logs').delete().eq('tv_id', id);
+      } catch (e) {
+        console.warn('Aviso ao deletar logs da TV:', e);
+      }
+
+      // 2. Deletar a TV do banco de dados
+      const { error } = await supabase.from('tvs').delete().eq('id', id);
+      if (error) {
+        console.warn('Erro ao deletar TV:', error);
+        return false;
+      }
+      return true;
+    } catch (e) {
+      console.error(e);
+      return false;
+    }
+  }
+};
