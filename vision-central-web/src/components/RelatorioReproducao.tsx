@@ -200,7 +200,7 @@ export default function RelatorioReproducao() {
       </div>
 
       {/* Filters */}
-      <div className="bg-slate-900/50 border border-white/10 rounded-xl p-4 md:p-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
+      <div className="bg-slate-900/50 border border-white/10 rounded-xl p-4 md:p-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-[minmax(160px,1fr)_minmax(160px,1fr)_minmax(300px,1.65fr)_minmax(140px,0.8fr)] gap-5">
         
         <div className="space-y-1">
           <label className="text-xs text-slate-400 uppercase tracking-wider font-bold">Cliente</label>
@@ -236,20 +236,25 @@ export default function RelatorioReproducao() {
 
         <div className="space-y-1">
           <label className="text-xs text-slate-400 uppercase tracking-wider font-bold">Período de Exibição</label>
-          <div className="grid grid-cols-1 sm:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2">
-            <input 
-              type="date" 
-              className="w-full min-w-0 px-3 py-2 bg-[#050508] border border-white/10 rounded-lg text-sm focus:outline-none focus:border-blue-500/50 text-slate-300"
-              value={dataInicio}
-              onChange={(e) => setDataInicio(e.target.value)}
-            />
-            <span className="text-slate-500 text-center">a</span>
-            <input 
-              type="date" 
-              className="w-full min-w-0 px-3 py-2 bg-[#050508] border border-white/10 rounded-lg text-sm focus:outline-none focus:border-blue-500/50 text-slate-300"
-              value={dataFim}
-              onChange={(e) => setDataFim(e.target.value)}
-            />
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <label className="min-w-0">
+              <span className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-500">De</span>
+              <input
+                type="date"
+                className="block w-full min-w-0 px-3 py-2 bg-[#050508] border border-white/10 rounded-lg text-sm focus:outline-none focus:border-blue-500/50 text-slate-300"
+                value={dataInicio}
+                onChange={(e) => setDataInicio(e.target.value)}
+              />
+            </label>
+            <label className="min-w-0">
+              <span className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-500">Até</span>
+              <input
+                type="date"
+                className="block w-full min-w-0 px-3 py-2 bg-[#050508] border border-white/10 rounded-lg text-sm focus:outline-none focus:border-blue-500/50 text-slate-300"
+                value={dataFim}
+                onChange={(e) => setDataFim(e.target.value)}
+              />
+            </label>
           </div>
         </div>
 

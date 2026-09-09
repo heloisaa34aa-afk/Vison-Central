@@ -439,7 +439,7 @@ export default function ScreenSimulator({
                   <option value="270">270° (girar à esquerda)</option>
                 </select>
                 <p className="text-[10px] leading-relaxed text-slate-500">
-                  O preview permanece vertical; esta opção gira somente o conteúdo exibido.
+                  A TV recebe o giro selecionado; o preview normaliza 90°/270° para mostrar o resultado na tela vertical.
                 </p>
               </div>
             </div>
@@ -747,7 +747,7 @@ export default function ScreenSimulator({
                         saturacao: tvSaturacao,
                         zoom: tvZoom,
                         volume: tvVolume,
-                        rotacao: tvRotacao,
+                        rotacao: tvRotacao === 180 ? 180 : 0,
                         resolucao: tvResolucao,
                       };
 
