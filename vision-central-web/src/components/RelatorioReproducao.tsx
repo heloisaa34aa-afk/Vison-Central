@@ -1,8 +1,8 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { storageService } from '../lib/storage';
 import { historicoService, HistoricoResumo } from '../services/supabase/historico';
 import { Cliente, Tv } from '../types';
-import { Download, Calendar, Filter, FileText, Search } from 'lucide-react';
+import { Download, FileText, Search } from 'lucide-react';
 
 const EMPTY_REPORT: HistoricoResumo = {
   list: [], totalExibicoes: 0, tempoGeral: 0, midiaMaisExibida: 'Nenhuma'
@@ -180,8 +180,8 @@ export default function RelatorioReproducao() {
   };
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+    <div className="space-y-6 min-w-0">
+      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-5">
         <div>
           <h2 className="text-2xl font-bold text-white flex items-center gap-2">
             <FileText className="w-6 h-6 text-blue-500" />
@@ -193,14 +193,14 @@ export default function RelatorioReproducao() {
         <button
           onClick={exportPDF}
           disabled={aggregatedData.list.length === 0}
-          className="bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded-lg flex items-center justify-center gap-2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          className="w-full md:w-auto min-h-[42px] bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded-lg flex items-center justify-center gap-2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {loadingPdf ? <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div> : <Download className="w-4 h-4" />} {loadingPdf ? 'Gerando PDF...' : 'Exportar PDF'}
         </button>
       </div>
 
       {/* Filters */}
-      <div className="bg-slate-900/50 border border-white/10 rounded-xl p-4 md:p-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="bg-slate-900/50 border border-white/10 rounded-xl p-4 md:p-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
         
         <div className="space-y-1">
           <label className="text-xs text-slate-400 uppercase tracking-wider font-bold">Cliente</label>
@@ -236,28 +236,28 @@ export default function RelatorioReproducao() {
 
         <div className="space-y-1">
           <label className="text-xs text-slate-400 uppercase tracking-wider font-bold">Período de Exibição</label>
-          <div className="flex items-center gap-2">
+          <div className="grid grid-cols-1 sm:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2">
             <input 
               type="date" 
-              className="w-full px-3 py-2 bg-[#050508] border border-white/10 rounded-lg text-sm focus:outline-none focus:border-blue-500/50 text-slate-300"
+              className="w-full min-w-0 px-3 py-2 bg-[#050508] border border-white/10 rounded-lg text-sm focus:outline-none focus:border-blue-500/50 text-slate-300"
               value={dataInicio}
               onChange={(e) => setDataInicio(e.target.value)}
             />
-            <span className="text-slate-500">a</span>
+            <span className="text-slate-500 text-center">a</span>
             <input 
               type="date" 
-              className="w-full px-3 py-2 bg-[#050508] border border-white/10 rounded-lg text-sm focus:outline-none focus:border-blue-500/50 text-slate-300"
+              className="w-full min-w-0 px-3 py-2 bg-[#050508] border border-white/10 rounded-lg text-sm focus:outline-none focus:border-blue-500/50 text-slate-300"
               value={dataFim}
               onChange={(e) => setDataFim(e.target.value)}
             />
           </div>
         </div>
 
-        <div className="flex items-end">
+        <div className="flex items-end pt-1 lg:pt-0">
           <button 
             onClick={handleFetchData}
             disabled={loading}
-            className="w-full bg-slate-800 hover:bg-slate-700 text-white px-4 py-2 rounded-lg flex items-center justify-center gap-2 transition-colors border border-white/10 disabled:opacity-50 h-[38px]"
+            className="w-full bg-slate-800 hover:bg-slate-700 text-white px-4 py-2 rounded-lg flex items-center justify-center gap-2 transition-colors border border-white/10 disabled:opacity-50 min-h-[42px]"
           >
             {loading ? (
               <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>

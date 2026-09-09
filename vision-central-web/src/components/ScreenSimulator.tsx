@@ -1,11 +1,9 @@
-import React, { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Cliente, Playlist, Midia, Tv } from '../types';
 import { storageService } from '../lib/storage';
-import { supabase } from '../lib/supabase';
 import { isTvOnline } from '../utils/tvStatus';
 import MediaRenderer from './MediaRenderer';
 import { 
-  Tv as TvIcon, 
   Play, 
   Pause, 
   Maximize,
@@ -15,10 +13,8 @@ import {
   Settings,
   AlertCircle,
   Monitor,
-  Layout,
   ListOrdered,
   Sparkles,
-  Smartphone,
   Video,
   Image as ImageIcon
 } from 'lucide-react';
@@ -48,7 +44,6 @@ export default function ScreenSimulator({
   // Form/Editable states
   const [tvNome, setTvNome] = useState('');
   const [tvPlaylistId, setTvPlaylistId] = useState('');
-  const [tvOrientacao, setTvOrientacao] = useState<'horizontal' | 'vertical'>('horizontal');
   const [tvModoReproducao, setTvModoReproducao] = useState('Autoplay');
   const [tvProporcao, setTvProporcao] = useState('contain');
   const [tvBrilho, setTvBrilho] = useState(100);
@@ -59,20 +54,6 @@ export default function ScreenSimulator({
   const [tvTempoTransicao, setTvTempoTransicao] = useState(3);
   const [tvRotacao, setTvRotacao] = useState(0);
   const [tvResolucao, setTvResolucao] = useState('1920x1080');
-
-  // Novos Recursos: Conteúdo Online e Textos
-  const [tvConteudoOnline, setTvConteudoOnline] = useState<{ id: string, nome: string, url: string, active: boolean }[]>([]);
-  const [tvTextoSuperior, setTvTextoSuperior] = useState('');
-  const [tvTextoSuperiorCor, setTvTextoSuperiorCor] = useState('#ffffff');
-  const [tvTextoSuperiorTamanho, setTvTextoSuperiorTamanho] = useState('base');
-  const [tvTextoSuperiorAlinhamento, setTvTextoSuperiorAlinhamento] = useState<'left' | 'center' | 'right'>('center');
-  const [tvTextoSuperiorVisivel, setTvTextoSuperiorVisivel] = useState(false);
-
-  const [tvTextoInferior, setTvTextoInferior] = useState('');
-  const [tvTextoInferiorCor, setTvTextoInferiorCor] = useState('#ffffff');
-  const [tvTextoInferiorTamanho, setTvTextoInferiorTamanho] = useState('base');
-  const [tvTextoInferiorAlinhamento, setTvTextoInferiorAlinhamento] = useState<'left' | 'center' | 'right'>('center');
-  const [tvTextoInferiorVisivel, setTvTextoInferiorVisivel] = useState(false);
 
   // Playback/Simulation states
   const [isPlaying, setIsPlaying] = useState(true);
@@ -112,7 +93,6 @@ export default function ScreenSimulator({
       console.log("VisionCentral: rotacao carregada", activeTv.rotacao !== undefined ? activeTv.rotacao : 0);
       setTvNome(activeTv.nome);
       setTvPlaylistId(activeTv.playlistId || '');
-      setTvOrientacao(activeTv.orientacao || 'horizontal');
       setTvModoReproducao(activeTv.modo_exibicao || 'Autoplay');
       setTvProporcao(activeTv.proporcao || 'contain');
       setTvBrilho(activeTv.brilho !== undefined ? activeTv.brilho : 100);
@@ -123,23 +103,11 @@ export default function ScreenSimulator({
       setTvTempoTransicao(activeTv.tempo_transicao !== undefined ? activeTv.tempo_transicao : 3);
       setTvRotacao(activeTv.rotacao !== undefined ? activeTv.rotacao : 0);
       setTvResolucao(activeTv.resolucao || '1920x1080');
-      setTvConteudoOnline(activeTv.conteudos_online || []);
-      setTvTextoSuperior(activeTv.texto_superior || '');
-      setTvTextoSuperiorCor(activeTv.texto_superior_cor || '#ffffff');
-      setTvTextoSuperiorTamanho(activeTv.texto_superior_tamanho || 'base');
-      setTvTextoSuperiorAlinhamento(activeTv.texto_superior_alinhamento || 'center');
-      setTvTextoSuperiorVisivel(activeTv.texto_superior_visivel || false);
-      setTvTextoInferior(activeTv.texto_inferior || '');
-      setTvTextoInferiorCor(activeTv.texto_inferior_cor || '#ffffff');
-      setTvTextoInferiorTamanho(activeTv.texto_inferior_tamanho || 'base');
-      setTvTextoInferiorAlinhamento(activeTv.texto_inferior_alinhamento || 'center');
-      setTvTextoInferiorVisivel(activeTv.texto_inferior_visivel || false);
       setCurrentMediaIndex(0);
       setProgress(0);
     } else {
       setTvNome('');
       setTvPlaylistId('');
-      setTvOrientacao('horizontal');
       setTvModoReproducao('Autoplay');
       setTvProporcao('contain');
       setTvBrilho(100);
@@ -150,17 +118,6 @@ export default function ScreenSimulator({
       setTvTempoTransicao(3);
       setTvRotacao(0);
       setTvResolucao('1920x1080');
-      setTvConteudoOnline([]);
-      setTvTextoSuperior('');
-      setTvTextoSuperiorCor('#ffffff');
-      setTvTextoSuperiorTamanho('base');
-      setTvTextoSuperiorAlinhamento('center');
-      setTvTextoSuperiorVisivel(false);
-      setTvTextoInferior('');
-      setTvTextoInferiorCor('#ffffff');
-      setTvTextoInferiorTamanho('base');
-      setTvTextoInferiorAlinhamento('center');
-      setTvTextoInferiorVisivel(false);
     }
   }, [selectedTvId, activeTv]);
 
@@ -309,19 +266,11 @@ export default function ScreenSimulator({
     }
   }
 
-  // Adjust aspect based on physical orientation
-  if (tvOrientacao === 'vertical') {
-    if (resWidth > resHeight) {
-      const temp = resWidth;
-      resWidth = resHeight;
-      resHeight = temp;
-    }
-  } else {
-    if (resHeight > resWidth) {
-      const temp = resWidth;
-      resWidth = resHeight;
-      resHeight = temp;
-    }
+  // O preview administrativo usa sempre a moldura vertical 9:16.
+  if (resWidth > resHeight) {
+    const temp = resWidth;
+    resWidth = resHeight;
+    resHeight = temp;
   }
 
   return (
@@ -470,25 +419,7 @@ export default function ScreenSimulator({
               </select>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
-              {/* Orientation Input */}
-              <div className="space-y-1.5">
-                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Posição da Tela</label>
-                <select
-                  key={`orientacao-${activeTv.id}`}
-                  value={tvOrientacao}
-                  onChange={(e) => {
-                    const val = e.target.value as 'horizontal' | 'vertical';
-                    setTvOrientacao(val);
-                    handleUpdateTvProperty('orientacao', val, setTvOrientacao);
-                  }}
-                  className="w-full px-3 py-2 text-xs bg-[#050508]/40 border border-white/10 rounded-lg text-slate-200 focus:outline-none focus:border-blue-500/50"
-                >
-                  <option value="horizontal">Horizontal</option>
-                  <option value="vertical">Vertical</option>
-                </select>
-              </div>
-
+            <div className="grid grid-cols-1 gap-4">
               {/* Rotação Input */}
               <div className="space-y-1.5">
                 <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Girar Tela</label>
@@ -502,11 +433,14 @@ export default function ScreenSimulator({
                   }}
                   className="w-full px-3 py-2 text-xs bg-[#050508]/40 border border-white/10 rounded-lg text-slate-200 focus:outline-none focus:border-blue-500/50"
                 >
-                  <option value="0">0° (Paisagem)</option>
-                  <option value="90">90° (Retrato dir.)</option>
-                  <option value="180">180° (Invertida)</option>
-                  <option value="270">270° (Retrato esq.)</option>
+                  <option value="0">0° (sem giro)</option>
+                  <option value="90">90° (girar à direita)</option>
+                  <option value="180">180° (invertida)</option>
+                  <option value="270">270° (girar à esquerda)</option>
                 </select>
+                <p className="text-[10px] leading-relaxed text-slate-500">
+                  O preview permanece vertical; esta opção gira somente o conteúdo exibido.
+                </p>
               </div>
             </div>
 
@@ -712,232 +646,6 @@ export default function ScreenSimulator({
               </div>
             </div>
 
-            {/* Conteúdo Online */}
-            <div className="bg-[#050508]/50 p-4 rounded-xl border border-white/5 space-y-4">
-              <h4 className="text-xs font-bold text-white uppercase tracking-wider border-b border-white/10 pb-2 flex items-center gap-2">
-                <Sparkles className="w-4 h-4 text-cyan-400" />
-                Conteúdo Online
-              </h4>
-              <div className="space-y-3">
-                <div className="flex gap-2">
-                  <input
-                    type="text"
-                    id="new-online-name"
-                    placeholder="Nome do Link"
-                    className="w-1/3 px-3 py-2 text-xs bg-[#050508]/40 border border-white/10 rounded-lg text-slate-200 focus:outline-none focus:border-blue-500/50"
-                  />
-                  <input
-                    type="url"
-                    id="new-online-url"
-                    placeholder="URL (Site, Reels, YouTube)"
-                    className="w-2/3 px-3 py-2 text-xs bg-[#050508]/40 border border-white/10 rounded-lg text-slate-200 focus:outline-none focus:border-blue-500/50"
-                  />
-                  <button
-                    onClick={() => {
-                      const nameInput = document.getElementById('new-online-name') as HTMLInputElement;
-                      const urlInput = document.getElementById('new-online-url') as HTMLInputElement;
-                      if (nameInput.value && urlInput.value) {
-                        const newArr = [...tvConteudoOnline, {
-                          id: Date.now().toString(),
-                          nome: nameInput.value,
-                          url: urlInput.value,
-                          active: false
-                        }];
-                        handleUpdateTvProperty('conteudos_online', newArr, setTvConteudoOnline);
-                        nameInput.value = '';
-                        urlInput.value = '';
-                      }
-                    }}
-                    className="px-3 py-2 bg-blue-600/20 text-blue-400 border border-blue-500/30 rounded-lg text-xs font-bold hover:bg-blue-600/30"
-                  >
-                    Add
-                  </button>
-                </div>
-                {tvConteudoOnline.length > 0 && (
-                  <div className="space-y-2 mt-2">
-                    {tvConteudoOnline.map((item, idx) => (
-                      <div key={item.id} className="flex items-center justify-between bg-[#0d0d12] p-2 rounded border border-white/5">
-                        <div className="flex items-center gap-2">
-                          <input
-                            type="radio"
-                            name="activeOnlineContent"
-                            checked={item.active}
-                            onChange={() => {
-                              const newArr = tvConteudoOnline.map(i => ({ ...i, active: i.id === item.id }));
-                              handleUpdateTvProperty('conteudos_online', newArr, setTvConteudoOnline);
-                            }}
-                            className="accent-cyan-400"
-                          />
-                          <div>
-                            <p className="text-xs font-bold text-white">{item.nome}</p>
-                            <p className="text-[9px] text-slate-400 truncate max-w-[150px]">{item.url}</p>
-                          </div>
-                        </div>
-                        <button
-                          onClick={() => {
-                          const newArr = tvConteudoOnline.filter(i => i.id !== item.id);
-                          handleUpdateTvProperty('conteudos_online', newArr, setTvConteudoOnline);
-                        }}
-                          className="text-red-400 hover:text-red-300 text-xs"
-                        >
-                          Remover
-                        </button>
-                      </div>
-                    ))}
-                    <div className="flex justify-end pt-2">
-                      <button
-                        onClick={() => {
-                          const newArr = tvConteudoOnline.map(i => ({ ...i, active: false }));
-                          handleUpdateTvProperty('conteudos_online', newArr, setTvConteudoOnline);
-                        }}
-                        className="text-[10px] text-slate-400 hover:text-white underline"
-                      >
-                        Desativar Conteúdo Online
-                      </button>
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {/* Textos na Tela */}
-            <div className="bg-[#050508]/50 p-4 rounded-xl border border-white/5 space-y-4">
-              <h4 className="text-xs font-bold text-white uppercase tracking-wider border-b border-white/10 pb-2 flex items-center gap-2">
-                <Layout className="w-4 h-4 text-cyan-400" />
-                Textos na Tela (Letreiro)
-              </h4>
-              
-              {/* Texto Superior */}
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Texto Superior</label>
-                  <label className="flex items-center gap-1.5 cursor-pointer">
-                    <input 
-                      key={`visSup-${activeTv.id}`}
-                      type="checkbox" 
-                      defaultChecked={tvTextoSuperiorVisivel} 
-                      onChange={(e) => {
-                        handleUpdateTvProperty('texto_superior_visivel', e.target.checked, setTvTextoSuperiorVisivel);
-                      }}
-                      className="accent-cyan-400"
-                    />
-                    <span className="text-[10px] text-slate-400">Mostrar</span>
-                  </label>
-                </div>
-                <input
-                  key={`textoSup-${activeTv.id}`}
-                  type="text"
-                  placeholder="Ex: Promoção do Dia!"
-                  defaultValue={tvTextoSuperior}
-                  onBlur={(e) => {
-                    if (e.target.value !== tvTextoSuperior) handleUpdateTvProperty('texto_superior', e.target.value, setTvTextoSuperior);
-                  }}
-                  className="w-full px-3 py-2 text-xs bg-[#050508]/40 border border-white/10 rounded-lg text-slate-200 focus:outline-none focus:border-blue-500/50"
-                />
-                <div className="flex gap-2">
-                  <input 
-                    key={`corSup-${activeTv.id}`}
-                    type="color" 
-                    defaultValue={tvTextoSuperiorCor} 
-                    onBlur={(e) => {
-                      if (e.target.value !== tvTextoSuperiorCor) handleUpdateTvProperty('texto_superior_cor', e.target.value, setTvTextoSuperiorCor);
-                    }}
-                    className="w-8 h-8 rounded cursor-pointer bg-transparent border-0 p-0"
-                  />
-                  <select
-                    key={`tamSup-${activeTv.id}`}
-                    defaultValue={tvTextoSuperiorTamanho}
-                    onChange={(e) => {
-                      if (e.target.value !== tvTextoSuperiorTamanho) handleUpdateTvProperty('texto_superior_tamanho', e.target.value, setTvTextoSuperiorTamanho);
-                    }}
-                    className="flex-1 px-2 py-1 text-xs bg-[#050508]/40 border border-white/10 rounded text-slate-200 focus:outline-none"
-                  >
-                    <option value="sm">Pequeno</option>
-                    <option value="base">Médio</option>
-                    <option value="lg">Grande</option>
-                    <option value="xl">Extra Grande</option>
-                  </select>
-                  <select
-                    key={`alignSup-${activeTv.id}`}
-                    defaultValue={tvTextoSuperiorAlinhamento}
-                    onChange={(e) => {
-                      if (e.target.value !== tvTextoSuperiorAlinhamento) handleUpdateTvProperty('texto_superior_alinhamento', e.target.value as any, setTvTextoSuperiorAlinhamento);
-                    }}
-                    className="flex-1 px-2 py-1 text-xs bg-[#050508]/40 border border-white/10 rounded text-slate-200 focus:outline-none"
-                  >
-                    <option value="left">Esquerda</option>
-                    <option value="center">Centro</option>
-                    <option value="right">Direita</option>
-                  </select>
-                </div>
-              </div>
-
-              {/* Texto Inferior */}
-              <div className="space-y-2 pt-2 border-t border-white/5">
-                <div className="flex items-center justify-between">
-                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Texto Inferior</label>
-                  <label className="flex items-center gap-1.5 cursor-pointer">
-                    <input 
-                      key={`visInf-${activeTv.id}`}
-                      type="checkbox" 
-                      defaultChecked={tvTextoInferiorVisivel} 
-                      onChange={(e) => {
-                        handleUpdateTvProperty('texto_inferior_visivel', e.target.checked, setTvTextoInferiorVisivel);
-                      }}
-                      className="accent-cyan-400"
-                    />
-                    <span className="text-[10px] text-slate-400">Mostrar</span>
-                  </label>
-                </div>
-                <input
-                  key={`textoInf-${activeTv.id}`}
-                  type="text"
-                  placeholder="Ex: www.seusite.com.br"
-                  defaultValue={tvTextoInferior}
-                  onBlur={(e) => {
-                    if (e.target.value !== tvTextoInferior) handleUpdateTvProperty('texto_inferior', e.target.value, setTvTextoInferior);
-                  }}
-                  className="w-full px-3 py-2 text-xs bg-[#050508]/40 border border-white/10 rounded-lg text-slate-200 focus:outline-none focus:border-blue-500/50"
-                />
-                <div className="flex gap-2">
-                  <input 
-                    key={`corInf-${activeTv.id}`}
-                    type="color" 
-                    defaultValue={tvTextoInferiorCor} 
-                    onBlur={(e) => {
-                      if (e.target.value !== tvTextoInferiorCor) handleUpdateTvProperty('texto_inferior_cor', e.target.value, setTvTextoInferiorCor);
-                    }}
-                    className="w-8 h-8 rounded cursor-pointer bg-transparent border-0 p-0"
-                  />
-                  <select
-                    key={`tamInf-${activeTv.id}`}
-                    defaultValue={tvTextoInferiorTamanho}
-                    onChange={(e) => {
-                      if (e.target.value !== tvTextoInferiorTamanho) handleUpdateTvProperty('texto_inferior_tamanho', e.target.value, setTvTextoInferiorTamanho);
-                    }}
-                    className="flex-1 px-2 py-1 text-xs bg-[#050508]/40 border border-white/10 rounded text-slate-200 focus:outline-none"
-                  >
-                    <option value="sm">Pequeno</option>
-                    <option value="base">Médio</option>
-                    <option value="lg">Grande</option>
-                    <option value="xl">Extra Grande</option>
-                  </select>
-                  <select
-                    key={`alignInf-${activeTv.id}`}
-                    defaultValue={tvTextoInferiorAlinhamento}
-                    onChange={(e) => {
-                      if (e.target.value !== tvTextoInferiorAlinhamento) handleUpdateTvProperty('texto_inferior_alinhamento', e.target.value as any, setTvTextoInferiorAlinhamento);
-                    }}
-                    className="flex-1 px-2 py-1 text-xs bg-[#050508]/40 border border-white/10 rounded text-slate-200 focus:outline-none"
-                  >
-                    <option value="left">Esquerda</option>
-                    <option value="center">Centro</option>
-                    <option value="right">Direita</option>
-                  </select>
-                </div>
-              </div>
-            </div>
-
             {/* Sync now button! */}
             <button
               onClick={handleSincronizar}
@@ -1001,7 +709,7 @@ export default function ScreenSimulator({
                 ref={containerRef} 
                 className="transition-all duration-500 relative flex justify-center items-center w-full"
                 style={{
-                  maxWidth: tvOrientacao === 'vertical' ? '240px' : '540px',
+                  maxWidth: 'min(280px, 100%)',
                 }}
               >
                 {/* Outer Bezel (Negative Inset to perfectly frame the screen) */}
@@ -1014,32 +722,11 @@ export default function ScreenSimulator({
                     aspectRatio: `${resWidth}/${resHeight}`
                   }}
                 >
-                  
-                  {tvTextoSuperiorVisivel && tvTextoSuperior && (
-                    <div className="absolute top-4 left-0 right-0 z-50 pointer-events-none" style={{ textAlign: tvTextoSuperiorAlinhamento as any }}>
-                      <span style={{ 
-                        color: tvTextoSuperiorCor, 
-                        fontSize: tvTextoSuperiorTamanho === 'sm' ? '0.75rem' : tvTextoSuperiorTamanho === 'lg' ? '1.25rem' : tvTextoSuperiorTamanho === 'xl' ? '1.5rem' : '1rem',
-                        textShadow: '0px 2px 4px rgba(0,0,0,0.8)'
-                      }} className="font-bold px-4 py-2 bg-black/40 rounded-lg backdrop-blur-sm mx-4 inline-block">{tvTextoSuperior}</span>
-                    </div>
-                  )}
-
-                  {tvTextoInferiorVisivel && tvTextoInferior && (
-                    <div className="absolute bottom-4 left-0 right-0 z-50 pointer-events-none" style={{ textAlign: tvTextoInferiorAlinhamento as any }}>
-                      <span style={{ 
-                        color: tvTextoInferiorCor, 
-                        fontSize: tvTextoInferiorTamanho === 'sm' ? '0.75rem' : tvTextoInferiorTamanho === 'lg' ? '1.25rem' : tvTextoInferiorTamanho === 'xl' ? '1.5rem' : '1rem',
-                        textShadow: '0px 2px 4px rgba(0,0,0,0.8)'
-                      }} className="font-bold px-4 py-2 bg-black/40 rounded-lg backdrop-blur-sm mx-4 inline-block">{tvTextoInferior}</span>
-                    </div>
-                  )}
 
                   {/* Display Media Container */}
                   <div className="absolute inset-0 z-10 bg-black overflow-hidden" style={{ containerType: 'size' }}>
                     {(() => {
-                      const activeOnlineContent = tvConteudoOnline.find(c => c.active);
-                      if (!activeOnlineContent && mediaList.length === 0) {
+                      if (mediaList.length === 0) {
                         return (
                           <div className="flex h-full items-center justify-center">
                             <div className="text-center text-gray-500 p-4 space-y-2">
@@ -1053,7 +740,7 @@ export default function ScreenSimulator({
 
                       const previewTv = {
                         ...activeTv,
-                        orientacao: tvOrientacao,
+                        orientacao: 'vertical' as const,
                         proporcao: tvProporcao,
                         brilho: tvBrilho,
                         contraste: tvContraste,
@@ -1068,7 +755,6 @@ export default function ScreenSimulator({
                         <MediaRenderer 
                           tv={previewTv} 
                           media={currentMedia} 
-                          onlineContent={activeOnlineContent} 
                           isWebPlayer={false}
                         />
                       );
