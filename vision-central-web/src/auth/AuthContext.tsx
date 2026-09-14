@@ -11,7 +11,9 @@ export interface UserProfile {
   full_name: string;
   role: UserRole;
   status: AccountStatus;
-  cliente_id: string | null;
+  cliente_id?: string | null;
+  plan_status?: 'trial' | 'active' | 'suspended' | 'expired';
+  plan_ends_at?: string | null;
 }
 
 interface AuthContextValue {
@@ -38,11 +40,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
     const { data, error } = await supabase
       .from('user_profiles')
-      .select('id,email,full_name,role,status,cliente_id')
+      .select('id,email,full_name,role,status')
       .eq('id', id)
       .maybeSingle();
     if (error) throw error;
-    setProfile(data as UserProfile | null);
+    if (!data) return setProfile(null);
+    const { data: plan } = await supabase
+      .from('account_subscriptions')
+      .select('status,ends_at')
+      .eq('user_id', id)
+      .maybeSingle();
+    setProfile({ ...data, plan_status: plan?.status, plan_ends_at: plan?.ends_at || null } as UserProfile);
   }
 
   useEffect(() => {

@@ -4,6 +4,7 @@ import { Cliente } from '../../types';
 export function mapDbToCliente(db: any): Cliente {
   return {
     id: db.id,
+    ownerUserId: db.owner_user_id || undefined,
     nome: db.nome || '',
     categoria: db.categoria || '',
     status: (db.status as any) || 'Ativo',
@@ -21,6 +22,7 @@ export function mapDbToCliente(db: any): Cliente {
 export function mapClienteToDb(cliente: Cliente): any {
   return {
     id: cliente.id,
+    owner_user_id: cliente.ownerUserId || undefined,
     nome: cliente.nome,
     categoria: cliente.categoria,
     status: cliente.status,

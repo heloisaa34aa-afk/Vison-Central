@@ -11,7 +11,7 @@ const EMPTY_REPORT: HistoricoResumo = {
 
 export default function RelatorioReproducao() {
   const { profile } = useAuth();
-  const restrictedClientId = profile?.role === 'client' ? profile.cliente_id : null;
+  const ownerUserId = profile?.id || null;
   const [clientes, setClientes] = useState<Cliente[]>([]);
   const [tvs, setTvs] = useState<Tv[]>([]);
   
@@ -34,9 +34,7 @@ export default function RelatorioReproducao() {
   const [hasSearched, setHasSearched] = useState(false);
   const [loadingPdf, setLoadingPdf] = useState(false);
 
-  useEffect(() => {
-    loadBaseData();
-  }, []);
+  useEffect(() => { void loadBaseData(); }, [ownerUserId]);
 
   async function loadBaseData() {
     const [clientsData, tvsData] = await Promise.all([
@@ -45,9 +43,11 @@ export default function RelatorioReproducao() {
     ]);
     const safeClients = Array.isArray(clientsData) ? clientsData.filter(Boolean) : [];
     const safeTvs = Array.isArray(tvsData) ? tvsData.filter(Boolean) : [];
-    setClientes(restrictedClientId ? safeClients.filter(c => c.id === restrictedClientId) : safeClients);
-    setTvs(restrictedClientId ? safeTvs.filter(tv => tv.clienteId === restrictedClientId) : safeTvs);
-    if (restrictedClientId) setSelectedCliente(restrictedClientId);
+    const ownedClients = ownerUserId ? safeClients.filter(client => client.ownerUserId === ownerUserId) : [];
+    const ownedIds = new Set(ownedClients.map(client => client.id));
+    setClientes(ownedClients);
+    setTvs(safeTvs.filter(tv => ownedIds.has(tv.clienteId)));
+    if (selectedCliente && !ownedIds.has(selectedCliente)) setSelectedCliente('');
   }
 
   const handleFetchData = async () => {

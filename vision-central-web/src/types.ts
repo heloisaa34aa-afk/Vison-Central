@@ -61,6 +61,7 @@ export interface Tv {
 
 export interface Cliente {
   id: string;
+  ownerUserId?: string;
   nome: string;
   categoria: string;
   status: 'Ativo' | 'Inativo' | 'Sincronizando';

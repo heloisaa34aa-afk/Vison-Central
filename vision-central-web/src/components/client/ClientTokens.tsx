@@ -17,6 +17,7 @@ import { tokensService } from '../../services/supabase/tokens';
 import { storageService } from '../../lib/storage';
 import { isTvOnline } from '../../utils/tvStatus';
 import { supabase } from '../../lib/supabase';
+import { useAuth } from '../../auth/AuthContext';
 
 interface ClientTokensProps {
   client: Cliente;
@@ -33,6 +34,7 @@ export default function ClientTokens({
   onUpdateDevices, 
   showToast 
 }: ClientTokensProps) {
+  const { profile } = useAuth();
   
   const [copiedToken, setCopiedToken] = useState<string | null>(null);
   const [editingTvId, setEditingTvId] = useState<string | null>(null);
@@ -40,15 +42,26 @@ export default function ClientTokens({
   const [isProcessing, setIsProcessing] = useState(false);
   const [screenLimit, setScreenLimit] = useState<number | null>(null);
   const [planStatus, setPlanStatus] = useState<string>('active');
+  const [accountScreenCount, setAccountScreenCount] = useState(0);
 
   useEffect(() => {
-    supabase.from('client_subscriptions').select('max_screens,status,ends_at').eq('cliente_id', client.id).maybeSingle().then(({ data }) => {
-      if (!data) return;
-      setScreenLimit(Number(data.max_screens));
-      const expired = data.ends_at && new Date(data.ends_at).getTime() < Date.now();
-      setPlanStatus(expired ? 'expired' : data.status);
-    });
-  }, [client.id]);
+    if (!profile?.id) return;
+    Promise.all([
+      supabase.from('account_subscriptions').select('max_screens,status,ends_at').eq('user_id', profile.id).maybeSingle(),
+      supabase.from('clientes').select('id').eq('owner_user_id', profile.id),
+    ]).then(async ([planResult, clientsResult]) => {
+      const plan = planResult.data;
+      if (plan) {
+        setScreenLimit(Number(plan.max_screens));
+        const expired = plan.ends_at && new Date(plan.ends_at).getTime() < Date.now();
+        setPlanStatus(expired ? 'expired' : plan.status);
+      }
+      const clientIds = (clientsResult.data || []).map(item => item.id);
+      if (clientIds.length === 0) return setAccountScreenCount(0);
+      const { count } = await supabase.from('tvs').select('id', { count: 'exact', head: true }).in('cliente_id', clientIds);
+      setAccountScreenCount(count || 0);
+    }).catch(error => console.error('Falha ao consultar limite da conta:', error));
+  }, [profile?.id, devices.length]);
 
   // 1. Copy Token to clipboard
   const handleCopy = (token: string) => {
@@ -147,6 +160,7 @@ export default function ClientTokens({
       const success = await storageService.deleteTv(deviceId);
       if (success) {
         onUpdateDevices(prev => prev.filter(d => d.id !== deviceId));
+        setAccountScreenCount(value => Math.max(0, value - 1));
         showToast('TV excluída com sucesso.');
       } else {
         showToast('Não foi possível excluir a TV.');
@@ -162,7 +176,7 @@ export default function ClientTokens({
       showToast('O plano deste cliente está suspenso ou expirado.');
       return;
     }
-    if (screenLimit !== null && devices.length >= screenLimit) {
+    if (screenLimit !== null && accountScreenCount >= screenLimit) {
       showToast(`Limite de ${screenLimit} tela(s) atingido. Ajuste no painel administrativo.`);
       return;
     }
@@ -188,8 +202,9 @@ export default function ClientTokens({
     };
     
     const success = await storageService.saveTv(newDevice);
-    if (success) {
-      onUpdateDevices(prev => [...prev, newDevice]);
+      if (success) {
+        onUpdateDevices(prev => [...prev, newDevice]);
+        setAccountScreenCount(value => value + 1);
       showToast('Nova TV adicionada. Use o token para pareamento!');
     } else {
       showToast('Não foi possível salvar a nova TV no banco.');
@@ -257,11 +272,11 @@ export default function ClientTokens({
           <p className="text-xs text-slate-400 mt-1">
             Gere, gerencie e sincronize os terminais de transmissão de mídia para este cliente.
           </p>
-          {screenLimit !== null && <p className="text-[10px] text-cyan-400 mt-1">Uso do plano: {devices.length} de {screenLimit} telas</p>}
+          {screenLimit !== null && <p className="text-[10px] text-cyan-400 mt-1">Uso total da conta: {accountScreenCount} de {screenLimit} telas</p>}
         </div>
         <button 
           onClick={handleAddTV}
-          disabled={isProcessing || (screenLimit !== null && devices.length >= screenLimit) || (planStatus !== 'active' && planStatus !== 'trial')}
+          disabled={isProcessing || (screenLimit !== null && accountScreenCount >= screenLimit) || (planStatus !== 'active' && planStatus !== 'trial')}
           className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-blue-600 to-cyan-500 hover:opacity-95 text-white rounded-lg text-sm font-bold shadow-md transition-all shrink-0"
         >
           <Plus className="w-4 h-4" />

@@ -13,8 +13,11 @@ function PanelRoute() {
   const { loading, session, profile, signOut } = useAuth();
   if (loading) return <div className="min-h-screen bg-[#050508] grid place-items-center text-slate-400"><Loader2 className="w-8 h-8 animate-spin text-blue-500" /></div>;
   if (!session) return <AuthPage />;
-  if (!profile || profile.status !== 'active' || (profile.role === 'client' && !profile.cliente_id)) {
-    return <main className="min-h-screen bg-[#050508] text-white grid place-items-center p-5"><div className="max-w-lg w-full bg-slate-900/60 border border-white/10 rounded-2xl p-8 text-center"><ShieldAlert className="w-12 h-12 text-amber-400 mx-auto" /><h1 className="text-2xl font-black mt-5">Acesso aguardando liberação</h1><p className="text-slate-400 mt-3">Seu cadastro foi concluído, mas um administrador ainda precisa vincular sua conta a um cliente e ativar o acesso.</p><button onClick={signOut} className="mt-6 px-5 py-2.5 bg-white/5 hover:bg-white/10 border border-white/10 rounded-lg text-sm font-bold">Sair</button></div></main>;
+  const planExpired = profile?.role !== 'admin' && Boolean(profile?.plan_ends_at && new Date(profile.plan_ends_at).getTime() < Date.now());
+  const planBlocked = profile?.role !== 'admin' && (planExpired || profile?.plan_status === 'expired' || profile?.plan_status === 'suspended');
+  if (!profile || profile.status !== 'active' || planBlocked) {
+    const blocked = Boolean(profile && (profile.status === 'suspended' || planBlocked));
+    return <main className="min-h-screen bg-[#050508] text-white grid place-items-center p-5"><div className="max-w-lg w-full bg-slate-900/60 border border-white/10 rounded-2xl p-8 text-center"><ShieldAlert className="w-12 h-12 text-amber-400 mx-auto" /><h1 className="text-2xl font-black mt-5">{blocked ? 'Acesso indisponível' : 'Acesso aguardando liberação'}</h1><p className="text-slate-400 mt-3">{blocked ? 'Esta conta está bloqueada ou fora do período contratado. Entre em contato com o administrador.' : 'Seu cadastro foi concluído. Um administrador precisa ativar seu login antes do primeiro acesso.'}</p><button onClick={signOut} className="mt-6 px-5 py-2.5 bg-white/5 hover:bg-white/10 border border-white/10 rounded-lg text-sm font-bold">Sair</button></div></main>;
   }
   return <App />;
 }

@@ -44,7 +44,7 @@ const Loader = () => (
 export default function App() {
   const { profile, user, signOut } = useAuth();
   const isAdmin = profile?.role === 'admin';
-  const allowedClientId = isAdmin ? null : profile?.cliente_id || null;
+  const ownerUserId = profile?.id || null;
   const [activeTab, setActiveTab] = useState<'dashboard' | 'clients' | 'client' | 'simulator' | 'relatorios' | 'feed_sources' | 'alertas' | 'admin'>(() => window.location.hash === '#alertas' ? 'alertas' : 'dashboard');
   const [selectedClientId, setSelectedClientId] = useState<string | null>(null);
   const [selectedClientIdForSim, setSelectedClientIdForSim] = useState<string | null>(null);
@@ -63,6 +63,7 @@ export default function App() {
 
   useEffect(() => {
     let isMounted = true;
+    let visibleClientIds = new Set<string>();
     const fetchInitialData = async () => {
       try {
         const withTimeout = <T,>(promise: Promise<T>, ms: number = 15000): Promise<T> => {
@@ -87,10 +88,12 @@ export default function App() {
           const loadedDevices = results[1].status === 'fulfilled' ? results[1].value || [] : [];
           const loadedPlaylists = results[2].status === 'fulfilled' ? results[2].value || [] : [];
           const loadedMedia = results[3].status === 'fulfilled' ? results[3].value || [] : [];
-          setClients(allowedClientId ? loadedClients.filter(item => item.id === allowedClientId) : loadedClients);
-          setDevices(allowedClientId ? loadedDevices.filter(item => item.clienteId === allowedClientId) : loadedDevices);
-          setPlaylists(allowedClientId ? loadedPlaylists.filter(item => item.clienteId === allowedClientId) : loadedPlaylists);
-          setMedia(allowedClientId ? loadedMedia.filter(item => item.clienteId === allowedClientId) : loadedMedia);
+          const ownedClients = ownerUserId ? loadedClients.filter(item => item.ownerUserId === ownerUserId) : [];
+          visibleClientIds = new Set(ownedClients.map(item => item.id));
+          setClients(ownedClients);
+          setDevices(loadedDevices.filter(item => visibleClientIds.has(item.clienteId)));
+          setPlaylists(loadedPlaylists.filter(item => Boolean(item.clienteId) && visibleClientIds.has(item.clienteId!)));
+          setMedia(loadedMedia.filter(item => Boolean(item.clienteId) && visibleClientIds.has(item.clienteId!)));
           setIsLoaded(true);
         }
       } catch (error) {
@@ -141,8 +144,8 @@ export default function App() {
           if (!isMounted) return;
           const newRow = payload.new as Record<string, unknown>;
           const oldRow = payload.old as Record<string, unknown>;
-          const eventClientId = newRow?.cliente_id || oldRow?.cliente_id;
-          if (allowedClientId && eventClientId !== allowedClientId) return;
+          const eventClientId = String(newRow?.cliente_id || oldRow?.cliente_id || '');
+          if (!visibleClientIds.has(eventClientId)) return;
           if (payload.eventType === 'UPDATE') {
             const updatedTv = mapDbTvToUi(payload.new);
             setDevices(prev => prev.map(tv => tv.id === updatedTv.id ? {
@@ -173,13 +176,14 @@ export default function App() {
           if (!isMounted) return;
           const newRow = payload.new as Record<string, unknown>;
           const oldRow = payload.old as Record<string, unknown>;
-          const eventClientId = newRow?.id || oldRow?.id;
-          if (allowedClientId && eventClientId !== allowedClientId) return;
+          const eventOwnerId = String(newRow?.owner_user_id || oldRow?.owner_user_id || '');
+          if (eventOwnerId !== ownerUserId) return;
           if (payload.eventType === 'UPDATE') {
             const updatedClient = mapDbClientToUi(payload.new);
             setClients(prev => prev.map(c => c.id === updatedClient.id ? { ...c, ...updatedClient } : c));
           } else if (payload.eventType === 'INSERT') {
             const newClient = mapDbClientToUi(payload.new);
+            visibleClientIds.add(newClient.id);
             setClients(prev => {
               if (prev.some(c => c.id === newClient.id)) {
                 return prev.map(c => c.id === newClient.id ? { ...c, ...newClient } : c);
@@ -188,6 +192,7 @@ export default function App() {
             });
           } else if (payload.eventType === 'DELETE') {
             const oldClient = payload.old as Cliente;
+            visibleClientIds.delete(oldClient.id);
             setClients(prev => prev.filter(c => c.id !== oldClient.id));
           }
         }
@@ -199,7 +204,7 @@ export default function App() {
       window.clearInterval(presenceInterval);
       supabase.removeChannel(channel);
     };
-  }, [allowedClientId]);
+  }, [ownerUserId]);
 
   const handleSelectClient = (id: string, view: 'edit' | 'simulator' = 'edit') => {
     if (view === 'edit') {
@@ -234,6 +239,7 @@ const mapDbTvToUi = (db: any): Tv => {
 const mapDbClientToUi = (db: any): Cliente => {
   return {
     ...db,
+    ownerUserId: db.owner_user_id || db.ownerUserId,
     quantidadeTelas: db.quantidade_telas || db.quantidadeTelas,
     fusoHorario: db.fuso_horario || db.fusoHorario,
     tipoIcone: db.tipo_icone || db.tipoIcone,
@@ -302,7 +308,7 @@ const mapDbClientToUi = (db: any): Cliente => {
         <aside className="md:w-64 shrink-0 flex flex-row md:flex-col gap-1 overflow-x-auto md:overflow-x-visible pb-2 md:pb-0 scrollbar-none border-b md:border-b-0 md:border-r border-white/5 pr-0 md:pr-4">
           {[
             { id: 'dashboard', icon: LayoutDashboard, label: 'Painel Geral' },
-            ...(isAdmin ? [{ id: 'clients', icon: Building2, label: 'Clientes' }] : []),
+            { id: 'clients', icon: Building2, label: 'Clientes' },
             { id: 'simulator', icon: TvIcon, label: 'Configuração de TV' },
             { id: 'relatorios', icon: FileText, label: 'Relatórios' },
             { id: 'feed_sources', icon: Rss, label: 'Fontes de Feed' },
@@ -348,16 +354,10 @@ const mapDbClientToUi = (db: any): Cliente => {
                   devices={devices}
                   playlists={playlists}
                   onAddClient={async (newClient) => {
-                    const success = await storageService.saveCliente(newClient);
+                    const ownedClient = { ...newClient, ownerUserId: ownerUserId || undefined };
+                    const success = await storageService.saveCliente(ownedClient);
                     if (success) {
-                      await supabase.from('client_subscriptions').upsert({
-                        cliente_id: newClient.id,
-                        max_screens: Math.max(1, Number(newClient.quantidadeTelas) || 1),
-                        starts_at: new Date().toISOString(),
-                        status: 'trial',
-                        updated_at: new Date().toISOString(),
-                      }, { onConflict: 'cliente_id' });
-                      setClients(prev => [...prev, newClient]);
+                      setClients(prev => [...prev, ownedClient]);
                       showToast('Cliente criado com sucesso!');
                     } else {
                       showToast('Erro ao criar cliente.');
@@ -413,7 +413,7 @@ const mapDbClientToUi = (db: any): Cliente => {
                 <AlertsManager tvs={devices} clientes={clients} />
               )}
               {activeTab === 'admin' && isAdmin && (
-                <AdminPanel clientes={clients} tvs={devices} onOpenClient={handleSelectClient} />
+                <AdminPanel />
               )}
             </Suspense>
           )}

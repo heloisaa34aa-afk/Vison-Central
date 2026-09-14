@@ -14,6 +14,7 @@ import {
   Edit2
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
+import { isTvOnline } from '../utils/tvStatus';
 
 interface ClientsManagerProps {
   clients: Cliente[];
@@ -325,6 +326,14 @@ export default function ClientsManager({
         ) : (
           filteredClients.map(client => {
             const clientDevices = devices.filter(d => d.clienteId === client.id);
+            const onlineCount = clientDevices.filter(isTvOnline).length;
+            const clientStatus = clientDevices.length === 0
+              ? { label: 'Sem TVs', className: 'bg-slate-500/10 text-slate-400 border-slate-500/20' }
+              : onlineCount === clientDevices.length
+                ? { label: 'Todas online', className: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' }
+                : onlineCount === 0
+                  ? { label: 'Todas offline', className: 'bg-rose-500/10 text-rose-400 border-rose-500/20' }
+                  : { label: `${onlineCount} online · ${clientDevices.length - onlineCount} offline`, className: 'bg-amber-500/10 text-amber-300 border-amber-500/20' };
 
             return (
               <div 
@@ -344,12 +353,8 @@ export default function ClientsManager({
                         <span className="text-[10px] bg-white/5 text-slate-400 border border-white/10 px-2 py-0.5 rounded-full font-semibold">
                           {client.categoria}
                         </span>
-                        <span className={`text-[10px] px-2 py-0.5 rounded-full font-semibold ${
-                          client.status === 'Ativo' 
-                            ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' 
-                            : 'bg-white/5 text-slate-500'
-                        }`}>
-                          {client.status}
+                        <span className={`text-[10px] px-2 py-0.5 rounded-full border font-semibold ${clientStatus.className}`}>
+                          {clientStatus.label}
                         </span>
                       </div>
 

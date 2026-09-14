@@ -11,7 +11,7 @@ const DEFAULT_TIMEZONE = 'America/Bahia';
 
 export default function FeedSourcesManager() {
   const { profile } = useAuth();
-  const restrictedClientId = profile?.role === 'client' ? profile.cliente_id : null;
+  const ownerUserId = profile?.id || null;
   const [sources, setSources] = useState<FeedSource[]>([]);
   const [playlists, setPlaylists] = useState<Playlist[]>([]);
   const [loading, setLoading] = useState(true);
@@ -25,7 +25,7 @@ export default function FeedSourcesManager() {
   const [errorMsg, setErrorMsg] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
 
-  useEffect(() => { void loadData(); }, []);
+  useEffect(() => { void loadData(); }, [ownerUserId]);
 
   async function loadData() {
     setLoading(true);
@@ -36,9 +36,11 @@ export default function FeedSourcesManager() {
         storageService.getPlaylists(),
       ]);
       const safePlaylists = Array.isArray(loadedPlaylists) ? loadedPlaylists.filter(Boolean) : [];
-      const visiblePlaylists = restrictedClientId ? safePlaylists.filter(item => item.clienteId === restrictedClientId) : safePlaylists;
+      const loadedClients = await storageService.getClientes();
+      const ownedClientIds = new Set((loadedClients || []).filter(item => item.ownerUserId === ownerUserId).map(item => item.id));
+      const visiblePlaylists = safePlaylists.filter(item => Boolean(item.clienteId) && ownedClientIds.has(item.clienteId!));
       const allowedPlaylistIds = new Set(visiblePlaylists.map(item => item.id));
-      setSources(Array.isArray(loadedSources) ? loadedSources.filter(item => item && (!restrictedClientId || allowedPlaylistIds.has(item.playlist_id))) : []);
+      setSources(Array.isArray(loadedSources) ? loadedSources.filter(item => item && allowedPlaylistIds.has(item.playlist_id)) : []);
       setPlaylists(visiblePlaylists);
     } catch (error) {
       console.error('Erro ao carregar fontes:', error);
