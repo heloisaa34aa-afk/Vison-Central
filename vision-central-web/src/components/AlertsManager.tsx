@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { Bell, BellOff, BellRing, Smartphone, WifiOff, CheckCircle2, History, Loader2, Info } from 'lucide-react';
+import { Bell, BellOff, BellRing, Smartphone, WifiOff, CheckCircle2, History, Loader2, Info, Building2, Wifi, ChevronDown } from 'lucide-react';
 import { Tv, Cliente } from '../types';
 import { isTvOnline } from '../utils/tvStatus';
 import { API_URL } from '../config/api';
+import { useAuth } from '../auth/AuthContext';
 
 interface AlertsManagerProps {
   tvs: Tv[];
@@ -20,6 +21,7 @@ interface AlertEvent {
 }
 
 export default function AlertsManager({ tvs, clientes }: AlertsManagerProps) {
+  const { session } = useAuth();
   const [isSubscribed, setIsSubscribed] = useState<boolean>(false);
   const [loading, setLoading] = useState<boolean>(false);
   const [events, setEvents] = useState<AlertEvent[]>([]);
@@ -32,6 +34,8 @@ export default function AlertsManager({ tvs, clientes }: AlertsManagerProps) {
   };
 
   const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  const isStandalone = window.matchMedia('(display-mode: standalone)').matches || (navigator as any).standalone === true;
+  const authHeaders = (): Record<string, string> => session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {};
 
   const offlineTvs = tvs.filter(tv => !isTvOnline(tv));
 
@@ -41,19 +45,20 @@ export default function AlertsManager({ tvs, clientes }: AlertsManagerProps) {
   }, []);
 
   async function checkSubscriptionStatus() {
-    if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
-      return;
-    }
-    const registration = await navigator.serviceWorker.getRegistration();
-    if (registration) {
-      const subscription = await registration.pushManager.getSubscription();
-      setIsSubscribed(!!subscription);
+    try {
+      if (!window.isSecureContext || !('serviceWorker' in navigator) || !('PushManager' in window) || !('Notification' in window)) return;
+      const registration = await navigator.serviceWorker.getRegistration('/');
+      const subscription = await registration?.pushManager.getSubscription();
+      setIsSubscribed(Notification.permission === 'granted' && !!subscription);
+    } catch (error) {
+      console.warn('Falha ao conferir inscrição push:', error);
+      setIsSubscribed(false);
     }
   }
 
   async function fetchEvents() {
     try {
-      const res = await fetch(`${API_URL}/api/alerts/events`);
+      const res = await fetch(`${API_URL}/api/alerts/events`, { headers: authHeaders() });
       if (res.ok) {
         const data = await res.json();
         setEvents(data);
@@ -77,7 +82,15 @@ export default function AlertsManager({ tvs, clientes }: AlertsManagerProps) {
   };
 
   async function handleSubscribe() {
-    if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
+    if (!window.isSecureContext) {
+      showFeedback('As notificações exigem acesso por HTTPS.', 'error');
+      return;
+    }
+    if (isIOS && !isStandalone) {
+      showFeedback('No iPhone, adicione a Vision Central à Tela de Início e abra pelo ícone antes de ativar.', 'error');
+      return;
+    }
+    if (!('serviceWorker' in navigator) || !('PushManager' in window) || !('Notification' in window)) {
       showFeedback('Seu navegador não suporta notificações push.', 'error');
       return;
     }
@@ -94,33 +107,35 @@ export default function AlertsManager({ tvs, clientes }: AlertsManagerProps) {
         return;
       }
 
-      const registration = await navigator.serviceWorker.register('/sw.js');
-      await navigator.serviceWorker.ready;
+      const registration = await navigator.serviceWorker.register('/sw.js', { scope: '/' });
+      await registration.update();
 
       const keyRes = await fetch(`${API_URL}/api/alerts/public-key`);
       if (!keyRes.ok) throw new Error('Não foi possível obter a chave pública');
       const { publicKey } = await keyRes.json();
 
-      const subscription = await registration.pushManager.subscribe({
-        userVisibleOnly: true,
-        applicationServerKey: urlB64ToUint8Array(publicKey)
-      });
+      let subscription = await registration.pushManager.getSubscription();
+      if (subscription) await subscription.unsubscribe();
+      subscription = await registration.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: urlB64ToUint8Array(publicKey) });
 
       const subRes = await fetch(`${API_URL}/api/alerts/subscribe`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...authHeaders() },
         body: JSON.stringify({
           subscription: subscription.toJSON()
         })
       });
 
-      if (!subRes.ok) throw new Error('Erro ao salvar inscrição');
+      if (!subRes.ok) {
+        const body = await subRes.json().catch(() => ({}));
+        throw new Error(body.error || 'Erro ao salvar inscrição');
+      }
 
       setIsSubscribed(true);
       showFeedback('Notificações ativadas neste dispositivo!', 'success');
     } catch (e) {
       console.error('Erro ao ativar notificações:', e);
-      showFeedback('Ocorreu um erro ao tentar ativar as notificações. Veja o console para mais detalhes.', 'error');
+      showFeedback(e instanceof Error ? e.message : 'Ocorreu um erro ao ativar as notificações.', 'error');
     } finally {
       setLoading(false);
     }
@@ -136,7 +151,7 @@ export default function AlertsManager({ tvs, clientes }: AlertsManagerProps) {
       if (subscription) {
         await fetch(`${API_URL}/api/alerts/unsubscribe`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 'Content-Type': 'application/json', ...authHeaders() },
           body: JSON.stringify({ endpoint: subscription.endpoint })
         });
         await subscription.unsubscribe();
@@ -164,7 +179,7 @@ export default function AlertsManager({ tvs, clientes }: AlertsManagerProps) {
 
       const res = await fetch(`${API_URL}/api/alerts/test`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...authHeaders() },
         body: JSON.stringify({
           endpoint: subscription.endpoint
         })
@@ -173,7 +188,9 @@ export default function AlertsManager({ tvs, clientes }: AlertsManagerProps) {
       const data = await res.json();
       
       if (!res.ok || data.success !== true) {
-        showFeedback('Falha ao enviar notificação de teste', 'error');
+        showFeedback(data.error || 'Falha ao enviar notificação de teste', 'error');
+      } else {
+        showFeedback('Notificação de teste enviada. Ela pode aparecer mesmo com o painel fechado.', 'success');
       }
     } catch (e) {
       console.error(e);
@@ -205,6 +222,34 @@ export default function AlertsManager({ tvs, clientes }: AlertsManagerProps) {
           <button onClick={() => setFeedback(null)} className="text-current opacity-70 hover:opacity-100">&times;</button>
         </div>
       )}
+
+      <div className="bg-slate-900/50 border border-white/10 rounded-xl p-5">
+        <h3 className="text-lg font-bold text-white flex items-center gap-2"><Building2 className="w-5 h-5 text-blue-400" /> Situação por cliente</h3>
+        <p className="text-sm text-slate-400 mt-1 mb-5">Abra um cliente para conferir individualmente quais TVs estão online ou offline.</p>
+        <div className="grid grid-cols-1 xl:grid-cols-2 gap-3">
+          {clientes.map(cliente => {
+            const clientTvs = tvs.filter(tv => tv.clienteId === cliente.id);
+            const online = clientTvs.filter(isTvOnline).length;
+            const offline = clientTvs.length - online;
+            return (
+              <details key={cliente.id} className="group bg-black/25 border border-white/5 rounded-xl overflow-hidden">
+                <summary className="list-none cursor-pointer p-4 flex items-center gap-3">
+                  <div className={`w-10 h-10 rounded-lg grid place-items-center ${offline > 0 ? 'bg-rose-500/10 text-rose-400' : 'bg-emerald-500/10 text-emerald-400'}`}><Building2 className="w-5 h-5" /></div>
+                  <div className="min-w-0 flex-1"><p className="font-bold text-sm text-white truncate">{cliente.nome}</p><p className="text-xs text-slate-500">{online} online · {offline} offline · {clientTvs.length} total</p></div>
+                  <ChevronDown className="w-4 h-4 text-slate-500 transition-transform group-open:rotate-180" />
+                </summary>
+                <div className="px-4 pb-4 space-y-2 border-t border-white/5 pt-3">
+                  {clientTvs.length === 0 && <p className="text-xs text-slate-500 py-2">Nenhuma TV cadastrada.</p>}
+                  {clientTvs.map(tv => {
+                    const onlineNow = isTvOnline(tv);
+                    return <div key={tv.id} className="flex items-center justify-between bg-white/[.03] rounded-lg px-3 py-2"><span className="text-sm text-slate-300 flex items-center gap-2">{onlineNow ? <Wifi className="w-4 h-4 text-emerald-400" /> : <WifiOff className="w-4 h-4 text-rose-400" />}{tv.nome}</span><span className={`text-[10px] uppercase font-bold ${onlineNow ? 'text-emerald-400' : 'text-rose-400'}`}>{onlineNow ? 'Online' : 'Offline'}</span></div>;
+                  })}
+                </div>
+              </details>
+            );
+          })}
+        </div>
+      </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <div className="space-y-6">

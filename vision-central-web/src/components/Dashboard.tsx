@@ -141,22 +141,29 @@ export default function Dashboard({
         </h3>
         
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {clientes.map(cliente => (
+          {clientes.map(cliente => {
+            const clientTvs = tvs.filter(tv => tv.clienteId === cliente.id);
+            const onlineCount = clientTvs.filter(isTvOnline).length;
+            const offlineCount = clientTvs.length - onlineCount;
+            const status = clientTvs.length === 0
+              ? { label: 'Sem TVs', className: 'bg-slate-500/10 text-slate-400 border-slate-500/20' }
+              : offlineCount === 0
+                ? { label: 'Todas online', className: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' }
+                : onlineCount === 0
+                  ? { label: 'Todas offline', className: 'bg-rose-500/10 text-rose-400 border-rose-500/20' }
+                  : { label: `${onlineCount} online · ${offlineCount} offline`, className: 'bg-amber-500/10 text-amber-400 border-amber-500/20' };
+            return (
             <div key={cliente.id} className="bg-white/5 border border-white/5 rounded-xl p-5 hover:border-blue-500/30 transition-all flex flex-col justify-between min-h-[140px] group">
               <div>
                 <div className="flex justify-between items-start mb-2">
                   <h4 className="text-sm font-bold text-white group-hover:text-blue-400 transition-colors">{cliente.nome}</h4>
-                  <span className={`text-[10px] px-2 py-0.5 rounded font-mono font-bold ${
-                    cliente.status === 'Ativo' ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 
-                    cliente.status === 'Inativo' ? 'bg-rose-500/10 text-rose-400 border border-rose-500/20' : 
-                    'bg-amber-500/10 text-amber-400 border border-amber-500/20'
-                  }`}>
-                    {cliente.status}
+                  <span className={`text-[10px] px-2 py-0.5 rounded font-mono font-bold border ${status.className}`}>
+                    {status.label}
                   </span>
                 </div>
                 <p className="text-xs text-slate-400 flex items-center gap-1.5">
                   <TvIcon className="w-3.5 h-3.5" />
-                  {cliente.quantidadeTelas} {cliente.quantidadeTelas === 1 ? 'TV' : 'TVs'} vinculadas
+                  {clientTvs.length} {clientTvs.length === 1 ? 'TV' : 'TVs'} vinculadas
                 </p>
               </div>
               
@@ -168,7 +175,7 @@ export default function Dashboard({
                 <ArrowRight className="w-3 h-3" />
               </button>
             </div>
-          ))}
+          );})}
         </div>
       </div>
     </div>

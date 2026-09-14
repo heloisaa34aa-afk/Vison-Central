@@ -4,11 +4,14 @@ import { API_URL } from '../config/api';
 import { storageService } from '../lib/storage';
 import { feedSourcesService } from '../services/supabase/feedSources';
 import { FeedSource, Playlist } from '../types';
+import { useAuth } from '../auth/AuthContext';
 
 const DEFAULT_TIME = '08:00';
 const DEFAULT_TIMEZONE = 'America/Bahia';
 
 export default function FeedSourcesManager() {
+  const { profile } = useAuth();
+  const restrictedClientId = profile?.role === 'client' ? profile.cliente_id : null;
   const [sources, setSources] = useState<FeedSource[]>([]);
   const [playlists, setPlaylists] = useState<Playlist[]>([]);
   const [loading, setLoading] = useState(true);
@@ -32,8 +35,11 @@ export default function FeedSourcesManager() {
         feedSourcesService.getAll(),
         storageService.getPlaylists(),
       ]);
-      setSources(Array.isArray(loadedSources) ? loadedSources.filter(Boolean) : []);
-      setPlaylists(Array.isArray(loadedPlaylists) ? loadedPlaylists.filter(Boolean) : []);
+      const safePlaylists = Array.isArray(loadedPlaylists) ? loadedPlaylists.filter(Boolean) : [];
+      const visiblePlaylists = restrictedClientId ? safePlaylists.filter(item => item.clienteId === restrictedClientId) : safePlaylists;
+      const allowedPlaylistIds = new Set(visiblePlaylists.map(item => item.id));
+      setSources(Array.isArray(loadedSources) ? loadedSources.filter(item => item && (!restrictedClientId || allowedPlaylistIds.has(item.playlist_id))) : []);
+      setPlaylists(visiblePlaylists);
     } catch (error) {
       console.error('Erro ao carregar fontes:', error);
       setErrorMsg('Não foi possível carregar as fontes. Tente novamente.');

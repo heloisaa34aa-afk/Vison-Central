@@ -14,6 +14,8 @@ self.addEventListener('push', function(event) {
     body: data.body || 'Nova notificação',
     tag: data.tag || `vision-central-${Date.now()}`,
     renotify: true,
+    icon: '/vision-central-icon.svg',
+    badge: '/vision-central-icon.svg',
     data: {
       url: data.url || '/#alertas'
     }
@@ -43,3 +45,6 @@ self.addEventListener('notificationclick', function(event) {
     })
   );
 });
+
+self.addEventListener('install', function() { self.skipWaiting(); });
+self.addEventListener('activate', function(event) { event.waitUntil(self.clients.claim()); });

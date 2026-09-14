@@ -3,12 +3,15 @@ import { storageService } from '../lib/storage';
 import { historicoService, HistoricoResumo } from '../services/supabase/historico';
 import { Cliente, Tv } from '../types';
 import { Download, FileText, Search } from 'lucide-react';
+import { useAuth } from '../auth/AuthContext';
 
 const EMPTY_REPORT: HistoricoResumo = {
   list: [], totalExibicoes: 0, tempoGeral: 0, midiaMaisExibida: 'Nenhuma'
 };
 
 export default function RelatorioReproducao() {
+  const { profile } = useAuth();
+  const restrictedClientId = profile?.role === 'client' ? profile.cliente_id : null;
   const [clientes, setClientes] = useState<Cliente[]>([]);
   const [tvs, setTvs] = useState<Tv[]>([]);
   
@@ -40,8 +43,11 @@ export default function RelatorioReproducao() {
       storageService.getClientes(),
       storageService.getTvs()
     ]);
-    setClientes(Array.isArray(clientsData) ? clientsData.filter(Boolean) : []);
-    setTvs(Array.isArray(tvsData) ? tvsData.filter(Boolean) : []);
+    const safeClients = Array.isArray(clientsData) ? clientsData.filter(Boolean) : [];
+    const safeTvs = Array.isArray(tvsData) ? tvsData.filter(Boolean) : [];
+    setClientes(restrictedClientId ? safeClients.filter(c => c.id === restrictedClientId) : safeClients);
+    setTvs(restrictedClientId ? safeTvs.filter(tv => tv.clienteId === restrictedClientId) : safeTvs);
+    if (restrictedClientId) setSelectedCliente(restrictedClientId);
   }
 
   const handleFetchData = async () => {
@@ -157,21 +163,27 @@ export default function RelatorioReproducao() {
       const clientFileName = clienteName.replace(/\s+/g, '-').toLowerCase();
       const fileName = `relatorio-reproducao-${clientFileName}-${dataInicio}-a-${dataFim}.pdf`;
 
-      const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
       const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+      const blob = doc.output('blob');
+      const file = new File([blob], fileName, { type: 'application/pdf' });
 
-      if (isSafari || isIOS) {
-        const blob = doc.output('blob');
-        const url = URL.createObjectURL(blob);
-        const win = window.open(url, '_blank');
-        if (!win) {
-           alert('O Safari bloqueou a abertura do PDF. Permita popups para este site.');
-        }
-        setTimeout(() => URL.revokeObjectURL(url), 3000);
+      // No iPhone/iPad o compartilhamento de arquivo oferece "Salvar em Arquivos"
+      // sem abrir uma aba temporária. Nos demais navegadores, força o download.
+      if (isIOS && navigator.share && (!navigator.canShare || navigator.canShare({ files: [file] }))) {
+        await navigator.share({ files: [file], title: 'Relatório de Reprodução' });
       } else {
-        doc.save(fileName);
+        const url = URL.createObjectURL(blob);
+        const anchor = document.createElement('a');
+        anchor.href = url;
+        anchor.download = fileName;
+        anchor.style.display = 'none';
+        document.body.appendChild(anchor);
+        anchor.click();
+        anchor.remove();
+        window.setTimeout(() => URL.revokeObjectURL(url), 30_000);
       }
     } catch (err) {
+      if (err instanceof DOMException && err.name === 'AbortError') return;
       console.error('Erro ao gerar PDF:', err);
       setErrorMessage('Falha ao gerar o PDF. Tente novamente.');
     } finally {
