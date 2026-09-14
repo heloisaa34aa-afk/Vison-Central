@@ -1,33 +1,20 @@
 {
-  "name": "vision-central-web",
-  "version": "1.0.0",
+  "name": "vision-central",
+  "private": true,
   "type": "module",
+  "workspaces": [
+    "vision-central-web",
+    "vision-central-backend"
+  ],
   "scripts": {
-    "dev": "vite",
-    "build": "vite build",
-    "start": "vite preview"
-  },
-  "dependencies": {
-    "@supabase/supabase-js": "^2.110.2",
-    "@tailwindcss/vite": "^4.1.14",
-    "@vitejs/plugin-react": "^5.0.4",
-    "jspdf": "^4.2.1",
-    "jspdf-autotable": "^5.0.8",
-    "lucide-react": "^0.546.0",
-    "motion": "^12.23.24",
-    "react": "^19.0.1",
-    "react-dom": "^19.0.1",
-    "react-router-dom": "^7.18.1",
-    "zustand": "^5.0.14"
+    "dev": "concurrently \"npm run dev -w vision-central-backend\" \"npm run dev -w vision-central-web\"",
+    "build": "npm run build -w vision-central-backend && npm run build -w vision-central-web",
+    "start": "concurrently \"npm run start -w vision-central-backend\" \"npm run start -w vision-central-web\"",
+    "lint": "tsc --noEmit -w vision-central-backend && tsc --noEmit -w vision-central-web"
   },
   "devDependencies": {
-    "autoprefixer": "^10.4.21",
-    "tailwindcss": "^4.1.14",
-    "vite": "^6.2.3",
-    "typescript": "~5.8.2",
-    "@types/react": "^19.0.1",
-    "@types/react-dom": "^19.0.1",
     "@vitejs/plugin-legacy": "^6.1.1",
+    "concurrently": "^8.2.2",
     "terser": "^5.49.2"
   }
 }
