@@ -5,11 +5,24 @@ import {
   Building2, 
   FileText,
   Rss,
-  Bell
+  Bell,
+  ShieldCheck,
+  LogOut,
+  UserRound
 } from 'lucide-react';
 import { Cliente, Tv, Playlist, Midia } from './types';
 import { storageService } from './lib/storage';
 import { supabase } from './lib/supabase';
+import { useAuth } from './auth/AuthContext';
+
+function heartbeatTimeMs(value: unknown): number {
+  if (typeof value !== 'string' || !value.trim()) return Number.NaN;
+  const normalized = value.trim()
+    .replace(' ', 'T')
+    .replace(/(\.\d{3})\d+/, '$1')
+    .replace(/([+-]\d{2})$/, '$1:00');
+  return Date.parse(normalized);
+}
 
 // Lazy loading components
 const Dashboard = lazy(() => import('./components/Dashboard.tsx'));
@@ -19,6 +32,7 @@ const ScreenSimulator = lazy(() => import('./components/ScreenSimulator.tsx'));
 const RelatorioReproducao = lazy(() => import('./components/RelatorioReproducao.tsx'));
 const FeedSourcesManager = lazy(() => import('./components/FeedSourcesManager.tsx'));
 const AlertsManager = lazy(() => import('./components/AlertsManager.tsx'));
+const AdminPanel = lazy(() => import('./components/AdminPanel.tsx'));
 
 const Loader = () => (
   <div className="flex flex-col items-center justify-center py-24 text-slate-400 space-y-4 w-full h-full">
@@ -28,7 +42,10 @@ const Loader = () => (
 );
 
 export default function App() {
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'clients' | 'client' | 'simulator' | 'relatorios' | 'feed_sources' | 'alertas'>('dashboard');
+  const { profile, user, signOut } = useAuth();
+  const isAdmin = profile?.role === 'admin';
+  const allowedClientId = isAdmin ? null : profile?.cliente_id || null;
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'clients' | 'client' | 'simulator' | 'relatorios' | 'feed_sources' | 'alertas' | 'admin'>(() => window.location.hash === '#alertas' ? 'alertas' : 'dashboard');
   const [selectedClientId, setSelectedClientId] = useState<string | null>(null);
   const [selectedClientIdForSim, setSelectedClientIdForSim] = useState<string | null>(null);
 
@@ -66,10 +83,14 @@ export default function App() {
         ]);
 
         if (isMounted) {
-          setClients(results[0].status === 'fulfilled' ? results[0].value || [] : []);
-          setDevices(results[1].status === 'fulfilled' ? results[1].value || [] : []);
-          setPlaylists(results[2].status === 'fulfilled' ? results[2].value || [] : []);
-          setMedia(results[3].status === 'fulfilled' ? results[3].value || [] : []);
+          const loadedClients = results[0].status === 'fulfilled' ? results[0].value || [] : [];
+          const loadedDevices = results[1].status === 'fulfilled' ? results[1].value || [] : [];
+          const loadedPlaylists = results[2].status === 'fulfilled' ? results[2].value || [] : [];
+          const loadedMedia = results[3].status === 'fulfilled' ? results[3].value || [] : [];
+          setClients(allowedClientId ? loadedClients.filter(item => item.id === allowedClientId) : loadedClients);
+          setDevices(allowedClientId ? loadedDevices.filter(item => item.clienteId === allowedClientId) : loadedDevices);
+          setPlaylists(allowedClientId ? loadedPlaylists.filter(item => item.clienteId === allowedClientId) : loadedPlaylists);
+          setMedia(allowedClientId ? loadedMedia.filter(item => item.clienteId === allowedClientId) : loadedMedia);
           setIsLoaded(true);
         }
       } catch (error) {
@@ -82,26 +103,34 @@ export default function App() {
 
     // Presence is not a Realtime table. Refresh only the lightweight online
     // indicators once per minute without replacing locally edited settings.
-    const presenceInterval = window.setInterval(async () => {
+    const refreshTvPresence = async () => {
       try {
         const { data: refreshed, error } = await supabase.from('tv_heartbeats')
           .select('tv_id,status,uptime,last_seen_at');
         if (error) throw error;
         if (!isMounted) return;
         const refreshedById = new Map((refreshed || []).map(tv => [tv.tv_id, tv]));
+        const now = Date.now();
         setDevices(previous => previous.map(tv => {
           const current = refreshedById.get(tv.id);
           return current ? {
             ...tv,
-            status: current.status,
+            status: Number.isFinite(heartbeatTimeMs(current.last_seen_at)) &&
+              now - heartbeatTimeMs(current.last_seen_at) <= 7 * 60 * 1000
+                ? 'Online'
+                : 'Offline',
             uptime: current.uptime,
             ultimaConexao: current.last_seen_at,
-          } : tv;
+          } : { ...tv, status: 'Offline' };
         }));
       } catch (error) {
         console.warn('Falha ao atualizar presença das TVs:', error);
       }
-    }, 60_000);
+    };
+
+    // Atualiza imediatamente e depois mantém uma consulta leve de presença.
+    void refreshTvPresence();
+    const presenceInterval = window.setInterval(refreshTvPresence, 30_000);
 
     // Single global realtime connection
     const channel = supabase.channel('global-app-changes')
@@ -110,6 +139,10 @@ export default function App() {
         { event: '*', schema: 'public', table: 'tvs' },
         (payload) => {
           if (!isMounted) return;
+          const newRow = payload.new as Record<string, unknown>;
+          const oldRow = payload.old as Record<string, unknown>;
+          const eventClientId = newRow?.cliente_id || oldRow?.cliente_id;
+          if (allowedClientId && eventClientId !== allowedClientId) return;
           if (payload.eventType === 'UPDATE') {
             const updatedTv = mapDbTvToUi(payload.new);
             setDevices(prev => prev.map(tv => tv.id === updatedTv.id ? {
@@ -138,6 +171,10 @@ export default function App() {
         { event: '*', schema: 'public', table: 'clientes' },
         (payload) => {
           if (!isMounted) return;
+          const newRow = payload.new as Record<string, unknown>;
+          const oldRow = payload.old as Record<string, unknown>;
+          const eventClientId = newRow?.id || oldRow?.id;
+          if (allowedClientId && eventClientId !== allowedClientId) return;
           if (payload.eventType === 'UPDATE') {
             const updatedClient = mapDbClientToUi(payload.new);
             setClients(prev => prev.map(c => c.id === updatedClient.id ? { ...c, ...updatedClient } : c));
@@ -162,7 +199,7 @@ export default function App() {
       window.clearInterval(presenceInterval);
       supabase.removeChannel(channel);
     };
-  }, []);
+  }, [allowedClientId]);
 
   const handleSelectClient = (id: string, view: 'edit' | 'simulator' = 'edit') => {
     if (view === 'edit') {
@@ -249,6 +286,11 @@ const mapDbClientToUi = (db: any): Cliente => {
               <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
               <span className="text-xs text-slate-400 font-mono font-medium">Conectado</span>
             </div>
+            <div className="hidden sm:flex items-center gap-2 pl-3 border-l border-white/10">
+              <UserRound className="w-4 h-4 text-slate-500" />
+              <div className="leading-tight max-w-40"><p className="text-xs font-bold text-slate-300 truncate">{profile?.full_name || user?.email}</p><p className="text-[9px] uppercase text-slate-600">{isAdmin ? 'Administrador' : 'Cliente'}</p></div>
+              <button onClick={signOut} title="Sair" className="p-2 text-slate-500 hover:text-rose-400"><LogOut className="w-4 h-4" /></button>
+            </div>
           </div>
         </div>
       </header>
@@ -260,11 +302,12 @@ const mapDbClientToUi = (db: any): Cliente => {
         <aside className="md:w-64 shrink-0 flex flex-row md:flex-col gap-1 overflow-x-auto md:overflow-x-visible pb-2 md:pb-0 scrollbar-none border-b md:border-b-0 md:border-r border-white/5 pr-0 md:pr-4">
           {[
             { id: 'dashboard', icon: LayoutDashboard, label: 'Painel Geral' },
-            { id: 'clients', icon: Building2, label: 'Clientes' },
+            ...(isAdmin ? [{ id: 'clients', icon: Building2, label: 'Clientes' }] : []),
             { id: 'simulator', icon: TvIcon, label: 'Configuração de TV' },
             { id: 'relatorios', icon: FileText, label: 'Relatórios' },
             { id: 'feed_sources', icon: Rss, label: 'Fontes de Feed' },
             { id: 'alertas', icon: Bell, label: 'Alertas' },
+            ...(isAdmin ? [{ id: 'admin', icon: ShieldCheck, label: 'Administração' }] : []),
           ].map(tab => (
             <button
               key={tab.id}
@@ -307,6 +350,13 @@ const mapDbClientToUi = (db: any): Cliente => {
                   onAddClient={async (newClient) => {
                     const success = await storageService.saveCliente(newClient);
                     if (success) {
+                      await supabase.from('client_subscriptions').upsert({
+                        cliente_id: newClient.id,
+                        max_screens: Math.max(1, Number(newClient.quantidadeTelas) || 1),
+                        starts_at: new Date().toISOString(),
+                        status: 'trial',
+                        updated_at: new Date().toISOString(),
+                      }, { onConflict: 'cliente_id' });
                       setClients(prev => [...prev, newClient]);
                       showToast('Cliente criado com sucesso!');
                     } else {
@@ -361,6 +411,9 @@ const mapDbClientToUi = (db: any): Cliente => {
               )}
               {activeTab === 'alertas' && (
                 <AlertsManager tvs={devices} clientes={clients} />
+              )}
+              {activeTab === 'admin' && isAdmin && (
+                <AdminPanel clientes={clients} tvs={devices} onOpenClient={handleSelectClient} />
               )}
             </Suspense>
           )}

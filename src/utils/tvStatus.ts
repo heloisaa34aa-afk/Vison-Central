@@ -20,7 +20,11 @@ export function isTvOnline(tv: Tv): boolean {
   }
 
   try {
-    const ultima = new Date(tv.ultimaConexao).getTime();
+    const normalized = tv.ultimaConexao.trim()
+      .replace(' ', 'T')
+      .replace(/(\.\d{3})\d+/, '$1')
+      .replace(/([+-]\d{2})$/, '$1:00');
+    const ultima = Date.parse(normalized);
 
     if (isNaN(ultima)) {
       return false;

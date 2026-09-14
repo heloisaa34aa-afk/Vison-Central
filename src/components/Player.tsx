@@ -236,6 +236,7 @@ export default function Player() {
       // 1. Subscribe to updates on Supabase Realtime
       const unsubscribe = playerService.subscribeToUpdates(
         deviceId,
+        () => playlistIdRef.current,
         {
           onTvUpdate: async (newTvData?: any) => {
             try {
@@ -283,14 +284,14 @@ export default function Player() {
         console.error('Erro ao marcar online na inicialização:', err);
       });
 
-      // Presence is stored outside Realtime and refreshed every two minutes.
+      // Periodic check-in / heartbeat every 10 seconds (ONLY updates Online status, avoids heavy duplicate fetch)
       const heartbeatInterval = setInterval(async () => {
         try {
           await playerService.sendHeartbeat(deviceId);
         } catch (err: any) {
           console.error('Falha no heartbeat periódico:', err);
         }
-      }, 120000);
+      }, 10000);
 
       // 3. Set status to offline on window unload/close
       const handleUnload = () => {

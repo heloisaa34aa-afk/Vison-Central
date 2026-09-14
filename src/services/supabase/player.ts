@@ -97,19 +97,17 @@ export const playerService = {
       return;
     }
 
-    const now = new Date().toISOString();
     const updatePayload = {
-      tv_id: tvId,
       status,
       uptime: status === 'Online' ? '24h 0m' : '0h 0m',
-      last_seen_at: now,
-      updated_at: now,
-      app_version: 'web-player'
+      ultima_conexao: new Date().toISOString(),
+      ultima_sincronizacao: new Date().toISOString()
     };
     
     await supabase
-      .from('tv_heartbeats')
-      .upsert(updatePayload, { onConflict: 'tv_id' });
+      .from('tvs')
+      .update(updatePayload)
+      .eq('id', tvId);
   },
 
   async sendHeartbeat(tvId: string): Promise<void> {
@@ -117,19 +115,17 @@ export const playerService = {
       return;
     }
 
-    const now = new Date().toISOString();
     const updatePayload = {
-      tv_id: tvId,
       status: 'Online',
       uptime: '24h 0m',
-      last_seen_at: now,
-      updated_at: now,
-      app_version: 'web-player'
+      ultima_conexao: new Date().toISOString(),
+      ultima_sincronizacao: new Date().toISOString()
     };
     
     await supabase
-      .from('tv_heartbeats')
-      .upsert(updatePayload, { onConflict: 'tv_id' });
+      .from('tvs')
+      .update(updatePayload)
+      .eq('id', tvId);
   },
 
   async broadcastConfigUpdate(tvId: string, config: Partial<Tv>) {
@@ -163,6 +159,7 @@ export const playerService = {
 
   subscribeToUpdates(
     tvId: string,
+    getPlaylistId: () => string | undefined,
     callbacks: {
       onTvUpdate: (payload?: any) => void;
       onPlaylistUpdate: () => void;
@@ -197,6 +194,33 @@ export const playerService = {
       'broadcast',
       { event: 'playlist_update' },
       () => {
+        callbacks.onPlaylistUpdate();
+      }
+    );
+
+    // Eventos na playlist
+    channel.on(
+      'postgres_changes',
+      { event: '*', schema: 'public', table: 'playlists' },
+      (payload: any) => {
+        callbacks.onPlaylistUpdate();
+      }
+    );
+
+    // Eventos em playlist_midias
+    channel.on(
+      'postgres_changes',
+      { event: '*', schema: 'public', table: 'playlist_midias' },
+      (payload: any) => {
+        callbacks.onPlaylistUpdate();
+      }
+    );
+
+    // Eventos em midias
+    channel.on(
+      'postgres_changes',
+      { event: '*', schema: 'public', table: 'midias' },
+      (payload: any) => {
         callbacks.onPlaylistUpdate();
       }
     );
