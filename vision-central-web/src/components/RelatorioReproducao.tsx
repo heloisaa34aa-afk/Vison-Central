@@ -170,14 +170,12 @@ export default function RelatorioReproducao() {
       // Cabeçalho institucional
       doc.setFillColor(5, 12, 27);
       doc.roundedRect(margin, 8, contentWidth, 34, 3, 3, 'F');
-      doc.setFillColor(255, 255, 255);
-      doc.roundedRect(15, 12, 57, 26, 2, 2, 'F');
       if (logoDataUrl) {
         // Mantém a proporção original da arte (4380 x 2075) para não deformar a marca.
         const logoWidth = 50;
         const logoHeight = logoWidth / (4380 / 2075);
-        const logoX = 15 + (57 - logoWidth) / 2;
-        const logoY = 12 + (26 - logoHeight) / 2;
+        const logoX = 17;
+        const logoY = 8 + (34 - logoHeight) / 2;
         doc.addImage(logoDataUrl, 'PNG', logoX, logoY, logoWidth, logoHeight, undefined, 'FAST');
       } else {
         doc.setFont('helvetica', 'bold');
