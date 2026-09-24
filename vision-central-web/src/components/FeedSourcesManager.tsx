@@ -3,7 +3,7 @@ import { Check, Edit2, Instagram, Plus, RefreshCw, Save, Trash2, X } from 'lucid
 import { API_URL } from '../config/api';
 import { storageService } from '../lib/storage';
 import { feedSourcesService } from '../services/supabase/feedSources';
-import { FeedSource, Playlist } from '../types';
+import { Cliente, FeedSource, Playlist, Tv } from '../types';
 import { useAuth } from '../auth/AuthContext';
 
 const DEFAULT_TIME = '08:00';
@@ -14,11 +14,14 @@ export default function FeedSourcesManager() {
   const ownerUserId = profile?.id || null;
   const [sources, setSources] = useState<FeedSource[]>([]);
   const [playlists, setPlaylists] = useState<Playlist[]>([]);
+  const [clients, setClients] = useState<Cliente[]>([]);
+  const [tvs, setTvs] = useState<Tv[]>([]);
   const [loading, setLoading] = useState(true);
   const [processingId, setProcessingId] = useState<string | null>(null);
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [perfil, setPerfil] = useState('');
+  const [tvId, setTvId] = useState('');
   const [playlistId, setPlaylistId] = useState('');
   const [horarioExecucao, setHorarioExecucao] = useState(DEFAULT_TIME);
   const [ativo, setAtivo] = useState(true);
@@ -31,17 +34,22 @@ export default function FeedSourcesManager() {
     setLoading(true);
     setErrorMsg('');
     try {
-      const [loadedSources, loadedPlaylists] = await Promise.all([
+      const [loadedSources, loadedPlaylists, loadedClients, loadedTvs] = await Promise.all([
         feedSourcesService.getAll(),
         storageService.getPlaylists(),
+        storageService.getClientes(),
+        storageService.getTvs(),
       ]);
       const safePlaylists = Array.isArray(loadedPlaylists) ? loadedPlaylists.filter(Boolean) : [];
-      const loadedClients = await storageService.getClientes();
-      const ownedClientIds = new Set((loadedClients || []).filter(item => item.ownerUserId === ownerUserId).map(item => item.id));
+      const visibleClients = (loadedClients || []).filter(item => item.ownerUserId === ownerUserId);
+      const ownedClientIds = new Set(visibleClients.map(item => item.id));
       const visiblePlaylists = safePlaylists.filter(item => Boolean(item.clienteId) && ownedClientIds.has(item.clienteId!));
+      const visibleTvs = (loadedTvs || []).filter(item => ownedClientIds.has(item.clienteId));
       const allowedPlaylistIds = new Set(visiblePlaylists.map(item => item.id));
       setSources(Array.isArray(loadedSources) ? loadedSources.filter(item => item && allowedPlaylistIds.has(item.playlist_id)) : []);
       setPlaylists(visiblePlaylists);
+      setClients(visibleClients);
+      setTvs(visibleTvs);
     } catch (error) {
       console.error('Erro ao carregar fontes:', error);
       setErrorMsg('Não foi possível carregar as fontes. Tente novamente.');
@@ -56,6 +64,10 @@ export default function FeedSourcesManager() {
     setEditingId(source?.id || null);
     setPerfil(source?.perfil || '');
     setPlaylistId(source?.playlist_id || '');
+    const directlyAssignedTvs = source
+      ? tvs.filter(tv => tv.playlistId === source.playlist_id)
+      : [];
+    setTvId(directlyAssignedTvs.length === 1 ? directlyAssignedTvs[0].id : '');
     setHorarioExecucao((source?.horario_execucao || DEFAULT_TIME).slice(0, 5));
     setAtivo(source?.ativo ?? true);
     setShowForm(true);
@@ -70,7 +82,27 @@ export default function FeedSourcesManager() {
       return;
     }
     if (!playlistId) {
-      setErrorMsg('Selecione a playlist de destino.');
+      setErrorMsg('Selecione a TV de destino. Essa TV precisa ter uma playlist própria.');
+      return;
+    }
+    const selectedTv = tvs.find(tv => tv.id === tvId);
+    if (!selectedTv) {
+      setErrorMsg('Selecione a TV que deve receber as publicações.');
+      return;
+    }
+    if (!selectedTv.playlistId) {
+      setErrorMsg(`A TV "${selectedTv.nome}" não possui uma playlist própria. Vincule uma playlist a ela em Configuração de TV antes de salvar.`);
+      return;
+    }
+    const conflictingTvs = tvs.filter(tv => {
+      if (tv.id === selectedTv.id) return false;
+      const client = clients.find(item => item.id === tv.clienteId);
+      const effectivePlaylistId = tv.playlistId || client?.playlistId;
+      return effectivePlaylistId === selectedTv.playlistId;
+    });
+    if (conflictingTvs.length > 0) {
+      const names = conflictingTvs.map(tv => tv.nome).join(', ');
+      setErrorMsg(`A playlist desta TV também é usada por: ${names}. Para enviar somente a uma TV, vincule uma playlist exclusiva a "${selectedTv.nome}".`);
       return;
     }
 
@@ -88,18 +120,42 @@ export default function FeedSourcesManager() {
 
     setProcessingId(editingId || 'new');
     try {
-      const saved = editingId
-        ? await feedSourcesService.update(editingId, payload)
-        : await feedSourcesService.create(payload);
+      const currentSource = editingId ? sources.find(source => source.id === editingId) : null;
+      const isMovingToAnotherTv = Boolean(currentSource && currentSource.playlist_id !== playlistId);
+      const isReactivating = Boolean(currentSource && !currentSource.ativo && ativo);
+      let saved: FeedSource | null;
+
+      if (editingId && isMovingToAnotherTv) {
+        const removed = await feedSourcesService.delete(editingId);
+        if (!removed) throw new Error('Não foi possível retirar a mídia da TV anterior. Nenhuma alteração foi concluída.');
+        saved = await feedSourcesService.create(payload);
+      } else {
+        saved = editingId
+          ? await feedSourcesService.update(editingId, payload)
+          : await feedSourcesService.create(payload);
+      }
       if (!saved) throw new Error('O banco não confirmou a gravação da fonte.');
 
-      setShowForm(false);
-      setSuccessMsg(editingId
-        ? 'Fonte atualizada. O novo horário já está programado.'
-        : 'Fonte adicionada. A primeira consulta foi iniciada.');
-      if (!editingId) {
-        await fetch(`${API_URL}/api/feed/sync/${saved.id}`, { method: 'POST' }).catch(() => null);
+      if (!ativo) {
+        const response = await fetch(`${API_URL}/api/feed/${encodeURIComponent(saved.id)}/deactivate`, { method: 'POST' });
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error(data.error || 'A fonte foi desativada, mas não foi possível retirar a mídia do player.');
+      } else if (!editingId || isMovingToAnotherTv || isReactivating) {
+        const response = await fetch(`${API_URL}/api/feed/sync/${saved.id}`, { method: 'POST' });
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error(data.error || 'A fonte foi salva, mas não foi possível iniciar a coleta.');
       }
+
+      setShowForm(false);
+      setSuccessMsg(!ativo
+        ? 'Fonte desativada. A mídia foi retirada da playlist e desaparecerá do player na próxima sincronização.'
+        : isMovingToAnotherTv
+          ? 'Fonte movida para a TV escolhida. A mídia anterior foi retirada e uma nova consulta foi iniciada.'
+          : isReactivating
+            ? 'Fonte reativada. Uma nova consulta foi iniciada.'
+        : editingId
+          ? 'Fonte atualizada. O novo horário já está programado.'
+          : 'Fonte adicionada. A primeira consulta foi iniciada.');
       await loadData();
     } catch (error: any) {
       setErrorMsg(error?.message || 'Não foi possível salvar a fonte.');
@@ -175,11 +231,27 @@ export default function FeedSourcesManager() {
                 <input required value={perfil} onChange={event => setPerfil(event.target.value)} placeholder="@seuperfil" className="w-full bg-[#050508]/40 border border-white/10 rounded-lg px-3 py-2 text-sm text-slate-200 focus:ring-1 focus:ring-pink-500 focus:outline-none" />
               </label>
               <label className="block space-y-1">
-                <span className="text-[10px] font-bold text-slate-400 uppercase">Playlist de destino</span>
-                <select required value={playlistId} onChange={event => setPlaylistId(event.target.value)} className="w-full bg-[#050508]/40 border border-white/10 rounded-lg px-3 py-2 text-sm text-slate-200">
-                  <option value="">Selecione uma playlist...</option>
-                  {playlists.map(playlist => <option key={playlist.id} value={playlist.id}>{playlist.nome}</option>)}
+                <span className="text-[10px] font-bold text-slate-400 uppercase">TV de destino</span>
+                <select
+                  required
+                  value={tvId}
+                  onChange={event => {
+                    const nextTvId = event.target.value;
+                    const selectedTv = tvs.find(tv => tv.id === nextTvId);
+                    setTvId(nextTvId);
+                    setPlaylistId(selectedTv?.playlistId || '');
+                  }}
+                  className="w-full bg-[#050508]/40 border border-white/10 rounded-lg px-3 py-2 text-sm text-slate-200"
+                >
+                  <option value="">Selecione uma TV...</option>
+                  {tvs.map(tv => {
+                    const client = clients.find(item => item.id === tv.clienteId);
+                    const playlist = playlists.find(item => item.id === tv.playlistId);
+                    return <option key={tv.id} value={tv.id}>{client?.nome || 'Cliente'} — {tv.nome}{playlist ? ` — ${playlist.nome}` : ' — sem playlist própria'}</option>;
+                  })}
                 </select>
+                {tvId && !playlistId && <span className="block text-[11px] text-amber-400">Esta TV ainda não tem playlist própria. Configure-a antes de adicionar o perfil.</span>}
+                {tvId && playlistId && <span className="block text-[11px] text-slate-500">A publicação será adicionada somente à playlist exclusiva desta TV.</span>}
               </label>
               <label className="block space-y-1">
                 <span className="text-[10px] font-bold text-slate-400 uppercase">Executar todos os dias às</span>
@@ -200,19 +272,30 @@ export default function FeedSourcesManager() {
         <div className="overflow-x-auto">
           <table className="w-full min-w-[860px] text-left">
             <thead className="bg-slate-800/30 border-b border-white/5"><tr>
-              {['Perfil', 'Playlist', 'Horário diário', 'Última execução', 'Resultado', 'Ações'].map(label => <th key={label} className="p-4 text-xs font-bold text-slate-400 uppercase">{label}</th>)}
+              {['Perfil', 'TV de destino', 'Horário diário', 'Última execução', 'Resultado', 'Ações'].map(label => <th key={label} className="p-4 text-xs font-bold text-slate-400 uppercase">{label}</th>)}
             </tr></thead>
             <tbody className="divide-y divide-white/5">
               {loading ? <tr><td colSpan={6} className="p-8 text-center text-slate-500">Carregando fontes...</td></tr> : sources.length === 0 ? <tr><td colSpan={6} className="p-8 text-center text-slate-500">Nenhuma fonte configurada.</td></tr> : sources.map(source => {
                 const playlist = playlists.find(item => item.id === source.playlist_id);
+                const directTvs = tvs.filter(tv => tv.playlistId === source.playlist_id);
+                const inheritedTvs = tvs.filter(tv => {
+                  if (tv.playlistId) return false;
+                  const client = clients.find(item => item.id === tv.clienteId);
+                  return client?.playlistId === source.playlist_id;
+                });
+                const targetTvs = [...directTvs, ...inheritedTvs];
                 return <tr key={source.id} className="hover:bg-white/5">
                   <td className="p-4 text-slate-200 font-medium">@{source.perfil}</td>
-                  <td className="p-4 text-sm text-slate-300">{playlist?.nome || 'Playlist não encontrada'}</td>
+                  <td className="p-4 text-sm text-slate-300">
+                    {targetTvs.length === 1 ? targetTvs[0].nome : targetTvs.length > 1 ? `${targetTvs.length} TVs usam esta playlist` : 'Nenhuma TV vinculada'}
+                    <span className="block text-[11px] text-slate-500 mt-1">{playlist?.nome || 'Playlist não encontrada'}</span>
+                    {targetTvs.length > 1 && <span className="block text-[10px] font-bold text-amber-400 mt-1">Compartilhada — edite para corrigir</span>}
+                  </td>
                   <td className="p-4 text-sm text-slate-300">{source.horario_execucao || DEFAULT_TIME}</td>
                   <td className="p-4 text-sm text-slate-400">{source.ultima_execucao ? new Date(source.ultima_execucao).toLocaleString('pt-BR') : 'Nunca'}</td>
                   <td className="p-4"><span className={`text-[10px] font-bold uppercase ${source.status === 'error' ? 'text-rose-400' : source.status === 'processing' ? 'text-cyan-400' : source.status === 'queued' ? 'text-amber-400' : source.ativo ? 'text-emerald-400' : 'text-slate-500'}`} title={source.ultimo_erro || ''}>{source.status === 'error' ? source.ultimo_erro || 'Erro' : source.status === 'processing' ? 'Coletando' : source.status === 'queued' ? 'Aguardando coletor' : source.ativo ? 'Ativo' : 'Inativo'}</span></td>
                   <td className="p-4"><div className="flex gap-2">
-                    <button disabled={processingId === source.id} onClick={() => void syncNow(source.id)} title="Sincronizar agora" className="p-2 text-slate-400 hover:text-emerald-400 disabled:opacity-40"><RefreshCw className={`w-4 h-4 ${processingId === source.id ? 'animate-spin' : ''}`} /></button>
+                    <button disabled={processingId === source.id || !source.ativo} onClick={() => void syncNow(source.id)} title={source.ativo ? 'Sincronizar agora' : 'Ative a fonte para sincronizar'} className="p-2 text-slate-400 hover:text-emerald-400 disabled:opacity-40"><RefreshCw className={`w-4 h-4 ${processingId === source.id ? 'animate-spin' : ''}`} /></button>
                     <button onClick={() => openForm(source)} title="Editar" className="p-2 text-slate-400 hover:text-white"><Edit2 className="w-4 h-4" /></button>
                     <button disabled={processingId === source.id} onClick={() => void removeSource(source.id)} title="Excluir" className="p-2 text-slate-400 hover:text-rose-400"><Trash2 className="w-4 h-4" /></button>
                   </div></td>
