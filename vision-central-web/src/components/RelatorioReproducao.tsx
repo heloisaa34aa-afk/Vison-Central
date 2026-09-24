@@ -9,6 +9,32 @@ const EMPTY_REPORT: HistoricoResumo = {
   list: [], totalExibicoes: 0, tempoGeral: 0, midiaMaisExibida: 'Nenhuma'
 };
 
+const YSARTAN_LOGO_URL = `${import.meta.env.BASE_URL}ysartan-logo.png`;
+
+async function loadImageDataUrl(url: string): Promise<string> {
+  const response = await fetch(url);
+  if (!response.ok) throw new Error('Logo da Ysartan não encontrada.');
+  const blob = await response.blob();
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result));
+    reader.onerror = () => reject(reader.error || new Error('Falha ao carregar a logo.'));
+    reader.readAsDataURL(blob);
+  });
+}
+
+function formatReportDate(value: string) {
+  return new Date(`${value}T12:00:00`).toLocaleDateString('pt-BR');
+}
+
+function formatMediaType(value: string) {
+  const labels: Record<string, string> = {
+    image: 'Imagem', video: 'Vídeo', website: 'Site', instagram: 'Instagram',
+    youtube: 'YouTube', google_maps: 'Google Maps', canva: 'Canva'
+  };
+  return labels[value] || value;
+}
+
 export default function RelatorioReproducao() {
   const { profile } = useAuth();
   const ownerUserId = profile?.id || null;
@@ -119,45 +145,145 @@ export default function RelatorioReproducao() {
       const { default: jsPDF } = await import('jspdf');
       const { default: autoTable } = await import('jspdf-autotable');
 
-      const doc = new jsPDF();
+      const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
       const clienteName = clientes.find(c => c.id === selectedCliente)?.nome || 'Todos';
-      
-      doc.setFontSize(16);
-      doc.text('Relatorio de Reproducao', 14, 20);
-      
-      doc.setFontSize(10);
-      doc.setTextColor(100);
-      doc.text(`Cliente: ${clienteName}`, 14, 30);
-      if (selectedTv) {
-        const tvName = tvs.find(t => t.id === selectedTv)?.nome || 'N/A';
-        doc.text(`TV: ${tvName}`, 14, 36);
+      const tvName = selectedTv ? tvs.find(t => t.id === selectedTv)?.nome || 'Não encontrada' : 'Todas as TVs';
+      const pageWidth = doc.internal.pageSize.getWidth();
+      const pageHeight = doc.internal.pageSize.getHeight();
+      const margin = 12;
+      const contentWidth = pageWidth - margin * 2;
+      const generatedAt = new Date().toLocaleString('pt-BR');
+      let logoDataUrl: string | null = null;
+      try {
+        logoDataUrl = await loadImageDataUrl(YSARTAN_LOGO_URL);
+      } catch (logoError) {
+        console.warn('Relatório gerado sem a imagem da logo:', logoError);
       }
-      doc.text(`Periodo: ${dataInicio} ate ${dataFim}`, 14, selectedTv ? 42 : 36);
 
-      doc.setFontSize(12);
-      doc.setTextColor(0);
-      doc.text('Resumo', 14, 56);
-      doc.setFontSize(10);
-      doc.setTextColor(100);
-      doc.text(`Tempo Total de Tela: ${formatShortTime(aggregatedData.tempoGeral)}`, 14, 64);
-      doc.text(`Total de Exibicoes: ${aggregatedData.totalExibicoes}`, 14, 70);
-      doc.text(`Midia Mais Exibida: ${aggregatedData.midiaMaisExibida}`, 14, 76);
+      doc.setProperties({
+        title: `Relatório de Reprodução - ${clienteName}`,
+        subject: `Exibições de ${formatReportDate(dataInicio)} a ${formatReportDate(dataFim)}`,
+        author: 'Ysartan Mídia Digital',
+        creator: 'Vision Central'
+      });
+
+      // Cabeçalho institucional
+      doc.setFillColor(5, 12, 27);
+      doc.roundedRect(margin, 8, contentWidth, 34, 3, 3, 'F');
+      doc.setFillColor(255, 255, 255);
+      doc.roundedRect(15, 12, 57, 26, 2, 2, 'F');
+      if (logoDataUrl) {
+        // Mantém a proporção original da arte (4380 x 2075) para não deformar a marca.
+        const logoWidth = 50;
+        const logoHeight = logoWidth / (4380 / 2075);
+        const logoX = 15 + (57 - logoWidth) / 2;
+        const logoY = 12 + (26 - logoHeight) / 2;
+        doc.addImage(logoDataUrl, 'PNG', logoX, logoY, logoWidth, logoHeight, undefined, 'FAST');
+      } else {
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(18);
+        doc.setTextColor(10, 190, 205);
+        doc.text('YSARTAN', 43.5, 28, { align: 'center' });
+      }
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(20);
+      doc.setTextColor(255, 255, 255);
+      doc.text('Relatório de Reprodução', 82, 22);
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(9);
+      doc.setTextColor(157, 174, 197);
+      doc.text('Comprovante detalhado das mídias exibidas nas telas', 82, 29);
+      doc.setTextColor(22, 218, 226);
+      doc.text(`Gerado em ${generatedAt}`, pageWidth - 17, 34, { align: 'right' });
+
+      // Identificação do relatório
+      doc.setFillColor(245, 248, 252);
+      doc.roundedRect(margin, 47, contentWidth, 23, 2, 2, 'F');
+      const infoColumns = [17, 105, 190];
+      const infoValues = [
+        ['CLIENTE', clienteName],
+        ['TV / TELA', tvName],
+        ['PERÍODO DE EXIBIÇÃO', `${formatReportDate(dataInicio)} a ${formatReportDate(dataFim)}`]
+      ];
+      infoValues.forEach(([label, value], index) => {
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(7.5);
+        doc.setTextColor(91, 108, 132);
+        doc.text(label, infoColumns[index], 55);
+        doc.setFontSize(11);
+        doc.setTextColor(15, 23, 42);
+        doc.text(doc.splitTextToSize(value, index === 2 ? 85 : 77), infoColumns[index], 63);
+      });
+
+      // Indicadores principais
+      const cardY = 76;
+      const gap = 5;
+      const cardWidth = (contentWidth - gap * 2) / 3;
+      const cards = [
+        ['TEMPO TOTAL DE TELA', formatShortTime(aggregatedData.tempoGeral)],
+        ['TOTAL DE EXIBIÇÕES', aggregatedData.totalExibicoes.toLocaleString('pt-BR')],
+        ['MÍDIA MAIS EXIBIDA', aggregatedData.midiaMaisExibida]
+      ];
+      cards.forEach(([label, value], index) => {
+        const x = margin + index * (cardWidth + gap);
+        doc.setFillColor(index === 2 ? 236 : 240, index === 2 ? 253 : 249, index === 2 ? 254 : 255);
+        doc.setDrawColor(208, 222, 235);
+        doc.roundedRect(x, cardY, cardWidth, 25, 2, 2, 'FD');
+        doc.setFillColor(18, 210, 221);
+        doc.rect(x, cardY, 2.2, 25, 'F');
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(7.5);
+        doc.setTextColor(86, 105, 129);
+        doc.text(label, x + 7, cardY + 7);
+        doc.setFontSize(index === 2 ? 9.2 : 15);
+        doc.setTextColor(9, 20, 38);
+        const valueLines = doc.splitTextToSize(value, cardWidth - 12).slice(0, 2);
+        doc.text(valueLines, x + 7, cardY + 16);
+      });
 
       const tableData = aggregatedData.list.map(item => [
         item.midia_nome,
-        item.midia_tipo,
-        item.exibicoes.toString(),
+        formatMediaType(item.midia_tipo),
+        item.exibicoes.toLocaleString('pt-BR'),
         formatTime(item.tempo_total),
         formatTime(item.tempo_medio)
       ]);
 
       autoTable(doc, {
-        startY: 85,
+        startY: 108,
         head: [['Mídia', 'Tipo', 'Qtd. Exibições', 'Tempo Total', 'Tempo Médio']],
         body: tableData,
         theme: 'grid',
-        styles: { fontSize: 9 },
-        headStyles: { fillColor: [41, 128, 185] }
+        margin: { left: margin, right: margin, bottom: 14 },
+        styles: {
+          font: 'helvetica', fontSize: 8.5, cellPadding: 2.4,
+          overflow: 'linebreak', valign: 'middle',
+          lineColor: [219, 228, 238], lineWidth: 0.2,
+          textColor: [38, 51, 68]
+        },
+        headStyles: {
+          fillColor: [8, 25, 47], textColor: [255, 255, 255],
+          fontStyle: 'bold', fontSize: 8.2, halign: 'left', minCellHeight: 10
+        },
+        alternateRowStyles: { fillColor: [247, 250, 252] },
+        columnStyles: {
+          0: { cellWidth: 139 },
+          1: { cellWidth: 30 },
+          2: { cellWidth: 32, halign: 'center' },
+          3: { cellWidth: 36, halign: 'center' },
+          4: { cellWidth: 36, halign: 'center' }
+        },
+        rowPageBreak: 'avoid',
+        didDrawPage: data => {
+          doc.setDrawColor(21, 207, 219);
+          doc.setLineWidth(0.5);
+          doc.line(margin, pageHeight - 10, pageWidth - margin, pageHeight - 10);
+          doc.setFont('helvetica', 'normal');
+          doc.setFontSize(7.5);
+          doc.setTextColor(100, 116, 139);
+          doc.text('Ysartan Mídia Digital | Relatório gerado pela plataforma Vision Central', margin, pageHeight - 5.5);
+          doc.text(`Página ${data.pageNumber}`, pageWidth - margin, pageHeight - 5.5, { align: 'right' });
+        }
       });
 
       const clientFileName = clienteName.replace(/\s+/g, '-').toLowerCase();
